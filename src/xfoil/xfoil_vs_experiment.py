@@ -282,8 +282,12 @@ if __name__ == "__main__":
         print(f"  Converged points: {len(val_polar)} "
               f"(alpha {val_polar[:, 0].min():+.1f} to {val_polar[:, 0].max():+.1f} deg)")
 
-        # Digitised experimental data lives in the repo's top-level data/ folder.
-        exp_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
+        # Digitised experimental data lives in the repo's top-level data/ folder
+        # (src/xfoil/ -> repo root -> data/).
+        exp_dir = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+            "data",
+        )
         cl_path = os.path.join(exp_dir, "0012_abbottdata_cl.dat")
         cd_path = os.path.join(exp_dir, "0012_abbottdata_cd.dat")
         ladson_path = os.path.join(exp_dir, "CLCD_Ladson_expdata.dat")

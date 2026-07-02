@@ -1,7 +1,7 @@
 import os
 
 _data_path = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
     "data", "uae6.z18.00.s0500000.eng",
 )
 

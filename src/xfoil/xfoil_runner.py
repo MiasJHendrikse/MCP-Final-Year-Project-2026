@@ -19,8 +19,8 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _DEFAULT_XFOIL = r"C:\Users\miash\Documents\XFOIL6.99\xfoil.exe"
 
 # All generated output (polars, figures) is collected in the repo's top-level
-# results/ folder, one level up from this script.
-RESULTS_DIR = os.path.abspath(os.path.join(_HERE, "..", "results"))
+# results/ folder, two levels up from this script (src/xfoil/ -> repo root).
+RESULTS_DIR = os.path.abspath(os.path.join(_HERE, "..", "..", "results"))
 
 
 def run_xfoil_polar(
