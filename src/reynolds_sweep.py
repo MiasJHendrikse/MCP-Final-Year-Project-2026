@@ -9,13 +9,10 @@ Runs XFOIL for NACA 2412 across a range of Reynolds numbers and plots a 2x2 grid
 """
 
 import os
-import sys
 
 import numpy as np
 import matplotlib.pyplot as plt
 
-# This script lives in validation/; xfoil_runner.py sits one level up.
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from xfoil_runner import run_xfoil_polar, RESULTS_DIR
 
 
@@ -132,4 +129,4 @@ if __name__ == "__main__":
     )
 
     print()
-    print("Done. PNG figure saved to the 'XFOIL Results' folder.")
+    print("Done. PNG figure saved to the 'results' folder.")

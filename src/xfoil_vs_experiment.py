@@ -7,13 +7,10 @@ wind-tunnel data from Abbott & von Doenhoff, "Theory of Wing Sections". Produces
 """
 
 import os
-import sys
 
 import numpy as np
 import matplotlib.pyplot as plt
 
-# This script lives in validation/; xfoil_runner.py sits one level up.
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from xfoil_runner import run_xfoil_polar, RESULTS_DIR
 
 
@@ -246,15 +243,7 @@ def plot_xfoil_vs_experiment(xfoil_polar, exp_data, airfoil_name, reynolds,
     else:
         print("  [WARN] No overlap between experimental and XFOIL alpha ranges — no CL error computed.")
 
-    # Caption: digitising caveat. (The Reynolds caveat is in the suptitle.)
-    fig.text(
-        0.5, 0.005,
-        ""
-        "'",
-        ha="center", fontsize=8, style="italic",
-    )
-
-    plt.tight_layout(rect=[0, 0.02, 1, 1])
+    plt.tight_layout()
 
     if save_path:
         plt.savefig(save_path, dpi=200, bbox_inches="tight")
@@ -293,8 +282,8 @@ if __name__ == "__main__":
         print(f"  Converged points: {len(val_polar)} "
               f"(alpha {val_polar[:, 0].min():+.1f} to {val_polar[:, 0].max():+.1f} deg)")
 
-        # Digitised experimental data lives in the data/ subfolder next to this script.
-        exp_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+        # Digitised experimental data lives in the repo's top-level data/ folder.
+        exp_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
         cl_path = os.path.join(exp_dir, "0012_abbottdata_cl.dat")
         cd_path = os.path.join(exp_dir, "0012_abbottdata_cd.dat")
         ladson_path = os.path.join(exp_dir, "CLCD_Ladson_expdata.dat")
@@ -324,4 +313,4 @@ if __name__ == "__main__":
             )
 
     print()
-    print("Done. PNG figure saved to the 'XFOIL Results' folder.")
+    print("Done. PNG figure saved to the 'results' folder.")

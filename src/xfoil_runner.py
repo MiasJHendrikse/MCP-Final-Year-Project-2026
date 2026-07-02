@@ -13,13 +13,14 @@ import subprocess
 import numpy as np
 
 
-# XFOIL ships as xfoil.exe next to this script; resolve it absolutely so the
-# wrapper works no matter what the caller's working directory is.
+# XFOIL is installed outside the repo; resolve it absolutely so the wrapper
+# works no matter what the caller's working directory is.
 _HERE = os.path.dirname(os.path.abspath(__file__))
-_DEFAULT_XFOIL = os.path.join(_HERE, "xfoil.exe")
+_DEFAULT_XFOIL = r"C:\Users\miash\Documents\XFOIL6.99\xfoil.exe"
 
-# All generated output (polars, figures) is collected here, next to this script.
-RESULTS_DIR = os.path.join(_HERE, "XFOIL Results")
+# All generated output (polars, figures) is collected in the repo's top-level
+# results/ folder, one level up from this script.
+RESULTS_DIR = os.path.abspath(os.path.join(_HERE, "..", "results"))
 
 
 def run_xfoil_polar(
@@ -50,8 +51,8 @@ def run_xfoil_polar(
         Alpha sweep bounds and step, in degrees.
     polar_path : str, optional
         Where to write the polar file. A bare filename or relative path is placed
-        inside the "XFOIL Results" folder next to this script; an absolute path is
-        used as given. Will be deleted first if it already exists.
+        inside the top-level "results" folder; an absolute path is used as given.
+        Will be deleted first if it already exists.
     n_iter : int, optional
         Maximum viscous-solver iterations per alpha (default 100).
     mach : float, optional
@@ -59,8 +60,8 @@ def run_xfoil_polar(
     timeout : float, optional
         Maximum wall-clock seconds before XFOIL is killed (default 120).
     xfoil_executable : str, optional
-        Path to the XFOIL executable. Defaults to the xfoil.exe bundled next to
-        this script. Pass a full path here to use an XFOIL installed elsewhere.
+        Path to the XFOIL executable. Defaults to the XFOIL 6.99 install in
+        Documents. Pass a full path here to use an XFOIL installed elsewhere.
 
     Returns
     -------
@@ -227,4 +228,4 @@ if __name__ == "__main__":
     summarise_polar(polar, label=f"{airfoil_cmd} @ Re={reynolds:,}")
 
     print()
-    print(f"Done. Polar saved to: {os.path.join('XFOIL Results', fname)}")
+    print(f"Done. Polar saved to: {os.path.join('results', fname)}")
