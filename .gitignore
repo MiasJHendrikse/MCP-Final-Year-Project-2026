@@ -1,0 +1,16 @@
+# Executables and binaries
+*.exe
+*.zip
+*.tif
+*.tiff
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
