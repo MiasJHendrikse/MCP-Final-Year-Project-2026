@@ -15,5 +15,5 @@ __pycache__/
 Thumbs.db
 desktop.ini
 
-# Obsidian workspace state (local, causes merge conflicts)
-docs/journal/.obsidian/workspace.json
+# Obsidian local config/state (causes merge conflicts)
+docs/journal/.obsidian/
