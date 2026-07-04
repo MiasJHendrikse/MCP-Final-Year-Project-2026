@@ -272,7 +272,7 @@ if __name__ == "__main__":
         alpha_min=-6,
         alpha_max=20,
         alpha_step=0.5,
-        polar_path="polar_naca0012_re6e6.txt",
+        polar_path=os.path.join("naca0012_validation", "polar_naca0012_re6e6.txt"),
         n_iter=300,
     )
 
@@ -282,11 +282,11 @@ if __name__ == "__main__":
         print(f"  Converged points: {len(val_polar)} "
               f"(alpha {val_polar[:, 0].min():+.1f} to {val_polar[:, 0].max():+.1f} deg)")
 
-        # Digitised experimental data lives in the repo's top-level data/ folder
-        # (src/xfoil/ -> repo root -> data/).
+        # Digitised experimental data lives in the repo's top-level
+        # data/naca0012_validated/ folder (src/xfoil/ -> repo root -> data/...).
         exp_dir = os.path.join(
             os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-            "data",
+            "data", "naca0012_validated",
         )
         cl_path = os.path.join(exp_dir, "0012_abbottdata_cl.dat")
         cd_path = os.path.join(exp_dir, "0012_abbottdata_cd.dat")
@@ -313,7 +313,7 @@ if __name__ == "__main__":
                 airfoil_name="NACA 0012",
                 reynolds=6_000_000,
                 ladson_data=ladson_data,
-                save_path=os.path.join(RESULTS_DIR, "naca0012_xfoil_vs_abbott_re6e6.png"),
+                save_path=os.path.join(RESULTS_DIR, "naca0012_validation", "naca0012_xfoil_vs_abbott_re6e6.png"),
             )
 
     print()

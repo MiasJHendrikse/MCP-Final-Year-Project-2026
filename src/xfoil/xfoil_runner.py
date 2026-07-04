@@ -9,6 +9,7 @@ Project: DSP810S — Inverse Design of Small Wind Turbine Blades
 """
 
 import os
+import shutil
 import subprocess
 import numpy as np
 
@@ -42,9 +43,13 @@ def run_xfoil_polar(
     ----------
     airfoil_cmd : str
         XFOIL command to load the airfoil. Either:
-          - "NACA 2412"       (built-in NACA 4-digit)
-          - "NACA 23012"      (built-in NACA 5-digit)
-          - "LOAD myfoil.dat" (custom coordinate file)
+          - "NACA 2412"           (built-in NACA 4-digit)
+          - "NACA 23012"          (built-in NACA 5-digit)
+          - "LOAD <path/to.dat>"  (custom Selig-format coordinate file, e.g. for
+            wind-turbine-dedicated airfoils like S809 that have no NACA parametric
+            equivalent). The path may be relative or absolute; it is resolved and
+            copied into the XFOIL working directory under its own basename before
+            the run, for the same reason polar_path is handled that way below.
     reynolds : float
         Reynolds number for viscous analysis.
     alpha_min, alpha_max, alpha_step : float
@@ -90,6 +95,20 @@ def run_xfoil_polar(
     # filename, which it always parses correctly.
     polar_dir = os.path.dirname(polar_path)
     polar_name = os.path.basename(polar_path)
+
+    # A "LOAD <coordinate file>" command hits the same space/long-path mangling
+    # issue as polar_path (this repo's own path has spaces in it). Resolve the
+    # coordinate file and copy it into the XFOIL working directory under its bare
+    # basename, then rewrite the command to reference that bare filename, exactly
+    # mirroring the polar_path handling above.
+    if airfoil_cmd.strip().upper().startswith("LOAD "):
+        coord_path = airfoil_cmd.strip()[len("LOAD "):].strip()
+        coord_path = os.path.abspath(coord_path)
+        if not os.path.exists(coord_path):
+            raise FileNotFoundError(f"Airfoil coordinate file not found: {coord_path}")
+        coord_name = os.path.basename(coord_path)
+        shutil.copy(coord_path, os.path.join(polar_dir, coord_name))
+        airfoil_cmd = f"LOAD {coord_name}"
 
     # The blank lines below are intentional:
     #   - After "G" : exits the PLOP submenu
@@ -208,8 +227,10 @@ if __name__ == "__main__":
     reynolds = 200_000
 
     # Build a filesystem-safe filename from the selection, e.g.
-    # "NACA 2412" -> "polar_naca2412_re200k.txt"
-    fname = f"polar_{airfoil_cmd.replace(' ', '').lower()}_re200k.txt"
+    # "NACA 2412" -> "polar_naca2412_re200k.txt". This __main__ block is a manual
+    # smoke test of the wrapper itself, so its output goes to _archive/ rather than
+    # results/ proper — keeps ad hoc test runs from colliding with real script output.
+    fname = os.path.join("_archive", f"polar_{airfoil_cmd.replace(' ', '').lower()}_re200k.txt")
 
     print()
     print("=" * 60)

@@ -117,7 +117,7 @@ if __name__ == "__main__":
             alpha_min=-4,
             alpha_max=14,
             alpha_step=0.5,
-            polar_path=f"polar_naca2412_re{re}.txt",
+            polar_path=os.path.join("xfoil_demos", f"polar_naca2412_re{re}.txt"),
             n_iter=200,
         )
         polars_by_re[re] = polar
@@ -125,7 +125,7 @@ if __name__ == "__main__":
     plot_polars_by_reynolds(
         polars_by_re,
         airfoil_name="NACA 2412",
-        save_path=os.path.join(RESULTS_DIR, "polars_naca2412_reynolds_sweep.png"),
+        save_path=os.path.join(RESULTS_DIR, "xfoil_demos", "polars_naca2412_reynolds_sweep.png"),
     )
 
     print()

@@ -94,7 +94,7 @@ if __name__ == "__main__":
             alpha_min=-6,
             alpha_max=14,
             alpha_step=0.5,
-            polar_path=f"polar_{fname}_re200k.txt",
+            polar_path=os.path.join("xfoil_demos", f"polar_{fname}_re200k.txt"),
             n_iter=200,
         )
         polars_by_airfoil[foil] = polar
@@ -102,7 +102,7 @@ if __name__ == "__main__":
     plot_airfoil_comparison(
         polars_by_airfoil,
         reynolds=200_000,
-        save_path=os.path.join(RESULTS_DIR, "polars_airfoil_comparison_re200k.png"),
+        save_path=os.path.join(RESULTS_DIR, "xfoil_demos", "polars_airfoil_comparison_re200k.png"),
     )
 
     print()
