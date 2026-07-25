@@ -119,8 +119,12 @@ def check_3_residual_smoothness(station, n=25):
 
 def main():
     airfoil = LinearPolar()
+    # R=1000 puts r/R ~ 0.005 -- far enough from the tip that Stage 2's
+    # Prandtl tip-loss factor F is 1.0 to double precision, so this remains
+    # a valid regression check of the original Stage 1 (uncorrected) numbers
+    # even though StationParams now requires R (see station.py).
     station = StationParams(
-        r=5.0, chord=0.3, twist=math.radians(5), airfoil=airfoil, tsr=5.0, n_blades=3
+        r=5.0, chord=0.3, twist=math.radians(5), airfoil=airfoil, tsr=5.0, R=1000.0, n_blades=3
     )
 
     ning_result = check_1_hand_bounds(station)

@@ -1,5 +1,5 @@
 """
-Stage 1: single blade-element station BEM solver, no corrections applied.
+Stage 2: single blade-element station BEM solver with Prandtl tip/hub loss.
 
 Implements Ning (2014)'s reduction of the coupled axial/tangential induction
 equations to a single residual equation in the inflow angle phi, solved with
@@ -9,16 +9,30 @@ near high induction and keeps the solve a single scalar equation, which
 matters later when this needs a discrete adjoint (one clean residual, no
 iterative state, no branching on convergence history).
 
-No tip-loss, no Glauert/Buhl high-thrust correction, no multi-station loop.
-Those are explicitly deferred to later sessions (see PROJECT_PLAN.md Phase 1).
+Stage 2 adds the Prandtl tip-loss factor F (and optional hub-loss) on the
+momentum-theory side of the induction equations -- see corrections.py for
+the convention used and why. Still no Glauert/Buhl high-thrust correction
+and no multi-station loop; those are deferred to later sessions (see
+PROJECT_PLAN.md Phase 1).
+
+r -> R (tip) limit
+------------------
+F -> 0 exactly at r = R makes the momentum-consistent a(phi) and a'(phi)
+collapse to the phi-independent constants 1 and -1 respectively (see
+corrections.tip_loss_factor docstring), which makes `residual` identically
+zero for *every* phi -- a completely degenerate, non-unique root. Station
+inputs must therefore keep r strictly < R; `StationParams.__post_init__`
+raises if r >= R rather than letting the solver silently fail on a
+degenerate residual.
 
 Reference
 ---------
 Ning, S.A. (2014). "A simple solution method for the blade element momentum
 equations with guaranteed convergence." Wind Energy, 17(9), 1327-1345.
 Hansen, M.O.L. (2008). "Aerodynamics of Wind Turbines" (2nd ed.) -- used here
-as the classical, uncorrected BEM formulation to cross-check against, since
-with no corrections applied the two formulations must agree analytically.
+as the classical, uncorrected BEM formulation to cross-check Stage 1 against,
+since with no corrections applied the two formulations must agree
+analytically (Stage 2's F=1 limit reduces to the same case).
 
 Author: MJ Hendrikse
 Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
@@ -29,6 +43,8 @@ from dataclasses import dataclass
 
 from scipy.optimize import brentq
 
+from bem.corrections import combined_loss_factor
+
 
 @dataclass
 class StationParams:
@@ -38,7 +54,8 @@ class StationParams:
     Parameters
     ----------
     r : float
-        Local radius, m.
+        Local radius, m. Must be strictly less than R (see module docstring
+        on the r -> R limit).
     chord : float
         Local chord length, m.
     twist : float
@@ -46,11 +63,18 @@ class StationParams:
         alpha = phi - twist.
     airfoil : object
         Callable/duck-typed polar with .cl(alpha) and .cd(alpha) in radians
-        (e.g. bem.airfoil.LinearPolar). Stage 1 uses a synthetic polar only.
+        (e.g. bem.airfoil.LinearPolar). Stage 1/2 use a synthetic polar only.
     tsr : float
         Local speed ratio at this station, Omega * r / Vinf.
+    R : float
+        Rotor (blade tip) radius, m. Used only for the Prandtl tip-loss
+        factor F (see corrections.tip_loss_factor).
     n_blades : int
         Number of blades, B.
+    r_hub : float or None
+        Hub radius, m. Optional -- if None (default), hub-loss is disabled
+        (F_hub = 1) rather than requiring every station to define hub
+        geometry (see corrections.hub_loss_factor).
     """
 
     r: float
@@ -58,7 +82,17 @@ class StationParams:
     twist: float
     airfoil: object
     tsr: float
+    R: float
     n_blades: int = 3
+    r_hub: float = None
+
+    def __post_init__(self):
+        if self.r >= self.R:
+            raise ValueError(
+                f"r={self.r} must be strictly less than R={self.R}; F_tip -> 0 "
+                "exactly at/beyond the tip degenerates the residual (see "
+                "module docstring)."
+            )
 
     @property
     def solidity(self):
@@ -66,23 +100,56 @@ class StationParams:
         return self.n_blades * self.chord / (2.0 * math.pi * self.r)
 
 
+def _blade_element_and_induction(phi, station: StationParams):
+    """
+    Shared core for residual() and _induction_factors(): blade-element force
+    coefficients (untouched by F) and the F-corrected momentum-consistent
+    induction factors a(phi), a'(phi) -- see corrections.py for why F only
+    enters here, on the momentum side, and not into cn/ct.
+    """
+
+    alpha = phi - station.twist
+    cl = station.airfoil.cl(alpha)
+    cd = station.airfoil.cd(alpha)
+
+    sin_phi = math.sin(phi)
+    cos_phi = math.cos(phi)
+
+    cn = cl * cos_phi + cd * sin_phi
+    ct = cl * sin_phi - cd * cos_phi
+
+    sigma = station.solidity
+    F = combined_loss_factor(station.r, station.R, station.n_blades, phi, station.r_hub)
+
+    # Momentum-consistent induction factors implied by this phi, with the
+    # Prandtl loss factor F multiplying the momentum term (Ning 2014;
+    # F=1 recovers the Stage 1 uncorrected equations exactly).
+    a = 1.0 / ((4.0 * F * sin_phi * sin_phi) / (sigma * cn) + 1.0)
+    a_prime = 1.0 / ((4.0 * F * sin_phi * cos_phi) / (sigma * ct) - 1.0)
+
+    return a, a_prime, cl, cd, cn, ct, F
+
+
 def residual(phi, station: StationParams):
     """
-    Ning-style BEM residual in the inflow angle phi, no corrections (F=1).
+    Ning-style BEM residual in the inflow angle phi, with Prandtl tip/hub
+    loss (F) applied on the momentum side (see corrections.py).
 
     Derivation: the blade-element normal/tangential force coefficients give
-    momentum-consistent induction factors a(phi), a'(phi) directly (no
-    fixed-point iteration needed); the residual is the mismatch between the
-    input phi and the phi implied by the kinematic relation
-    tan(phi) = (1-a) / ((1+a') * lambda_r), rearranged to avoid a division
-    (so it stays finite and smooth even as phi -> 0 or a, a' -> singular
-    values -- the property this formulation is chosen for).
+    F-corrected, momentum-consistent induction factors a(phi), a'(phi)
+    directly (no fixed-point iteration needed); the residual is the
+    mismatch between the input phi and the phi implied by the kinematic
+    relation tan(phi) = (1-a) / ((1+a') * lambda_r), rearranged to avoid a
+    division (so it stays finite and smooth even as phi -> 0 or a, a' ->
+    singular values -- the property this formulation is chosen for). This
+    kinematic relation itself does not involve F -- F only enters through
+    a(phi) and a'(phi).
 
     Parameters
     ----------
     phi : float
         Inflow angle, radians. Must lie strictly in (0, pi/2) for this
-        uncorrected, non-turbulent-wake-state formulation.
+        non-turbulent-wake-state formulation.
     station : StationParams
 
     Returns
@@ -91,44 +158,17 @@ def residual(phi, station: StationParams):
         Residual value; solve_station finds the phi where this is zero.
     """
 
-    alpha = phi - station.twist
-    cl = station.airfoil.cl(alpha)
-    cd = station.airfoil.cd(alpha)
-
+    a, a_prime, _, _, _, _, _ = _blade_element_and_induction(phi, station)
     sin_phi = math.sin(phi)
     cos_phi = math.cos(phi)
-
-    cn = cl * cos_phi + cd * sin_phi
-    ct = cl * sin_phi - cd * cos_phi
-
-    sigma = station.solidity
-
-    # Momentum-consistent induction factors implied by this phi (F=1, no
-    # high-thrust correction) -- see module docstring / Hansen (2008) Ch. 6.
-    a = 1.0 / ((4.0 * sin_phi * sin_phi) / (sigma * cn) + 1.0)
-    a_prime = 1.0 / ((4.0 * sin_phi * cos_phi) / (sigma * ct) - 1.0)
 
     return sin_phi * (1.0 + a_prime) * station.tsr - cos_phi * (1.0 - a)
 
 
 def _induction_factors(phi, station: StationParams):
-    """Recompute (a, a', Cl, Cd, Cn, Ct) at the solved phi (no residual)."""
+    """Recompute (a, a', Cl, Cd, Cn, Ct, F) at the solved phi (no residual)."""
 
-    alpha = phi - station.twist
-    cl = station.airfoil.cl(alpha)
-    cd = station.airfoil.cd(alpha)
-
-    sin_phi = math.sin(phi)
-    cos_phi = math.cos(phi)
-
-    cn = cl * cos_phi + cd * sin_phi
-    ct = cl * sin_phi - cd * cos_phi
-
-    sigma = station.solidity
-    a = 1.0 / ((4.0 * sin_phi * sin_phi) / (sigma * cn) + 1.0)
-    a_prime = 1.0 / ((4.0 * sin_phi * cos_phi) / (sigma * ct) - 1.0)
-
-    return a, a_prime, cl, cd, cn, ct
+    return _blade_element_and_induction(phi, station)
 
 
 def _select_bracket(station: StationParams, phi_range, n_scan):
@@ -143,8 +183,9 @@ def _select_bracket(station: StationParams, phi_range, n_scan):
     brentq a pole instead of the physical root. Scanning first and picking
     the sign change closest to the classical zero-induction inflow angle
     (phi0 = atan(1/tsr)) avoids that failure mode without needing the full
-    region-classification machinery Ning uses for the corrected solver --
-    that is out of scope for this uncorrected Stage 1 solver.
+    region-classification machinery Ning uses for the fully corrected
+    solver -- that full case analysis (needed for e.g. the turbulent-wake
+    state) is out of scope for this tip/hub-loss-only Stage 2 solver.
     """
 
     phi_lo, phi_hi = phi_range
@@ -191,11 +232,12 @@ def solve_station(station: StationParams, bracket=(1e-4, math.pi / 2 - 1e-4), n_
     Returns
     -------
     dict
-        phi, a, a_prime, Cl, Cd, Ct, Cq (all floats). Ct/Cq here are the
+        phi, a, a_prime, Cl, Cd, Ct, Cq, F (all floats). Ct/Cq here are the
         tangential-force and torque coefficients at this station (Cq = Ct,
         reported separately for clarity when this is later integrated over
         the blade -- torque = force x radius, not done at the single-station
-        stage).
+        stage). F is the combined Prandtl tip/hub loss factor at the solved
+        phi (F=1 recovers Stage 1's uncorrected result).
 
     Raises
     ------
@@ -210,7 +252,7 @@ def solve_station(station: StationParams, bracket=(1e-4, math.pi / 2 - 1e-4), n_
     else:
         phi = brentq(residual, phi_lo, phi_hi, args=(station,), xtol=1e-12, rtol=1e-12)
 
-    a, a_prime, cl, cd, cn, ct = _induction_factors(phi, station)
+    a, a_prime, cl, cd, cn, ct, F = _induction_factors(phi, station)
 
     return {
         "phi": phi,
@@ -220,4 +262,5 @@ def solve_station(station: StationParams, bracket=(1e-4, math.pi / 2 - 1e-4), n_
         "Cd": cd,
         "Ct": ct,
         "Cq": ct,
+        "F": F,
     }
