@@ -1,6 +1,8 @@
 """
-Stage 3: single blade-element station BEM solver with Prandtl tip/hub loss
-and the Glauert/Buhl high-thrust (turbulent wake state) correction.
+Single blade-element station BEM solver: Prandtl tip/hub loss (Stage 2) and
+the Glauert/Buhl high-thrust (turbulent wake state) correction (Stage 3).
+Stage 4 (rotor.py) loops this over stations spanwise with real polar data;
+this module itself is unchanged in Stage 4 beyond the r_hub guard below.
 
 Implements Ning (2014)'s reduction of the coupled axial/tangential induction
 equations to a single residual equation in the inflow angle phi, solved with
@@ -16,19 +18,19 @@ momentum-theory side of the induction equations. Stage 3 adds the Buhl
 once a exceeds ~0.4 (turbulent wake state), where plain momentum theory
 predicts an unphysical decrease in thrust -- see corrections.py for the
 closed-form used and why it is C0/C1-continuous with the plain relation at
-the switch, so it does not introduce a kink into this residual. Still no
-multi-station loop or real airfoil data; those are deferred to later
-sessions (see PROJECT_PLAN.md Phase 1).
+the switch, so it does not introduce a kink into this residual.
 
-r -> R (tip) limit
-------------------
+r -> R (tip) and r -> r_hub limits
+-----------------------------------
 F -> 0 exactly at r = R makes the momentum-consistent a(phi) and a'(phi)
 collapse to the phi-independent constants 1 and -1 respectively (see
 corrections.tip_loss_factor docstring), which makes `residual` identically
 zero for *every* phi -- a completely degenerate, non-unique root. Station
 inputs must therefore keep r strictly < R; `StationParams.__post_init__`
 raises if r >= R rather than letting the solver silently fail on a
-degenerate residual.
+degenerate residual. The same thing happens at r = r_hub (F_hub -> 0) --
+found while building Stage 4's rotor geometry, where the innermost station
+was initially placed exactly at r_hub; `__post_init__` raises for that too.
 
 Reference
 ---------
@@ -97,6 +99,16 @@ class StationParams:
                 f"r={self.r} must be strictly less than R={self.R}; F_tip -> 0 "
                 "exactly at/beyond the tip degenerates the residual (see "
                 "module docstring)."
+            )
+        if self.r_hub is not None and self.r_hub > 0 and self.r <= self.r_hub:
+            # Mirrors the r >= R guard above: F_hub -> 0 exactly at/inside the
+            # hub degenerates the residual the same way F_tip -> 0 does at
+            # the tip (see corrections.hub_loss_factor) -- found while
+            # building Stage 4's rotor geometry, where the innermost station
+            # was placed exactly at r_hub.
+            raise ValueError(
+                f"r={self.r} must be strictly greater than r_hub={self.r_hub}; "
+                "F_hub -> 0 exactly at/inside the hub degenerates the residual."
             )
 
     @property
