@@ -3,6 +3,15 @@ Stage 6: cross-check our BEM solver (Stages 1-4) against pyBEMT
 (https://github.com/kegiljarhus/pyBEMT, MIT licensed) on the real NREL
 Phase VI rotor geometry (bem.rotor.phase_vi_geometry).
 
+This is the first of three scripts in the Stage 6 cross-check pipeline:
+this one (run with pyBEMT's virtualenv) writes
+docs/validation/pybemt_case/results.json; compare_ccblade.py (run with
+CCBlade's virtualenv) writes docs/validation/ccblade_case/results.json;
+plot_bem_comparison.py (run with plain repo python) reads both and
+produces the combined three-way plot and deviation tables. Split this way
+because pyBEMT and CCBlade each need their own external virtualenv and
+cannot both be imported into one Python process.
+
 THIS IS NOT VALIDATION AGAINST EXPERIMENTAL DATA. Phase VI's own measured
 Cp-lambda curve could not be sourced this session (see the Stage 5 journal
 entry) -- this script only compares two independent BEM implementations
@@ -10,8 +19,8 @@ against each other on the same geometry and (as close as practical) the
 same input polar data. Agreement here says "two different pieces of BEM
 code, with different corrections and root-finding, land in the same
 neighbourhood" -- it is not evidence that either one matches the real
-rotor. See docs/validation/pybemt-comparison.md for the full writeup and
-how to reproduce this from a clean checkout.
+rotor. See docs/validation/bem-cross-validation.md for the full writeup
+and how to reproduce this from a clean checkout.
 
 pyBEMT is NOT vendored into this repository. It is expected to already be
 cloned and installed as a sibling directory, by default
@@ -50,6 +59,7 @@ Author: MJ Hendrikse
 Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
 """
 
+import json
 import math
 import os
 import sys
@@ -292,78 +302,12 @@ def main():
             "Ct_pybemt": ct_pybemt,
         })
 
+    results_path = os.path.join(DOCS_VALIDATION_DIR, "pybemt_case", "results.json")
+    with open(results_path, "w") as f:
+        json.dump(rows, f, indent=2)
+    print(f"Wrote results: {results_path}")
+
     return rows, ini_path
-
-
-def make_plot(rows, out_path):
-    import matplotlib
-
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-
-    tsr = [r["tsr"] for r in rows]
-    fig, (ax_cp, ax_ct) = plt.subplots(1, 2, figsize=(11, 4.5))
-
-    ax_cp.plot(tsr, [r["Cp_ours"] for r in rows], "o-", label="Our solver (Stages 1-4)")
-    ax_cp.plot(tsr, [r["Cp_pybemt"] for r in rows], "s--", label="pyBEMT")
-    ax_cp.set_xlabel("Tip-speed ratio")
-    ax_cp.set_ylabel("$C_p$")
-    ax_cp.set_title("Power coefficient")
-    ax_cp.legend()
-    ax_cp.grid(alpha=0.3)
-
-    ax_ct.plot(tsr, [r["Ct_ours"] for r in rows], "o-", label="Our solver (Stages 1-4)")
-    ax_ct.plot(tsr, [r["Ct_pybemt"] for r in rows], "s--", label="pyBEMT")
-    ax_ct.set_xlabel("Tip-speed ratio")
-    ax_ct.set_ylabel("$C_t$")
-    ax_ct.set_title("Thrust coefficient")
-    ax_ct.legend()
-    ax_ct.grid(alpha=0.3)
-
-    fig.suptitle(
-        "Our solver vs. pyBEMT on NREL Phase VI geometry (solver cross-check, not vs. experiment)"
-    )
-    fig.tight_layout()
-    fig.savefig(out_path, dpi=150)
-    print(f"Wrote plot: {out_path}")
-
-
-def make_deviation_table(rows):
-    """Markdown deviation table: peak Cp (within this sweep) + two off-design points."""
-
-    peak = max(rows, key=lambda r: r["Cp_ours"])
-    off_design = [r for r in rows if r["v_inf"] in (10.0, 25.0)]
-    highlighted = [peak] + off_design
-
-    lines = [
-        "| Wind speed (m/s) | TSR | Cp (ours) | Cp (pyBEMT) | Cp deviation | Ct (ours) | Ct (pyBEMT) | Ct deviation |",
-        "|---:|---:|---:|---:|---:|---:|---:|---:|",
-    ]
-    for r in highlighted:
-        cp_dev = r["Cp_ours"] - r["Cp_pybemt"]
-        cp_pct = 100.0 * cp_dev / r["Cp_pybemt"]
-        ct_dev = r["Ct_ours"] - r["Ct_pybemt"]
-        ct_pct = 100.0 * ct_dev / r["Ct_pybemt"]
-        tag = " (peak $C_p$ in this sweep)" if r is peak else ""
-        lines.append(
-            f"| {r['v_inf']:.1f}{tag} | {r['tsr']:.3f} | {r['Cp_ours']:.4f} | {r['Cp_pybemt']:.4f} | "
-            f"{cp_dev:+.4f} ({cp_pct:+.1f}%) | {r['Ct_ours']:.4f} | {r['Ct_pybemt']:.4f} | "
-            f"{ct_dev:+.4f} ({ct_pct:+.1f}%) |"
-        )
-    return "\n".join(lines)
-
-
-def make_full_table(rows):
-    lines = [
-        "| Wind speed (m/s) | TSR | Cp (ours) | Cp (pyBEMT) | Ct (ours) | Ct (pyBEMT) |",
-        "|---:|---:|---:|---:|---:|---:|",
-    ]
-    for r in rows:
-        lines.append(
-            f"| {r['v_inf']:.1f} | {r['tsr']:.3f} | {r['Cp_ours']:.4f} | {r['Cp_pybemt']:.4f} | "
-            f"{r['Ct_ours']:.4f} | {r['Ct_pybemt']:.4f} |"
-        )
-    return "\n".join(lines)
 
 
 if __name__ == "__main__":
@@ -373,11 +317,8 @@ if __name__ == "__main__":
     for row in rows:
         print(f"{row['v_inf']:6.1f} {row['tsr']:7.3f} {row['Cp_ours']:9.4f} "
               f"{row['Cp_pybemt']:10.4f} {row['Ct_ours']:9.4f} {row['Ct_pybemt']:10.4f}")
-
-    plot_path = os.path.join(DOCS_VALIDATION_DIR, "pybemt_cp_lambda_comparison.png")
-    make_plot(rows, plot_path)
-
-    print("\n--- Full sweep table (markdown) ---\n")
-    print(make_full_table(rows))
-    print("\n--- Deviation table: peak Cp + off-design points (markdown) ---\n")
-    print(make_deviation_table(rows))
+    print(
+        "\nNext: run compare_ccblade.py (with CCBlade's own virtualenv), then "
+        "plot_bem_comparison.py (plain repo python) for the combined three-way "
+        "plot and deviation tables -- see docs/validation/bem-cross-validation.md."
+    )
