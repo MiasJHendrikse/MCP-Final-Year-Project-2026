@@ -1,5 +1,6 @@
 """
-Stage 2: single blade-element station BEM solver with Prandtl tip/hub loss.
+Stage 3: single blade-element station BEM solver with Prandtl tip/hub loss
+and the Glauert/Buhl high-thrust (turbulent wake state) correction.
 
 Implements Ning (2014)'s reduction of the coupled axial/tangential induction
 equations to a single residual equation in the inflow angle phi, solved with
@@ -9,11 +10,15 @@ near high induction and keeps the solve a single scalar equation, which
 matters later when this needs a discrete adjoint (one clean residual, no
 iterative state, no branching on convergence history).
 
-Stage 2 adds the Prandtl tip-loss factor F (and optional hub-loss) on the
-momentum-theory side of the induction equations -- see corrections.py for
-the convention used and why. Still no Glauert/Buhl high-thrust correction
-and no multi-station loop; those are deferred to later sessions (see
-PROJECT_PLAN.md Phase 1).
+Stage 2 added the Prandtl tip-loss factor F (and optional hub-loss) on the
+momentum-theory side of the induction equations. Stage 3 adds the Buhl
+(2005) empirical correction that replaces the plain momentum Ct(a) relation
+once a exceeds ~0.4 (turbulent wake state), where plain momentum theory
+predicts an unphysical decrease in thrust -- see corrections.py for the
+closed-form used and why it is C0/C1-continuous with the plain relation at
+the switch, so it does not introduce a kink into this residual. Still no
+multi-station loop or real airfoil data; those are deferred to later
+sessions (see PROJECT_PLAN.md Phase 1).
 
 r -> R (tip) limit
 ------------------
@@ -43,7 +48,7 @@ from dataclasses import dataclass
 
 from scipy.optimize import brentq
 
-from bem.corrections import combined_loss_factor
+from bem.corrections import combined_loss_factor, corrected_axial_induction
 
 
 @dataclass
@@ -103,9 +108,20 @@ class StationParams:
 def _blade_element_and_induction(phi, station: StationParams):
     """
     Shared core for residual() and _induction_factors(): blade-element force
-    coefficients (untouched by F) and the F-corrected momentum-consistent
-    induction factors a(phi), a'(phi) -- see corrections.py for why F only
-    enters here, on the momentum side, and not into cn/ct.
+    coefficients (untouched by F or the Buhl correction) and the
+    momentum-consistent induction factors a(phi), a'(phi) -- see
+    corrections.py for why F only enters here, on the momentum side, and
+    not into cn/ct.
+
+    Axial induction a uses corrections.corrected_axial_induction, which
+    transparently switches to the Buhl (2005) high-thrust relation once the
+    naive momentum-theory value would exceed a=0.4 (turbulent wake state) --
+    see corrections.py for why this stays a single closed-form expression
+    (no inner iteration) and is C0/C1-continuous at the switch, so it does
+    not introduce a kink into this residual. Tangential induction a' is
+    unaffected -- the Buhl correction only addresses the axial thrust
+    relation's known breakdown at high a; standard practice leaves a'
+    on the plain momentum relation.
     """
 
     alpha = phi - station.twist
@@ -121,10 +137,8 @@ def _blade_element_and_induction(phi, station: StationParams):
     sigma = station.solidity
     F = combined_loss_factor(station.r, station.R, station.n_blades, phi, station.r_hub)
 
-    # Momentum-consistent induction factors implied by this phi, with the
-    # Prandtl loss factor F multiplying the momentum term (Ning 2014;
-    # F=1 recovers the Stage 1 uncorrected equations exactly).
-    a = 1.0 / ((4.0 * F * sin_phi * sin_phi) / (sigma * cn) + 1.0)
+    Y = sigma * cn / (sin_phi * sin_phi)
+    a = corrected_axial_induction(Y, F)
     a_prime = 1.0 / ((4.0 * F * sin_phi * cos_phi) / (sigma * ct) - 1.0)
 
     return a, a_prime, cl, cd, cn, ct, F
@@ -178,14 +192,19 @@ def _select_bracket(station: StationParams, phi_range, n_scan):
     The momentum-consistent a'(phi) used in `residual` has a genuine pole
     wherever Ct(phi) = 0 (a known BEM pathology, not specific to this
     implementation -- see Ning 2014 Sec. 3 for the full case analysis this
-    motivates). A pole crosses the residual's sign just like a true root
-    does, so naively bracketing on the endpoints of a wide range can hand
-    brentq a pole instead of the physical root. Scanning first and picking
-    the sign change closest to the classical zero-induction inflow angle
-    (phi0 = atan(1/tsr)) avoids that failure mode without needing the full
-    region-classification machinery Ning uses for the fully corrected
-    solver -- that full case analysis (needed for e.g. the turbulent-wake
-    state) is out of scope for this tip/hub-loss-only Stage 2 solver.
+    motivates). A symmetric pole exists on the axial side too: the plain
+    momentum relation a = Y / (4F + Y), Y = sigma*Cn/sin^2(phi), blows up
+    wherever Cn crosses -4*F*sin^2(phi)/sigma (found while building Stage
+    3's turbulent-wake test case, which happens to sweep through a small
+    negative Cn near stall-free zero-lift; flagged here rather than left
+    for a later session to rediscover -- see validate_stage3.py's explicit
+    check of it). Both poles cross the residual's sign just like a true
+    root does, so naively bracketing on the endpoints of a wide range can
+    hand brentq a pole instead of the physical root. Scanning first and
+    picking the sign change closest to the classical zero-induction inflow
+    angle (phi0 = atan(1/tsr)) avoids that failure mode without needing the
+    full region-classification machinery Ning uses for the fully corrected
+    solver -- that full case analysis is out of scope for this solver.
     """
 
     phi_lo, phi_hi = phi_range
