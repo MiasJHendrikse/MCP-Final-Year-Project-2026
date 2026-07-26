@@ -35,6 +35,9 @@ def run_xfoil_polar(
     mach=0.0,
     timeout=120,
     xfoil_executable=None,
+    ncrit=9.0,
+    n_panel=None,
+    bidirectional=False,
 ):
     """
     Run XFOIL for a single airfoil at a single Reynolds number across an alpha sweep.
@@ -67,12 +70,33 @@ def run_xfoil_polar(
     xfoil_executable : str, optional
         Path to the XFOIL executable. Defaults to the XFOIL 6.99 install in
         Documents. Pass a full path here to use an XFOIL installed elsewhere.
+    ncrit : float, optional
+        e^N transition criterion (XFOIL VPAR > N), default 9.0 (XFOIL's own
+        default, representing a clean wind tunnel). Lower values model a more
+        turbulent freestream by transitioning the boundary layer earlier, which
+        suppresses the long laminar separation bubbles that make XFOIL jump
+        between solution branches at low Reynolds number on thick sections.
+    n_panel : int or None, optional
+        Panel count for repanelling (XFOIL PPAR > N). None (default) uses a
+        plain PANE at XFOIL's default 160 panels. Raising this resolves the
+        leading-edge suction peak and any bubble more finely, at the cost of
+        runtime.
+    bidirectional : bool, optional
+        If False (default), sweep straight through with a single
+        ASEQ alpha_min -> alpha_max. If True, sweep outward from alpha = 0 in
+        two runs (0 -> alpha_max, then INIT and 0 -> alpha_min). Each ASEQ step
+        is initialised from the previous converged solution, so starting from
+        alpha = 0 — where the flow is attached and the solution is unambiguous —
+        keeps the sweep on the physical branch instead of dragging a stalled
+        alpha_min solution forward through the whole polar. Rows are deduplicated
+        (alpha = 0 is run twice) and returned in ascending alpha order.
 
     Returns
     -------
     numpy.ndarray or None
-        Polar data with columns [alpha, CL, CD, CDp, CM, Top_Xtr, Bot_Xtr].
-        Returns None if XFOIL timed out or failed to produce a polar file.
+        Polar data with columns [alpha, CL, CD, CDp, CM, Top_Xtr, Bot_Xtr],
+        sorted by ascending alpha. Returns None if XFOIL timed out or failed to
+        produce a polar file.
     """
 
     if xfoil_executable is None:
@@ -110,6 +134,24 @@ def run_xfoil_polar(
         shutil.copy(coord_path, os.path.join(polar_dir, coord_name))
         airfoil_cmd = f"LOAD {coord_name}"
 
+    # Repanelling: PANE accepts XFOIL's default 160 panels; PPAR sets an explicit
+    # count. The two trailing blank lines leave the PPAR submenu (one to accept
+    # the paneling, one to return to the top menu).
+    if n_panel is None:
+        panel_cmds = "PANE"
+    else:
+        panel_cmds = f"PPAR\nN {n_panel}\n\n"
+
+    # Sweeping outward from alpha = 0 keeps the viscous solution on the physical
+    # branch at low Re; INIT resets the boundary layer before reversing direction
+    # so the negative-alpha leg does not inherit the positive leg's final state.
+    if bidirectional:
+        sweep_cmds = (f"ASEQ 0 {alpha_max} {alpha_step}\n"
+                      f"INIT\n"
+                      f"ASEQ 0 {alpha_min} {-alpha_step}")
+    else:
+        sweep_cmds = f"ASEQ {alpha_min} {alpha_max} {alpha_step}"
+
     # The blank lines below are intentional:
     #   - After "G" : exits the PLOP submenu
     #   - After polar_name : skips the optional dump-filename prompt
@@ -117,15 +159,18 @@ def run_xfoil_polar(
 G
 
 {airfoil_cmd}
-PANE
+{panel_cmds}
 OPER
 VISC {reynolds}
 MACH {mach}
 ITER {n_iter}
+VPAR
+N {ncrit}
+
 PACC
 {polar_name}
 
-ASEQ {alpha_min} {alpha_max} {alpha_step}
+{sweep_cmds}
 PACC
 
 QUIT
@@ -164,6 +209,14 @@ QUIT
     # so the column-indexing convention is consistent for the caller.
     if data.ndim == 1:
         data = data.reshape(1, -1)
+
+    # PACC appends both legs of a bidirectional sweep to the one polar file, in
+    # run order (0 -> max, then 0 -> min) and with alpha = 0 present twice. Drop
+    # the duplicate and sort so the caller always receives an ascending, unique
+    # alpha axis — which is what save_polar_csv and PolarLookup assume.
+    _, unique_idx = np.unique(np.round(data[:, 0], 6), return_index=True)
+    data = data[np.sort(unique_idx)]
+    data = data[np.argsort(data[:, 0])]
 
     return data
 

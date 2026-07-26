@@ -34,6 +34,29 @@ DATA_DIR = os.path.abspath(os.path.join(RESULTS_DIR, "..", "data"))
 _DEFAULT_REYNOLDS_LIST = [100_000, 150_000, 200_000, 300_000, 400_000, 500_000]
 _DEFAULT_ALPHA_MIN, _DEFAULT_ALPHA_MAX, _DEFAULT_ALPHA_STEP = -8, 18, 0.5
 
+# Transition/paneling settings. These are NOT XFOIL's defaults, and the reason is
+# specific to S809 at the low end of the Re range above (see the 2026-07-26
+# journal entry for the full comparison):
+#
+#   ncrit=5 — XFOIL's default Ncrit=9 models a clean wind tunnel. On a section as
+#     thick as the S809 (21% t/c) at Re <= 150k that assumption keeps the boundary
+#     layer laminar far enough back to form a long separation bubble, and when the
+#     bubble bursts XFOIL settles onto a separated solution branch: the cached
+#     polars built that way had cl collapsing from 0.44 to -0.12 between alpha 1.5
+#     and 3 deg, and cl(alpha=0) coming out at 0.43 against a published ~0.15.
+#     Ncrit=5 represents the freestream turbulence a turbine actually operates in
+#     (atmospheric boundary layer, Ncrit ~ 4-7, not a tunnel), transitions the
+#     layer earlier, and suppresses the bubble. It yields a polar family that is
+#     monotonic in Re for cl(0), cl_max, cd_min and L/D_max, which Ncrit=9 was not.
+#   n_panel=240 — resolves the leading-edge suction peak finely enough that the
+#     remaining near-stall behaviour is smooth rather than panel-noise.
+#   bidirectional=True — sweep outward from alpha=0 rather than straight through
+#     from alpha_min, so the continuation starts from attached, unambiguous flow.
+#     This is what recovered full -8..+18 deg coverage at every Re; the previous
+#     single-pass sweep silently lost up to 6 alphas per curve.
+_DEFAULT_NCRIT = 5.0
+_DEFAULT_N_PANEL = 240
+
 # Registry of airfoils this pipeline knows how to cache. NACA 4412 was the
 # original primary target (see PROJECT_PLAN.md); the primary target has since
 # moved to S809 (NREL Phase VI's actual airfoil, with real low-Re tunnel data from
@@ -47,6 +70,88 @@ AIRFOILS = {
         label="s809",
     ),
 }
+
+
+def _expected_alphas(alpha_min, alpha_max, alpha_step):
+    """The alpha grid a sweep is supposed to produce, as a rounded array."""
+    n = int(round((alpha_max - alpha_min) / alpha_step)) + 1
+    return np.round(alpha_min + alpha_step * np.arange(n), 6)
+
+
+def fill_alpha_gaps(polar, airfoil_cmd, reynolds, alpha_min, alpha_max, alpha_step,
+                    raw_path, n_iter, timeout, ncrit, n_panel, refine=4):
+    """
+    Recover individual alphas the main sweep failed to converge.
+
+    XFOIL drops a non-converged alpha silently, which leaves interior holes in an
+    otherwise complete polar. Each hole is bracketed by converged neighbours, so
+    re-running just that neighbourhood at a finer step usually walks the viscous
+    solver through it: the continuation takes smaller steps across the awkward
+    region and lands on the missing alpha from a nearby converged state. Only rows
+    landing exactly on the original alpha grid are kept, so the cached curve keeps
+    its uniform spacing.
+
+    Parameters
+    ----------
+    polar : numpy.ndarray
+        Polar from the main sweep, columns as returned by run_xfoil_polar.
+    airfoil_cmd, reynolds, alpha_min, alpha_max, alpha_step : see build_polar_cache.
+    raw_path : str
+        Base path for the scratch polar files these retry runs write.
+    n_iter, timeout, ncrit, n_panel : see build_polar_cache.
+    refine : int, optional
+        Factor by which to shrink the alpha step within a gap (default 4).
+
+    Returns
+    -------
+    tuple of (numpy.ndarray, int)
+        The polar with any recovered rows merged in and re-sorted, and the number
+        of alphas recovered.
+    """
+
+    expected = _expected_alphas(alpha_min, alpha_max, alpha_step)
+    have = np.round(polar[:, 0], 6)
+    missing = np.setdiff1d(expected, have)
+    if len(missing) == 0:
+        return polar, 0
+
+    # Group consecutive missing alphas so one retry run covers a whole hole.
+    groups = []
+    for a in missing:
+        if groups and abs(a - groups[-1][-1] - alpha_step) < 1e-6:
+            groups[-1].append(a)
+        else:
+            groups.append([a])
+
+    recovered = []
+    stem, ext = os.path.splitext(raw_path)
+    for gi, group in enumerate(groups):
+        lo = max(group[0] - alpha_step, alpha_min)
+        hi = min(group[-1] + alpha_step, alpha_max)
+        segment = run_xfoil_polar(
+            airfoil_cmd=airfoil_cmd,
+            reynolds=reynolds,
+            alpha_min=lo,
+            alpha_max=hi,
+            alpha_step=alpha_step / refine,
+            polar_path=f"{stem}_gap{gi}{ext}",
+            n_iter=n_iter,
+            timeout=timeout,
+            ncrit=ncrit,
+            n_panel=n_panel,
+            bidirectional=False,
+        )
+        if segment is None:
+            continue
+        for row in segment:
+            if any(abs(row[0] - a) < 1e-6 for a in group):
+                recovered.append(row)
+
+    if not recovered:
+        return polar, 0
+
+    merged = np.vstack([polar, np.array(recovered)])
+    return merged[np.argsort(merged[:, 0])], len(recovered)
 
 
 def save_polar_csv(polar, csv_path):
@@ -70,7 +175,9 @@ def save_polar_csv(polar, csv_path):
 
 def build_polar_cache(airfoil_cmd, airfoil_label, reynolds_list,
                        alpha_min, alpha_max, alpha_step,
-                       n_iter=200, timeout=120):
+                       n_iter=200, timeout=120,
+                       ncrit=_DEFAULT_NCRIT, n_panel=_DEFAULT_N_PANEL,
+                       bidirectional=True):
     """
     Sweep Reynolds numbers for one airfoil and cache each converged polar as a CSV.
 
@@ -93,6 +200,15 @@ def build_polar_cache(airfoil_cmd, airfoil_label, reynolds_list,
         Max viscous-solver iterations per alpha (default 200).
     timeout : float, optional
         Max wall-clock seconds per XFOIL run before it is killed (default 120).
+    ncrit : float, optional
+        e^N transition criterion. Defaults to _DEFAULT_NCRIT (5.0) — see the note
+        on that constant for why this deliberately differs from XFOIL's 9.0.
+    n_panel : int or None, optional
+        Repanelling count, default _DEFAULT_N_PANEL (240). None uses XFOIL's
+        default 160-panel PANE.
+    bidirectional : bool, optional
+        Sweep outward from alpha = 0 in both directions (default True) rather
+        than straight through from alpha_min.
 
     Returns
     -------
@@ -116,11 +232,30 @@ def build_polar_cache(airfoil_cmd, airfoil_label, reynolds_list,
             polar_path=raw_path,
             n_iter=n_iter,
             timeout=timeout,
+            ncrit=ncrit,
+            n_panel=n_panel,
+            bidirectional=bidirectional,
         )
 
         if polar is None:
             print(f"  [WARN] No converged polar for {airfoil_cmd} at Re={re:,} — skipping cache entry.")
             continue
+
+        polar, n_recovered = fill_alpha_gaps(
+            polar, airfoil_cmd, re, alpha_min, alpha_max, alpha_step,
+            raw_path=raw_path, n_iter=n_iter, timeout=timeout,
+            ncrit=ncrit, n_panel=n_panel,
+        )
+        if n_recovered:
+            print(f"    Gap-fill recovered {n_recovered} alpha(s) the main sweep dropped.")
+
+        still_missing = np.setdiff1d(
+            _expected_alphas(alpha_min, alpha_max, alpha_step),
+            np.round(polar[:, 0], 6),
+        )
+        if len(still_missing):
+            print(f"    [WARN] {len(still_missing)} alpha(s) still unconverged: "
+                  f"{[float(a) for a in still_missing]}")
 
         csv_path = os.path.join(output_dir, f"{airfoil_label.upper()}_Re{re}.csv")
         save_polar_csv(polar, csv_path)
@@ -156,7 +291,12 @@ if __name__ == "__main__":
         alpha_min=_DEFAULT_ALPHA_MIN,
         alpha_max=_DEFAULT_ALPHA_MAX,
         alpha_step=_DEFAULT_ALPHA_STEP,
-        n_iter=300,
+        n_iter=400,
+        # A 240-panel bidirectional sweep is a few hundred viscous solves; the
+        # 120 s default is not enough and silently truncates the polar (XFOIL is
+        # killed mid-sweep, so the run looks "converged up to alpha X" rather
+        # than failed). 900 s per Reynolds number leaves ample headroom.
+        timeout=900,
     )
 
     print()
