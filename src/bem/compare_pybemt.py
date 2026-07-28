@@ -68,6 +68,7 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + "/..")
 
+from bem import export_qblade  # noqa: E402
 from bem.rotor import phase_vi_geometry, solve_rotor  # noqa: E402
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -111,6 +112,32 @@ def build_dense_table(re_bucket):
     alpha_clamped = np.clip(ALPHA_GRID_DEG, alpha_lo, alpha_hi)
     cl = np.interp(alpha_clamped, alpha_c, cl_c)
     cd = np.interp(alpha_clamped, alpha_c, cd_c)
+    return ALPHA_GRID_DEG.copy(), cl, cd
+
+
+def build_dense_table_viterna(re_bucket):
+    """
+    Same purpose as build_dense_table (alpha_grid_deg, cl, cd for one Reynolds
+    bucket), but Viterna-extrapolated outside the XFOIL-converged range instead
+    of flat-clamped -- i.e. the same post-stall model as the QBlade .plr export
+    (bem.export_qblade.build_full_range_polar).
+
+    Use this one only for QBlade cross-checks (own solver vs QBlade Rotor BEM).
+    build_dense_table's flat clamp remains the one used for the pyBEMT/CCBlade
+    fairness comparison (see module docstring) -- swapping that one too would
+    just be comparing a different post-stall model, not a solver difference.
+    Deep-stall stations (roughly 15-25 m/s / low TSR here) are exactly where
+    the two extrapolation schemes disagree, which is the point of having both.
+    """
+
+    path = os.path.join(DATA_DIR, "polars", "s809", f"S809_Re{re_bucket}.csv")
+    data = np.loadtxt(path, delimiter=",", skiprows=1)
+    full = export_qblade.build_full_range_polar(
+        data[:, 0], data[:, 1], data[:, 2], data[:, 3], step=0.5
+    )
+    alpha_full, cl_full, cd_full = full[:, 0], full[:, 1], full[:, 2]
+    cl = np.interp(ALPHA_GRID_DEG, alpha_full, cl_full)
+    cd = np.interp(ALPHA_GRID_DEG, alpha_full, cd_full)
     return ALPHA_GRID_DEG.copy(), cl, cd
 
 
