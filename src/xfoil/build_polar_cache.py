@@ -26,12 +26,25 @@ from xfoil_runner import run_xfoil_polar, RESULTS_DIR
 
 DATA_DIR = os.path.abspath(os.path.join(RESULTS_DIR, "..", "data"))
 
-# Same Re/alpha sweep logic applied to every airfoil cached so far: Re = 100k-500k
-# spans the expected operating range for a small turbine at a ~5-6 m/s mean-wind,
-# low-Re site (Windhoek-area); alpha -8 to 18 deg covers attached flow plus enough
-# post-stall range for the Viterna extrapolation (Phase 1 BEM) to have a real
-# XFOIL-derived baseline near the stall boundary.
-_DEFAULT_REYNOLDS_LIST = [100_000, 150_000, 200_000, 300_000, 400_000, 500_000]
+# Re = 100k-500k was the original range: it spans the expected operating range
+# for a small turbine at a ~5-6 m/s mean-wind, low-Re site (Windhoek-area).
+# That range does NOT cover the real NREL Phase VI rotor used from Stage 4
+# onward: bem.rotor.phase_vi_geometry's chord-based station Reynolds numbers
+# run from ~525k (5 m/s, inboard) to ~1.31M (25 m/s, outboard) across the
+# Sequence S wind-speed sweep (see compare_pybemt.py) -- every station at
+# every wind speed was clamping to this cache's old 500k ceiling (S809Polar's
+# out-of-range clamp in bem/airfoil.py), so there was zero real Re variation
+# in any Phase VI run. 600k-1.3M in 100k steps was added (2026-07-28) to
+# bracket that actual range with the same resolution as the original sweep;
+# see the 2026-07-28 journal entry for the before/after and the convergence
+# check at the new, higher-Re end.
+# alpha -8 to 18 deg covers attached flow plus enough post-stall range for the
+# Viterna extrapolation (Phase 1 BEM) to have a real XFOIL-derived baseline
+# near the stall boundary.
+_DEFAULT_REYNOLDS_LIST = [
+    100_000, 150_000, 200_000, 300_000, 400_000, 500_000,
+    600_000, 700_000, 800_000, 900_000, 1_000_000, 1_100_000, 1_200_000, 1_300_000,
+]
 _DEFAULT_ALPHA_MIN, _DEFAULT_ALPHA_MAX, _DEFAULT_ALPHA_STEP = -8, 18, 0.5
 
 # Transition/paneling settings. These are NOT XFOIL's defaults, and the reason is

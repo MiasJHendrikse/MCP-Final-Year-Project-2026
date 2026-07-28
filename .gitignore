@@ -21,3 +21,6 @@ docs/journal/.obsidian/
 # Coordinate files the XFOIL wrapper copies into its working directory per run
 # (byproduct of run_xfoil_polar; the real ones live in data/airfoils/)
 results/_archive/*.dat
+
+# Local one-time testing scratch space (not synced)
+/testing/
