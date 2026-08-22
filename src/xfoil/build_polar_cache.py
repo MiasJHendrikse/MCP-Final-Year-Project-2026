@@ -22,7 +22,7 @@ import os
 
 import numpy as np
 
-from xfoil_runner import run_xfoil_polar, RESULTS_DIR
+from xfoil.xfoil_runner import run_xfoil_polar, RESULTS_DIR
 
 DATA_DIR = os.path.abspath(os.path.join(RESULTS_DIR, "..", "data"))
 

@@ -182,16 +182,17 @@ any of these comparisons were meaningful.
 
 ## How to reproduce
 
-Three scripts, run in order, each needing its own environment (see
-`compare_pybemt.py`'s module docstring for why they're split):
+Three scripts in `src/validation/`, run in order, each needing its own
+environment (see `compare_pybemt.py`'s module docstring for why they're
+split):
 
-1. `compare_pybemt.py` -- pyBEMT's virtualenv -- writes
+1. `validation/compare_pybemt.py` -- pyBEMT's virtualenv -- writes
    `docs/validation/pybemt_case/results.json`
-2. `compare_ccblade.py` -- CCBlade's virtualenv -- writes
+2. `validation/compare_ccblade.py` -- CCBlade's virtualenv -- writes
    `docs/validation/ccblade_case/results.json`
-3. `plot_bem_comparison.py` -- plain repo python (only needs numpy +
-   matplotlib, already used elsewhere in this repo) -- reads both JSON
-   files, writes `docs/validation/bem_cross_validation_comparison.png`,
+3. `validation/plot_bem_comparison.py` -- plain repo python (only needs
+   numpy + matplotlib, already used elsewhere in this repo) -- reads both
+   JSON files, writes `docs/validation/bem_cross_validation_comparison.png`,
    prints the markdown tables above
 
 ### 1. pyBEMT
@@ -226,7 +227,7 @@ Run (from this repo's `src/`):
 
 ```
 cd src
-"../../pybemt-reference/.venv/Scripts/python.exe" -m bem.compare_pybemt
+"../../pybemt-reference/.venv/Scripts/python.exe" -m validation.compare_pybemt
 ```
 
 If the clone lives somewhere other than the default sibling location, set
@@ -264,7 +265,7 @@ Run (from this repo's `src/`):
 
 ```
 cd src
-"../../ccblade-reference/.venv/Scripts/python.exe" -m bem.compare_ccblade
+"../../ccblade-reference/.venv/Scripts/python.exe" -m validation.compare_ccblade
 ```
 
 If the environment lives somewhere other than the default sibling
@@ -274,7 +275,7 @@ location, set `CCBLADE_REFERENCE_PATH` first.
 
 ```
 cd src
-python -m bem.plot_bem_comparison
+python -m validation.plot_bem_comparison
 ```
 
 Uses this repo's normal Python environment (matplotlib/numpy, already a

@@ -18,9 +18,13 @@ desktop.ini
 # Obsidian local config/state (causes merge conflicts)
 docs/journal/.obsidian/
 
-# Coordinate files the XFOIL wrapper copies into its working directory per run
-# (byproduct of run_xfoil_polar; the real ones live in data/airfoils/)
-results/_archive/*.dat
+# Raw XFOIL scratch output. build_polar_cache.py and xfoil_runner.py write
+# their unparsed run output and per-run coordinate copies here; both are
+# regenerable byproducts, and the distilled cache lives in data/polars/.
+# The directory itself is kept (via .gitkeep) because those scripts write
+# into it without creating it.
+results/_archive/*
+!results/_archive/.gitkeep
 
 # Local one-time testing scratch space (not synced)
 /testing/

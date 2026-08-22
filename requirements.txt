@@ -1,0 +1,21 @@
+# Runtime dependencies for the in-repo code (src/bem, src/xfoil,
+# src/validation, src/demos). Lower bounds are the versions this project has
+# actually been developed and validated against -- see docs/journal/.
+#
+#   python -m pip install -r requirements.txt
+#
+# Python 3.12 or newer (the repo has been run on 3.12.10).
+numpy>=2.2.5
+scipy>=1.15.2
+matplotlib>=3.10.1
+
+# NOT installed by this file, deliberately:
+#
+#   XFOIL 6.99   external binary, needed only to REGENERATE the polar cache
+#                (src/xfoil/). The cache itself is committed under
+#                data/polars/, so nothing else in the repo needs XFOIL.
+#                Path is set by _DEFAULT_XFOIL in src/xfoil/xfoil_runner.py.
+#   pyBEMT       cross-validation reference, installed in its own virtualenv
+#   CCBlade      as a sibling clone OUTSIDE this repo -- never vendored in.
+#   (wisdem)     See docs/validation/bem-cross-validation.md for setup.
+#   QBlade CE    external GUI application, used manually. See data/qblade/.

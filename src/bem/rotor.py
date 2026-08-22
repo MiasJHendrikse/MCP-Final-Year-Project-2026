@@ -10,8 +10,14 @@ spanwise geometry, (b) a per-station Reynolds estimate so the real polar
 can be queried, (c) the loop itself, and (d) trapezoidal spanwise
 integration to rotor-level Ct, Cp.
 
-Not done here (explicitly deferred): the Cp-lambda sweep validation against
-NREL Phase VI, AEP integration, and anything adjoint-related. The demo
+This module answers one operating point. Sweeping it across wind speeds or
+tip-speed ratios -- the power curve and the Cp-lambda curve, in dimensional
+units -- lives in powercurve.py, which calls straight through to
+`solve_rotor` and adds no aerodynamics of its own.
+
+Not done here (explicitly deferred): validation against NREL Phase VI
+*experimental* performance data (still unsourced -- see the 2026-07-25
+journal entry, Stage 5), AEP integration, and anything adjoint-related. The demo
 geometry below is a synthetic, smoothly-tapered/twisted blade chosen only to
 exercise the pipeline sensibly -- it is NOT NREL Phase VI's published
 chord/twist table, which will be sourced properly in the dedicated
