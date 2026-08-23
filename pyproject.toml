@@ -1,0 +1,50 @@
+# Packaging + test configuration.
+#
+# Pulled forward from the remediation work order's Task 7 (test
+# infrastructure) because Task 0's golden regression cannot run without it:
+# `src/` is not otherwise importable from the repo root, and every module in
+# the project assumes `cwd == src/`. Only this one file is pulled forward --
+# the rest of Task 7 (the ported stage validators, the import-invariant test,
+# the polar-cache checks) stays in Task 7.
+#
+# Two mechanisms, deliberately both present:
+#
+#   [tool.setuptools] package-dir   makes `pip install -e .` put bem/, xfoil/,
+#                                   validation/, demos/ on the path properly.
+#   [tool.pytest]     pythonpath    makes `pytest` work from the repo root
+#                                   with no install step at all, which is how
+#                                   the golden regression is actually run
+#                                   after every remediation task.
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "adjoint-bem-blade"
+version = "0.1.0"
+description = "Gradient-based aerodynamic optimisation of a small wind turbine blade using a discrete-adjoint BEM framework"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "numpy>=2.2.5",
+    "scipy>=1.15.2",
+    "matplotlib>=3.10.1",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8.0"]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+# `src` so `import bem` / `import xfoil` / `import validation` resolve exactly
+# as they do when running from src/; `tests` so the test modules can import
+# the shared golden_reference helper.
+pythonpath = ["src", "tests"]
+testpaths = ["tests"]
