@@ -1,0 +1,83 @@
+# S809 polar cache, AS BUILT. PROJECT_PLAN.md section 3.3.
+#
+# DESCRIPTIVE, NOT A REBUILD INSTRUCTION. This file records the settings the
+# committed cache under `data/polars/s809/` was actually generated with, so a
+# reader can tell what the numbers in that directory mean without re-deriving
+# it from the build script's current defaults -- which are free to change.
+# Regenerating this cache is explicitly out of scope (remediation work order,
+# ground rule 1): it is the polar basis for the entire Phase VI solver
+# validation and all three cross-tool comparisons rest on it.
+#
+# Calibration is per-cache metadata by design. The SG6043 design-rotor cache
+# is independent and will be built at whatever n_crit its own sensitivity
+# study selects (plan section 3.3); there is deliberately no global default
+# Ncrit anywhere in the repo.
+#
+# Read only through `src/config` (config.load_polar_cache("s809")).
+
+name: s809
+airfoil: S809
+directory: data/polars/s809
+description: >-
+  XFOIL polar cache for the NREL S809, covering the Phase VI validation
+  rotor's per-station Reynolds range across the Sequence S wind-speed sweep.
+
+build:
+  ncrit: 5.0        # NOT XFOIL's default 9 -- deliberate. At Ncrit=9 the 21%
+                    # thick S809 forms a laminar separation bubble at
+                    # Re <= 150k which bursts onto a separated branch (Cl went
+                    # negative at +3 deg incidence). Ncrit=5 represents
+                    # atmospheric-boundary-layer turbulence (Ncrit ~ 4-7).
+                    # Full reasoning: data/polars/s809/README.md and the
+                    # 2026-07-26 journal entry.
+  n_panel: 240      # resolves the leading-edge suction peak
+  alpha_min_deg: -8.0
+  alpha_max_deg: 18.0
+  alpha_step_deg: 0.5
+  reynolds:
+    - 100000
+    - 150000
+    - 200000
+    - 300000
+    - 400000
+    - 500000
+    - 600000
+    - 700000
+    - 800000
+    - 900000
+    - 1000000
+    - 1100000
+    - 1200000
+    - 1300000
+
+history:
+  - date: 2026-07-26
+    change: rebuilt at Ncrit=5 to suppress the low-Re laminar-separation-bubble branch
+  - date: 2026-07-28
+    change: >-
+      extended from 100k-500k to 1.3M to bracket the real Phase VI per-station
+      Reynolds range (~525k-1313k); before this every station was clamping to
+      the 500k ceiling
+
+# Single interior alpha values the gap-fill retry could not converge. Closing
+# these is Task 2 of the remediation work order; recorded here so the state of
+# the cache is not something a reader has to discover.
+known_gaps:
+  - {reynolds: 100000, alpha_deg: 13.0}
+  - {reynolds: 600000, alpha_deg: 16.5}
+  - {reynolds: 700000, alpha_deg: 12.0}
+  - {reynolds: 800000, alpha_deg: 16.5}
+  - {reynolds: 1000000, alpha_deg: 7.5}
+  - {reynolds: 1000000, alpha_deg: 16.0}
+  - {reynolds: 1000000, alpha_deg: 17.5}
+  - {reynolds: 1200000, alpha_deg: 15.0}
+
+validation:
+  script: python -m validation.validate_polars s809
+  status: 4/5 checks pass
+  residual: >-
+    Check 5 (Reynolds-trend monotonicity): max L/D dips ~1.4-1.7% at Re=800k
+    and Re=1.2M before continuing to rise. Noise in an increasingly flat
+    quantity at high Re, not a defect. See the 2026-07-28 journal entry.
+  not_comparable_to: >-
+    Somers/Delft/OSU/CSU S809 tunnel data, which is Ncrit~9 and at Re >= 1e6.

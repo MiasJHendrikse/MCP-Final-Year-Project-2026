@@ -55,6 +55,7 @@ import math
 import os
 
 from bem.rotor import phase_vi_geometry, solve_rotor
+from config import load_phase_vi_rotor
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.abspath(os.path.join(_HERE, ".."))
@@ -81,8 +82,15 @@ SPANWISE_WIND_SPEEDS = [5.0, 7.0, 10.0, 15.0]
 #: compare_ccblade.py exactly (NREL Sequence S test points).
 CROSS_TOOL_WIND_SPEEDS = [5.0, 7.0, 10.0, 13.0, 15.0, 20.0, 25.0]
 
-PHASE_VI_RPM = 71.63
-AIR_DENSITY = 1.225  # kg/m^3, sea level, as per the Phase VI experiment
+#: The Phase VI operating condition, from config/rotor_phase_vi.yaml (Task 1).
+#: Read from config rather than restated here on purpose: if the rewiring of
+#: rho and nu through the config layer changed either number, every golden
+#: comparison below would move, and the regression would say so. The values are
+#: the same sea-level pair the snapshot was originally generated with.
+_PHASE_VI = load_phase_vi_rotor()
+PHASE_VI_RPM = _PHASE_VI.rated_rpm
+AIR_DENSITY = _PHASE_VI.air_density              # kg/m^3, sea level, as per the experiment
+KINEMATIC_VISCOSITY = _PHASE_VI.kinematic_viscosity  # m^2/s, sea level
 
 #: The two fixed Reynolds numbers the QBlade export/comparison pair uses
 #: (data/qblade/S809.plr and S809_Re500k.plr).
@@ -128,7 +136,8 @@ def build_cp_lambda():
     cp, ct = [], []
     for lam in CP_LAMBDA_VALUES:
         result = solve_rotor(geometry, tsr=lam, v_inf=CP_LAMBDA_V_INF,
-                             air_density=AIR_DENSITY)
+                             air_density=AIR_DENSITY,
+                             kinematic_viscosity=KINEMATIC_VISCOSITY)
         cp.append(result["Cp"])
         ct.append(result["Ct"])
 
@@ -151,7 +160,8 @@ def build_spanwise():
     for v_inf in SPANWISE_WIND_SPEEDS:
         tsr = omega * geometry.R / v_inf
         result = solve_rotor(geometry, tsr=tsr, v_inf=v_inf,
-                             air_density=AIR_DENSITY)
+                             air_density=AIR_DENSITY,
+                             kinematic_viscosity=KINEMATIC_VISCOSITY)
         stations = result["stations"]
         dt_dr, dq_dr = _local_loads(stations, geometry)
 
@@ -242,7 +252,9 @@ def build_cross_tool():
     for v_inf in CROSS_TOOL_WIND_SPEEDS:
         tsr = omega * geometry.R / v_inf
         result = solve_rotor(geometry, tsr=tsr, v_inf=v_inf,
-                             air_density=AIR_DENSITY, airfoils=airfoils)
+                             air_density=AIR_DENSITY,
+                             kinematic_viscosity=KINEMATIC_VISCOSITY,
+                             airfoils=airfoils)
         rows.append({
             "v_inf": v_inf,
             "tsr": tsr,
@@ -259,7 +271,9 @@ def build_cross_tool():
     for reynolds in QBLADE_FIXED_REYNOLDS:
         pinned = [S809Polar(reynolds) for _ in geometry.r]
         result = solve_rotor(geometry, tsr=omega * geometry.R / 7.0, v_inf=7.0,
-                             air_density=AIR_DENSITY, airfoils=pinned)
+                             air_density=AIR_DENSITY,
+                             kinematic_viscosity=KINEMATIC_VISCOSITY,
+                             airfoils=pinned)
         stations = result["stations"]
         entry = {
             "fixed_reynolds": reynolds,

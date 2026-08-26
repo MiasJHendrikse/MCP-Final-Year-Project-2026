@@ -1,0 +1,89 @@
+# Site basis -- Khomas Hochland highland ridge, near Windhoek, Namibia.
+#
+# PROJECT_PLAN.md sections 1.1-1.3. This file is the single version-controlled
+# source for every site quantity; plan item 1.1's exit criterion is that
+# "nothing downstream hard-codes a site value".
+#
+# Read only through `src/config` (config.load_site()). Nothing else in the
+# repo opens this file.
+#
+# Fields whose value is a `TODO:` string are UNRESOLVED. The loader turns them
+# into a sentinel that raises on any use -- it never substitutes a placeholder
+# number. A fabricated wind resource propagates silently into every AEP figure
+# downstream, so these stay TODO until the Global Wind Atlas extraction is
+# actually done (plan section 1.3, and the remediation work order's ground
+# rule 3).
+
+name: khomas-hochland
+description: >-
+  Highland ridge site near Windhoek, Namibia. Design basis for the SG6043
+  design rotor. Not used by the NREL Phase VI validation rotor, which runs at
+  its own sea-level condition -- see rotor_phase_vi.yaml.
+
+# ---------------------------------------------------------------------------
+# Location
+# ---------------------------------------------------------------------------
+# Elevation is the working assumption of plan section 1.1, to be refined once
+# the GWA area is selected. Coordinates and the area polygon come with that
+# same extraction, so all three are resolved together.
+location:
+  gwa_area: "TODO: Global Wind Atlas area selection (plan 1.1)"
+  latitude_deg: "TODO: from the GWA area selection (plan 1.1)"
+  longitude_deg: "TODO: from the GWA area selection (plan 1.1)"
+  elevation_m: 1800.0        # ~1800 m AMSL, assumed pending area selection
+  hub_height_m: 20.0         # typical free-standing tower for this rotor class
+
+# ---------------------------------------------------------------------------
+# Atmosphere -- plan section 1.2, a headline result of the site choice
+# ---------------------------------------------------------------------------
+# Pressure from the ISA barometric relation at `elevation_m`:
+#
+#     p = p0 * (1 - L*h/T0)^(g/(Rs*L))
+#     p0 = 101325 Pa, L = 0.0065 K/m, T0 = 288.15 K,
+#     Rs = 287.05 J/(kg K), g = 9.80665 m/s^2, exponent = 5.25593
+#
+# Density from the ACTUAL annual-mean site temperature, not the ISA
+# temperature at that altitude -- Namibia's interior is far warmer than ISA
+# predicts, and that difference is the whole point of section 1.2:
+#
+#     rho = p / (Rs * T),  T = 293.15 K (20 C annual mean)
+#     nu  = mu / rho
+#
+# The loader recomputes all three from `standard_atmosphere` + `temperature_k`
+# + `dynamic_viscosity_pa_s` and rejects the file if the recorded values
+# disagree by more than 0.5 %. They are recorded rather than only derived
+# because they are reported numbers (plan working conventions: "where a step
+# produces a number that feeds a later step, that number is written to the
+# config file").
+#
+# NOTE, deliberately left visible rather than reconciled here: plan section
+# 1.2 quotes rho = 0.98 kg/m^3 and nu = 1.85e-5 m^2/s as its headline figures.
+# Recomputing from the plan's own stated constants gives 0.9684 and 1.869e-5
+# -- 1.2 % and 1.1 % away. The recomputed values are recorded; the plan's
+# quoted pair appears to be rounded. Both sit inside plan item 1.1's
+# 0.95-1.03 kg/m^3 exit band. Flagged for the plan/report to reconcile; not
+# silently averaged or tuned.
+atmosphere:
+  temperature_k: 293.15              # annual mean, 20 C (plan 1.2 design value)
+  pressure_pa: 81489.03              # barometric relation at 1800 m
+  air_density: 0.96839               # rho = p / (Rs * T)
+  dynamic_viscosity_pa_s: 1.81e-5    # mu at 20 C
+  kinematic_viscosity: 1.8690e-5     # nu = mu / rho
+  standard_atmosphere:
+    sea_level_pressure_pa: 101325.0
+    sea_level_temperature_k: 288.15
+    lapse_rate_k_per_m: 0.0065
+    specific_gas_constant: 287.05
+    gravity: 9.80665
+
+# ---------------------------------------------------------------------------
+# Wind resource -- plan section 1.3. NEVER INVENTED.
+# ---------------------------------------------------------------------------
+# Extracted from globalwindatlas.info over the selected area at hub height.
+# `k ~ 1.8-2.4, c ~ 6-7 m/s` is a prior expectation recorded in the plan for
+# sanity-checking an extraction only -- it is not a substitute for one, and is
+# deliberately not written into the fields below.
+wind_resource:
+  weibull_k: "TODO: from GWA at 20 m hub height (plan 1.3)"
+  weibull_c_ms: "TODO: from GWA at 20 m hub height (plan 1.3)"
+  mean_wind_speed_ms: "TODO: derived, V_bar = c * Gamma(1 + 1/k) (plan 1.3)"

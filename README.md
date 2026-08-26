@@ -32,6 +32,10 @@ Phase 1 (the forward BEM solver) is built and cross-validated. Phase 2
 
 ```
 src/
+  config/       The only reader of config/. Loader + frozen dataclasses.
+    schema.py        frozen dataclasses, one per config file
+    loader.py        YAML read, TODO handling, derived-value checks
+    unresolved.py    the TODO sentinel that raises instead of defaulting
   bem/          Solver core. No I/O beyond the polar cache, no plotting.
     airfoil.py       polar adapters (LinearPolar, S809Polar)
     corrections.py   Prandtl tip/hub loss, Glauert/Buhl high-thrust
@@ -53,6 +57,11 @@ src/
     plot_bem_comparison.py   combine cross-check results into a plot
   demos/        Illustrative plotting scripts, not part of the solver.
 
+config/         Versioned input configuration. Read only through src/config.
+  site.yaml            Khomas Hochland site: location, atmosphere, wind resource
+  rotor_design.yaml    the SG6043 design rotor being optimised
+  rotor_phase_vi.yaml  the NREL Phase VI validation rotor's operating condition
+  polars_s809.yaml     the committed S809 polar cache, as built
 data/           Inputs only.
   airfoils/       Selig-format coordinates (S809)
   polars/         the XFOIL polar cache, per airfoil, per Reynolds
@@ -65,8 +74,16 @@ results/          Generated plots and polars. results/_archive/ is scratch
                   (gitignored) — the XFOIL scripts write raw output there.
 ```
 
-**Rule of thumb:** `data/` is inputs, `results/` is generated output, `src/`
-is the only place Python lives.
+**Rule of thumb:** `data/` and `config/` are inputs, `results/` is generated
+output, `src/` is the only place Python lives.
+
+**No site value is hard-coded.** Air density and kinematic viscosity are
+**required keyword arguments** on `solve_rotor` and every `powercurve` entry
+point, supplied from `config/` — omitting one is a `TypeError`, not a quietly
+wrong number. The two rotors have two different atmospheres (Phase VI at sea
+level because that is where the experiment ran; the design rotor at 1800 m),
+so neither is a default for the other and there is no global fallback. See
+[`config/README.md`](config/README.md).
 
 ---
 

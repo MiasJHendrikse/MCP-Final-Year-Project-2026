@@ -70,6 +70,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + "/..")
 
 from validation import export_qblade  # noqa: E402
 from bem.rotor import phase_vi_geometry, solve_rotor  # noqa: E402
+from config import load_phase_vi_rotor  # noqa: E402
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.abspath(os.path.join(_HERE, "..", ".."))
@@ -85,9 +86,16 @@ RE_BUCKETS = [
     100000, 150000, 200000, 300000, 400000, 500000,
     600000, 700000, 800000, 900000, 1000000, 1100000, 1200000, 1300000,
 ]
-AIR_DENSITY = 1.225        # kg/m^3
-AIR_KINEMATIC_VISCOSITY = 1.5e-5  # m^2/s -- matches bem.rotor.AIR_KINEMATIC_VISCOSITY
-AIR_DYNAMIC_VISCOSITY = AIR_DENSITY * AIR_KINEMATIC_VISCOSITY  # kept consistent with the above
+# The Phase VI rotor's sea-level air condition, from
+# config/rotor_phase_vi.yaml. These three names are kept because
+# compare_ccblade.py imports them from here (deliberately -- both comparisons
+# must run against the identical air properties, and a second declaration is
+# exactly how they would drift apart). They are now re-exports of the config
+# values rather than literals; mu is derived as rho * nu by the config object.
+PHASE_VI = load_phase_vi_rotor()
+AIR_DENSITY = PHASE_VI.air_density                   # kg/m^3
+AIR_KINEMATIC_VISCOSITY = PHASE_VI.kinematic_viscosity  # m^2/s
+AIR_DYNAMIC_VISCOSITY = PHASE_VI.dynamic_viscosity   # Pa s
 
 ALPHA_GRID_DEG = np.arange(-180.0, 180.01, 0.5)
 
@@ -285,7 +293,7 @@ def main():
         )
 
     geometry = phase_vi_geometry()
-    rpm = 71.63
+    rpm = PHASE_VI.rated_rpm
     omega = rpm * 2 * math.pi / 60.0
 
     station_buckets = [
@@ -316,7 +324,10 @@ def main():
     for v_inf in wind_speeds:
         tsr = omega * geometry.R / v_inf
 
-        ours = solve_rotor(geometry, tsr=tsr, v_inf=v_inf, air_density=AIR_DENSITY, airfoils=our_airfoils)
+        ours = solve_rotor(geometry, tsr=tsr, v_inf=v_inf,
+                           air_density=AIR_DENSITY,
+                           kinematic_viscosity=AIR_KINEMATIC_VISCOSITY,
+                           airfoils=our_airfoils)
 
         solver.v_inf = v_inf
         solver.rpm = rpm

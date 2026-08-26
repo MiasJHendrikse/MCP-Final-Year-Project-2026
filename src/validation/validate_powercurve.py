@@ -45,13 +45,25 @@ from bem.powercurve import (
     swept_area,
 )
 from bem.rotor import (
-    PHASE_VI_RATED_RPM,
     demo_rotor_geometry,
     phase_vi_geometry,
     solve_rotor,
 )
+from config import load_phase_vi_rotor
 
-AIR_DENSITY = 1.225
+# Air properties and rotor speed come from config/rotor_phase_vi.yaml.
+# AIR_DENSITY was a module constant here (and in three sibling scripts)
+# restating the same sea-level value the solver also defaulted to; both are
+# gone. AIR_KINEMATIC_VISCOSITY is new to this script because solve_rotor now
+# requires it explicitly.
+#
+# demo_rotor_geometry() in checks 5-6 is a synthetic pipeline-exercising blade
+# with no site of its own; it is run at the same sea-level condition, which is
+# what its recorded behaviour was produced at.
+PHASE_VI = load_phase_vi_rotor()
+AIR_DENSITY = PHASE_VI.air_density
+AIR_KINEMATIC_VISCOSITY = PHASE_VI.kinematic_viscosity
+PHASE_VI_RATED_RPM = PHASE_VI.rated_rpm
 
 #: NREL Phase VI (Sequence S) at 71.63 RPM, from the 2026-07-28 journal entry
 #: (the run that confirmed station Reynolds numbers were no longer clamped to
@@ -73,7 +85,8 @@ def check_1_dimensional_round_trip():
     print("=== Check 1: dimensional round-trip (power/thrust/torque <-> Cp/Ct) ===")
     geometry = phase_vi_geometry()
     curve = power_curve(geometry, [5.0, 10.0, 20.0], rpm=PHASE_VI_RATED_RPM,
-                        air_density=AIR_DENSITY)
+                        air_density=AIR_DENSITY,
+                        kinematic_viscosity=AIR_KINEMATIC_VISCOSITY)
     area = swept_area(geometry)
 
     for p in curve["points"]:
@@ -101,7 +114,8 @@ def check_2_phase_vi_fixed_speed_regression():
     geometry = phase_vi_geometry()
     speeds = sorted(PHASE_VI_SEQUENCE_S_REFERENCE)
     curve = power_curve(geometry, speeds, rpm=PHASE_VI_RATED_RPM,
-                        air_density=AIR_DENSITY)
+                        air_density=AIR_DENSITY,
+                        kinematic_viscosity=AIR_KINEMATIC_VISCOSITY)
 
     assert curve["mode"] == "fixed-speed", curve["mode"]
 
@@ -127,7 +141,8 @@ def check_3_variable_speed_cp_near_constant():
     print("=== Check 3: variable-speed mode holds Cp constant but for Reynolds ===")
     geometry = phase_vi_geometry()
     curve = power_curve(geometry, [5.0, 7.0, 10.0, 15.0, 20.0], tsr=6.0,
-                        air_density=AIR_DENSITY)
+                        air_density=AIR_DENSITY,
+                        kinematic_viscosity=AIR_KINEMATIC_VISCOSITY)
 
     assert curve["mode"] == "variable-speed", curve["mode"]
 
@@ -159,7 +174,9 @@ def check_4_cp_lambda_curve_shape():
     print("=== Check 4: Cp-lambda curve shape ===")
     geometry = phase_vi_geometry()
     tsr_values = [round(1.0 + 0.5 * i, 2) for i in range(23)]  # 1.0 .. 12.0
-    curve = cp_lambda_curve(geometry, tsr_values, v_inf=7.0, air_density=AIR_DENSITY)
+    curve = cp_lambda_curve(geometry, tsr_values, v_inf=7.0,
+                            air_density=AIR_DENSITY,
+                            kinematic_viscosity=AIR_KINEMATIC_VISCOSITY)
 
     assert curve["mode"] == "cp-lambda", curve["mode"]
 
@@ -189,9 +206,15 @@ def check_5_matches_solve_rotor_directly():
     geometry = demo_rotor_geometry()
 
     for v_inf, tsr in ((6.0, 4.0), (9.0, 7.5)):
-        direct = solve_rotor(geometry, tsr=tsr, v_inf=v_inf, air_density=AIR_DENSITY)
-        swept = power_curve(geometry, [v_inf], tsr=tsr, air_density=AIR_DENSITY)["points"][0]
-        single = operating_point(geometry, v_inf=v_inf, tsr=tsr, air_density=AIR_DENSITY)
+        direct = solve_rotor(geometry, tsr=tsr, v_inf=v_inf,
+                             air_density=AIR_DENSITY,
+                             kinematic_viscosity=AIR_KINEMATIC_VISCOSITY)
+        swept = power_curve(geometry, [v_inf], tsr=tsr,
+                            air_density=AIR_DENSITY,
+                            kinematic_viscosity=AIR_KINEMATIC_VISCOSITY)["points"][0]
+        single = operating_point(geometry, v_inf=v_inf, tsr=tsr,
+                                 air_density=AIR_DENSITY,
+                                 kinematic_viscosity=AIR_KINEMATIC_VISCOSITY)
 
         print(f"  V={v_inf:4.1f} tsr={tsr:4.1f}  solve_rotor Cp={direct['Cp']:.10f}  "
               f"power_curve Cp={swept['Cp']:.10f}  operating_point Cp={single['Cp']:.10f}")
@@ -205,21 +228,27 @@ def check_6_guard_rails():
     print("=== Check 6: guard rails reject ambiguous or invalid input ===")
     geometry = demo_rotor_geometry()
 
+    # Air properties are supplied on every case: they are required arguments
+    # now, and a missing one raises TypeError, which would mask the ValueError
+    # each guard rail is actually being tested for.
+    air = {"air_density": AIR_DENSITY,
+           "kinematic_viscosity": AIR_KINEMATIC_VISCOSITY}
+
     cases = [
         ("neither rpm nor tsr",
-         lambda: power_curve(geometry, [7.0])),
+         lambda: power_curve(geometry, [7.0], **air)),
         ("both rpm and tsr",
-         lambda: power_curve(geometry, [7.0], rpm=60.0, tsr=6.0)),
+         lambda: power_curve(geometry, [7.0], rpm=60.0, tsr=6.0, **air)),
         ("empty wind_speeds",
-         lambda: power_curve(geometry, [], tsr=6.0)),
+         lambda: power_curve(geometry, [], tsr=6.0, **air)),
         ("zero wind speed",
-         lambda: power_curve(geometry, [0.0], tsr=6.0)),
+         lambda: power_curve(geometry, [0.0], tsr=6.0, **air)),
         ("negative wind speed",
-         lambda: power_curve(geometry, [-3.0], tsr=6.0)),
+         lambda: power_curve(geometry, [-3.0], tsr=6.0, **air)),
         ("non-positive tsr",
-         lambda: operating_point(geometry, v_inf=7.0, tsr=0.0)),
+         lambda: operating_point(geometry, v_inf=7.0, tsr=0.0, **air)),
         ("empty tsr_values",
-         lambda: cp_lambda_curve(geometry, [])),
+         lambda: cp_lambda_curve(geometry, [], **air)),
     ]
 
     for label, call in cases:

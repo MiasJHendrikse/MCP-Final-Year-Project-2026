@@ -89,7 +89,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + "/..")
 from validation.compare_pybemt import (  # noqa: E402
     AIR_DENSITY,
     AIR_DYNAMIC_VISCOSITY,
+    AIR_KINEMATIC_VISCOSITY,
     DOCS_VALIDATION_DIR,
+    PHASE_VI,
     build_dense_table,
     reynolds_bucket_for_station,
 )
@@ -140,7 +142,7 @@ def main():
         )
 
     geometry = phase_vi_geometry()
-    rpm = 71.63
+    rpm = PHASE_VI.rated_rpm
     omega = rpm * 2 * math.pi / 60.0
 
     station_buckets = [
@@ -186,7 +188,10 @@ def main():
     rows = []
     for v_inf in wind_speeds:
         tsr = omega * geometry.R / v_inf
-        ours = solve_rotor(geometry, tsr=tsr, v_inf=v_inf, air_density=AIR_DENSITY, airfoils=our_airfoils)
+        ours = solve_rotor(geometry, tsr=tsr, v_inf=v_inf,
+                           air_density=AIR_DENSITY,
+                           kinematic_viscosity=AIR_KINEMATIC_VISCOSITY,
+                           airfoils=our_airfoils)
 
         # distributedAeroLoads + our own trapezoidal integration, over exactly
         # the given station range -- not rotor.evaluate()'s own integrated
