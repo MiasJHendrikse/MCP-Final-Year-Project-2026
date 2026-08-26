@@ -41,12 +41,8 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + "/..")
 
 from bem.airfoil import S809Polar  # noqa: E402
-from bem.rotor import (  # noqa: E402
-    PHASE_VI_RATED_RPM,
-    PHASE_VI_SEQUENCE_S_TIP_PITCH_DEG,
-    phase_vi_geometry,
-    solve_rotor,
-)
+from bem.rotor import phase_vi_geometry, solve_rotor  # noqa: E402
+from config import load_phase_vi_rotor  # noqa: E402
 
 # Results are written next to the QBlade .bld/.plr exports they pair with, so
 # a comparison run and the files it was run against stay together.
@@ -56,10 +52,13 @@ QBLADE_DIR = os.path.abspath(os.path.join(_HERE, "..", "..", "data", "qblade"))
 # ---------------------------------------------------------------------------
 # Operating point -- match these to your QBlade simulation settings.
 # ---------------------------------------------------------------------------
-V_INF_MS = 7.0                          # freestream wind speed, m/s
-RPM = PHASE_VI_RATED_RPM                # 71.63 RPM, Sequence S rated speed
-TIP_PITCH_DEG = PHASE_VI_SEQUENCE_S_TIP_PITCH_DEG  # 3.0 deg, matches the .bld export
-AIR_DENSITY = 1.225                     # kg/m^3, QBlade's default too
+# From config/rotor_phase_vi.yaml. The sea-level air condition is a property
+# of the Phase VI experiment (and QBlade's default too), recorded there rather
+# than restated here -- see src/config/.
+PHASE_VI = load_phase_vi_rotor()
+V_INF_MS = PHASE_VI.reference_wind_speed_ms   # freestream wind speed, m/s
+RPM = PHASE_VI.rated_rpm                      # 71.63 RPM, Sequence S rated speed
+TIP_PITCH_DEG = PHASE_VI.tip_pitch_deg        # 3.0 deg, matches the .bld export
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--reynolds", type=int, default=100_000, choices=[100_000, 500_000],
@@ -76,7 +75,10 @@ tsr = omega_rad_s * geometry.R / V_INF_MS
 # the identical XFOIL curve (see module docstring).
 airfoils = [S809Polar(FIXED_REYNOLDS) for _ in geometry.r]
 
-result = solve_rotor(geometry, tsr=tsr, v_inf=V_INF_MS, air_density=AIR_DENSITY, airfoils=airfoils)
+result = solve_rotor(geometry, tsr=tsr, v_inf=V_INF_MS,
+                     air_density=PHASE_VI.air_density,
+                     kinematic_viscosity=PHASE_VI.kinematic_viscosity,
+                     airfoils=airfoils)
 
 print(f"Fixed Reynolds = {FIXED_REYNOLDS:,} (matches "
       f"{'S809.plr' if FIXED_REYNOLDS == 100_000 else 'S809_Re500k.plr'})")

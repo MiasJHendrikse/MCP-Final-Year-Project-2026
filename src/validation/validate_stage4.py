@@ -25,14 +25,26 @@ Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
 import math
 
 from bem.airfoil import S809Polar
-from bem.rotor import AIR_KINEMATIC_VISCOSITY, RotorGeometry, demo_rotor_geometry, solve_rotor
+from bem.rotor import RotorGeometry, demo_rotor_geometry, solve_rotor
 from bem.station import StationParams, solve_station
+from config import load_phase_vi_rotor
+
+# `bem.rotor.AIR_KINEMATIC_VISCOSITY` is gone: air properties are now required
+# arguments on solve_rotor, supplied from config/. The stage-4 checks below
+# exercise demo_rotor_geometry(), a synthetic pipeline blade with no site of
+# its own, against the S809 cache -- so they run at the same sea-level
+# condition their recorded behaviour was produced at, taken from
+# config/rotor_phase_vi.yaml rather than restated here.
+_AIR = load_phase_vi_rotor()
+AIR_DENSITY = _AIR.air_density
+AIR_KINEMATIC_VISCOSITY = _AIR.kinematic_viscosity
 
 
 def check_1_spanwise_smoothness():
     print("=== Check 1: spanwise smoothness at a reasonable tsr ===")
     geometry = demo_rotor_geometry()
-    result = solve_rotor(geometry, tsr=5.0)
+    result = solve_rotor(geometry, tsr=5.0, air_density=AIR_DENSITY,
+                         kinematic_viscosity=AIR_KINEMATIC_VISCOSITY)
     stations = result["stations"]
 
     for s in stations:
@@ -59,7 +71,8 @@ def check_2_physical_bounds():
     geometry = demo_rotor_geometry()
 
     for tsr, expect_correction in ((5.0, False), (9.0, True)):
-        result = solve_rotor(geometry, tsr=tsr)
+        result = solve_rotor(geometry, tsr=tsr, air_density=AIR_DENSITY,
+                             kinematic_viscosity=AIR_KINEMATIC_VISCOSITY)
         stations = result["stations"]
         a_values = [s["a"] for s in stations]
         ap_values = [s["a_prime"] for s in stations]
@@ -85,7 +98,8 @@ def check_2_physical_bounds():
 def check_3_integrated_rotor_plausible():
     print("=== Check 3: integrated rotor Ct, Cp physically plausible ===")
     geometry = demo_rotor_geometry()
-    result = solve_rotor(geometry, tsr=5.0)
+    result = solve_rotor(geometry, tsr=5.0, air_density=AIR_DENSITY,
+                         kinematic_viscosity=AIR_KINEMATIC_VISCOSITY)
     ct, cp = result["Ct"], result["Cp"]
     print(f"  Ct={ct:.4f}, Cp={cp:.4f} (Betz limit Cp <= 0.593)")
     assert 0.0 < cp < 0.593, f"Cp={cp} not physically plausible"
@@ -98,7 +112,9 @@ def check_4_regression_single_station():
     r, chord, twist_deg, R, tsr_tip, v_inf = 3.0, 0.3, 6.0, 8.0, 5.0, 7.0
     geometry = RotorGeometry(r=[r], chord=[chord], twist=[math.radians(twist_deg)], R=R, n_blades=3)
 
-    result = solve_rotor(geometry, tsr=tsr_tip, v_inf=v_inf)
+    result = solve_rotor(geometry, tsr=tsr_tip, v_inf=v_inf,
+                         air_density=AIR_DENSITY,
+                         kinematic_viscosity=AIR_KINEMATIC_VISCOSITY)
     via_loop = result["stations"][0]
 
     omega = tsr_tip * v_inf / R

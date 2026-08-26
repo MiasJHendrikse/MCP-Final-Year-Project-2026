@@ -8,6 +8,7 @@
 numpy>=2.2.5
 scipy>=1.15.2
 matplotlib>=3.10.1
+PyYAML>=6.0          # reads the versioned inputs in config/ -- see src/config/
 
 # NOT installed by this file, deliberately:
 #

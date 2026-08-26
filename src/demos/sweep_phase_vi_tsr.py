@@ -38,20 +38,20 @@ import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + "/..")
 
 from bem.airfoil import S809Polar  # noqa: E402
-from bem.rotor import (  # noqa: E402
-    PHASE_VI_SEQUENCE_S_TIP_PITCH_DEG,
-    phase_vi_geometry,
-    solve_rotor,
-)
+from bem.rotor import phase_vi_geometry, solve_rotor  # noqa: E402
+from config import load_phase_vi_rotor  # noqa: E402
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 
 # ---------------------------------------------------------------------------
 # Operating point
 # ---------------------------------------------------------------------------
-V_INF_MS = 7.0
-TIP_PITCH_DEG = PHASE_VI_SEQUENCE_S_TIP_PITCH_DEG
-AIR_DENSITY = 1.225
+# The Phase VI rotor's operating condition, including its sea-level air, comes
+# from config/rotor_phase_vi.yaml -- not from constants declared here. Four
+# scripts used to carry their own copy of the density and viscosity.
+PHASE_VI = load_phase_vi_rotor()
+V_INF_MS = PHASE_VI.reference_wind_speed_ms
+TIP_PITCH_DEG = PHASE_VI.tip_pitch_deg
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--reynolds", type=int, default=100_000, choices=[100_000, 500_000],
@@ -79,7 +79,10 @@ ct_rotor, cp_rotor = [], []
 spanwise = {}  # tsr -> result dict, only kept for TSR_FAMILY
 
 for tsr in tsr_values:
-    result = solve_rotor(geometry, tsr=tsr, v_inf=V_INF_MS, air_density=AIR_DENSITY, airfoils=airfoils)
+    result = solve_rotor(geometry, tsr=tsr, v_inf=V_INF_MS,
+                         air_density=PHASE_VI.air_density,
+                         kinematic_viscosity=PHASE_VI.kinematic_viscosity,
+                         airfoils=airfoils)
     ct_rotor.append(result["Ct"])
     cp_rotor.append(result["Cp"])
     if any(abs(tsr - fam) < 1e-6 for fam in TSR_FAMILY):

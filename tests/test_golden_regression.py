@@ -251,9 +251,11 @@ def test_snapshot_is_bitwise_reproducible():
     geometry = phase_vi_geometry()
     for tsr in (3.0, 6.5):
         first = solve_rotor(geometry, tsr=tsr, v_inf=7.0,
-                            air_density=gr.AIR_DENSITY)
+                            air_density=gr.AIR_DENSITY,
+                            kinematic_viscosity=gr.KINEMATIC_VISCOSITY)
         second = solve_rotor(geometry, tsr=tsr, v_inf=7.0,
-                             air_density=gr.AIR_DENSITY)
+                             air_density=gr.AIR_DENSITY,
+                             kinematic_viscosity=gr.KINEMATIC_VISCOSITY)
         assert first["Cp"] == second["Cp"], f"Cp not bitwise stable at tsr={tsr}"
         assert first["Ct"] == second["Ct"], f"Ct not bitwise stable at tsr={tsr}"
         for a, b in zip(first["stations"], second["stations"]):

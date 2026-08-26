@@ -1,0 +1,39 @@
+# Validation rotor -- NREL Phase VI (Hand et al. 2001, NREL/TP-500-29955),
+# Sequence S configuration. PROJECT_PLAN.md section 2.1.
+#
+# Purpose: validate the BEM solver. Nothing else. This rotor is never
+# optimised and has no connection to the design site.
+#
+# The sea-level air condition below is a CONFIG CHOICE FOR THIS ROTOR, not a
+# default: the Phase VI experiment ran in the NASA Ames 80x120 ft tunnel at
+# sea level, so sea-level rho and nu are what reproduce it. Before this file
+# existed the same two numbers were default arguments in four solver
+# signatures and module constants in four scripts, where omitting them
+# returned a wrong answer instead of an error (remediation work order,
+# Task 1).
+#
+# The blade geometry itself is NOT here. Table A-1's 19-station chord/twist
+# table stays in `bem.rotor.PHASE_VI_TABLE_A1_STATIONS` with its sourcing
+# notes attached; duplicating it into YAML would create a second copy to
+# disagree with. This file carries the operating condition only.
+#
+# Read only through `src/config` (config.load_phase_vi_rotor()).
+
+name: nrel-phase-vi
+description: >-
+  NREL Phase VI 10.058 m two-bladed rotor, S809 section, Sequence S upwind
+  configuration. Solver validation case only.
+
+# Standard sea-level air, matching the wind-tunnel condition.
+atmosphere:
+  air_density: 1.225
+  kinematic_viscosity: 1.5e-5
+  # Dynamic viscosity is derived (mu = rho * nu) by the loader rather than
+  # recorded, so it cannot drift from the pair above. compare_ccblade.py
+  # needs it for CCBlade's `mu=` argument.
+
+operating:
+  rated_rpm: 71.63       # "Rotational speed: 71.63 RPM synchronous" (Appendix A)
+  tip_pitch_deg: 3.0     # standard Sequence S operator collective pitch
+  reference_wind_speed_ms: 7.0   # the single-point condition the QBlade and
+                                 # TSR-sweep comparisons are run at

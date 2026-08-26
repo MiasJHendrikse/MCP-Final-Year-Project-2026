@@ -33,7 +33,14 @@ from dataclasses import dataclass
 from bem.airfoil import S809Polar
 from bem.station import StationParams, solve_station
 
-AIR_KINEMATIC_VISCOSITY = 1.5e-5  # m^2/s, standard sea-level air
+# No module-level air properties, deliberately. A sea-level kinematic
+# viscosity used to be a module constant here and a sea-level density a
+# default argument on solve_rotor below. The design site is at 1800 m, where
+# both differ by around a fifth: omitting the density gave an answer 25 % high
+# that still looked plausible, and the viscosity would have put every
+# design-rotor Reynolds number 23 % high. Both are now required arguments,
+# supplied from `config/` -- see src/config/. No literal air property appears
+# anywhere under src/; grep is the check.
 
 
 @dataclass
@@ -193,7 +200,8 @@ def phase_vi_geometry(tip_pitch_deg=PHASE_VI_SEQUENCE_S_TIP_PITCH_DEG):
     )
 
 
-def solve_rotor(geometry: RotorGeometry, tsr, v_inf=7.0, air_density=1.225, airfoils=None):
+def solve_rotor(geometry: RotorGeometry, tsr, v_inf=7.0, *,
+                air_density, kinematic_viscosity, airfoils=None):
     """
     Solve every station independently (Stage 1-3 solver, real S809 polar)
     and integrate to rotor-level Ct, Cp.
@@ -208,7 +216,16 @@ def solve_rotor(geometry: RotorGeometry, tsr, v_inf=7.0, air_density=1.225, airf
         estimate (used to query the real polar) -- the induction solve
         itself is dimensionless (local tsr only), as in Stage 1-3.
     air_density : float
-        kg/m^3, used only for the rotor-level Ct/Cp integration.
+        kg/m^3, used only for the rotor-level Ct/Cp integration. Required,
+        and keyword-only: there is no defensible default. The validation
+        rotor's sea-level value is a property of that experiment and lives in
+        `config/rotor_phase_vi.yaml`; the design rotor's is a property of the
+        site (1800 m, about 20 % less dense) and lives in `config/site.yaml`.
+    kinematic_viscosity : float
+        m^2/s, used only for the per-station Reynolds estimate that queries
+        the polar. Required and keyword-only for the same reason -- the site
+        value is 23 % above the sea-level one, and that difference lands
+        directly on every Reynolds number.
     airfoils : list of airfoil objects or None
         Optional, one per station, overriding the default per-station
         S809Polar(reynolds) construction -- used by the Stage 6 pyBEMT
@@ -239,7 +256,7 @@ def solve_rotor(geometry: RotorGeometry, tsr, v_inf=7.0, air_density=1.225, airf
         # iteratively; adequate for this stage's sanity check, not for
         # AEP-grade accuracy.
         w_approx = math.hypot(v_inf, omega * r)
-        reynolds = w_approx * chord / AIR_KINEMATIC_VISCOSITY
+        reynolds = w_approx * chord / kinematic_viscosity
 
         airfoil = airfoils[i] if airfoils is not None else S809Polar(reynolds)
 

@@ -1,0 +1,61 @@
+# Design rotor -- the Khomas Hochland small turbine, the actual optimisation
+# study subject (PROJECT_PLAN.md sections 1.4, 2.2, 4).
+#
+# This rotor's air properties are NOT here: they are site properties and live
+# in site.yaml. Anything solving this rotor takes rho and nu from the site
+# config. That separation is the point of the file -- a rotor config that
+# carried its own density would reintroduce exactly the hard-coded-site-value
+# problem plan item 1.1 exists to remove.
+#
+# Read only through `src/config` (config.load_design_rotor()).
+
+name: khomas-hochland-3kw
+description: >-
+  3-bladed, 2.0 m radius, SG6043 small wind turbine for a low-wind-speed
+  highland site. Optimised in Phases 2-5; never used to validate the solver.
+
+geometry:
+  radius_m: 2.0          # FIXED, not a design variable. Set by polar
+                         # validation quality, not by a power target -- plan
+                         # section 1.5.
+  n_blades: 3
+
+operating:
+  design_tsr: 6.5
+  rated_wind_speed_ms: 11.0     # ~1.9 * V_bar, standard for low-wind machines
+  cut_in_wind_speed_ms: 3.0     # deliberately low for a low-wind site
+  cut_out_wind_speed_ms: 20.0
+
+# ---------------------------------------------------------------------------
+# Parameterisation -- plan section 4
+# ---------------------------------------------------------------------------
+# Strip count and design-variable count are independent quantities (section
+# 4.1); both are recorded so they cannot be conflated by a downstream reader.
+# The counts below are the plan's INTENDED configuration -- 25 strips, 10
+# geometry parameters. Section 4.3 requires the control-point count to be
+# selected by a documented representation study (6/8/10/12/16) rather than
+# asserted, so these are the starting configuration for that study, not its
+# conclusion.
+#
+# The bounds are TODO on purpose. Plan section 7.1 fixes only that chord and
+# twist bounds exist and are applied to the SCALED variables; it commits to no
+# numbers, and no study has selected any. Inventing a manufacturability
+# envelope here would be exactly the failure mode ground rule 3 forbids: a
+# number with no basis that silently constrains every optimisation result
+# downstream.
+parameterisation:
+  n_bem_strips: 25
+  n_control_points_chord: 5
+  n_control_points_twist: 5
+  bounds:
+    chord_min_m: "TODO: manufacturability/root-attachment study (plan 7.1)"
+    chord_max_m: "TODO: manufacturability/solidity study (plan 7.1)"
+    twist_min_deg: "TODO: physically realistic range (plan 7.1)"
+    twist_max_deg: "TODO: physically realistic range (plan 7.1)"
+
+# Sanity band for the AEP module (plan section 1.4): roughly 4-6 MWh/yr,
+# capacity factor 0.15-0.22. A result far outside this indicates a bug, not a
+# discovery. Recorded so the check reads it rather than restating it.
+sanity:
+  aep_mwh_per_year_min: 4.0
+  aep_mwh_per_year_max: 6.0
