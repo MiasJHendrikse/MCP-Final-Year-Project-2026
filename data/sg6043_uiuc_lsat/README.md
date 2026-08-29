@@ -70,13 +70,18 @@ for the Step 2 study, not the baseline it validates against.
 
 **Re = 100k, 150k, 200k, 300k, 400k and 500k.** Not 60k.
 
-`PROJECT_PLAN.md` §3.1 states the section was tested "at Re = 60k, 100k, 200k
-and 300k", and §1.4's justification for R = 2.0 m rests on bracketing those
-points. Both halves of that are wrong in the same direction: **there is no 60k
-run**, and there are two more test points at the top (400k, 500k) than the plan
-credits. The R = 2.0 m choice comes out *better* justified than argued — the
-envelope's upper half is measured, not extrapolated — but the low-Re anchor the
-plan leans on does not exist. Worth reconciling in the plan and the report.
+`PROJECT_PLAN.md` §3.1 previously said the section was tested "at Re = 60k,
+100k, 200k and 300k", and §1.4's justification for R = 2.0 m rested on
+bracketing those points. Both halves were wrong in the same direction: **there
+is no 60k run**, and there are two more test points at the top (400k, 500k)
+than the plan credited. Volumes 1, 2 and 4 were checked — SG6043 appears only
+in Volume 3, so the six runs above are the complete set. The plan's
+enumerations were corrected in the same commit that added this directory; the
+report still needs to follow.
+
+The R = 2.0 m choice comes out *better* justified than argued — the envelope's
+upper half is measured, not extrapolated — but the low-Re anchor the plan
+leaned on does not exist.
 
 The consequence for `config/polars_sg6043.yaml`: that cache is specified down
 to **40k**, because the design rotor's computed envelope reaches 49k at the
