@@ -5,14 +5,23 @@
 # it has to cover, and why. Two inputs are still missing and neither may be
 # invented (remediation work order, ground rule 3):
 #
-#   * the SG6043 coordinates, from the UIUC coordinate database (plan 1.2);
+#   * ~~the SG6043 coordinates~~ -- LANDED 2026-08-29 as
+#     data/airfoils/sg6043.dat, fetched verbatim from the UIUC coordinate
+#     database and geometry-verified against published thickness/camber (see
+#     data/airfoils/README.md);
 #   * n_crit, which plan 1.2's sensitivity study selects. S809's Ncrit = 5 is
 #     a result about a 21 % thick section at low Re and is NOT transferable --
 #     calibration is per-cache metadata, and there is deliberately no global
 #     default anywhere in the repo.
 #
-# Both are written as TODO below, so `load_polar_cache("sg6043")` returns
-# sentinels that raise on use rather than plausible numbers.
+# n_crit is written as TODO below, so `load_polar_cache("sg6043")` returns a
+# sentinel that raises on use rather than a plausible number. The data to
+# select it against has landed: data/sg6043_uiuc_lsat/ holds the UIUC
+# Low-Speed Airfoil Tests Vol. 3 measurements, clean model, at Re = 100k,
+# 150k, 200k, 300k, 400k and 500k. Note that this is NOT the
+# 60k/100k/200k/300k set plan 3.1 quotes -- there is no 60k run, and there are
+# two more points at the top than the plan credits. See that directory's
+# README.
 #
 # Read only through `src/config` (config.load_polar_cache("sg6043")).
 
@@ -132,6 +141,15 @@ validation:
   status: not built
   residual: >-
     Nothing to validate yet. When built, this cache must additionally be
-    cross-checked against the published UIUC Low-Speed Airfoil Tests SG6043
-    data at Re = 60k, 100k, 200k and 300k (plan 1.2), which the S809 cache
-    has no equivalent of.
+    cross-checked against the measured UIUC Low-Speed Airfoil Tests SG6043
+    data committed under data/sg6043_uiuc_lsat/ -- clean model, Re = 100k,
+    150k, 200k, 300k, 400k, 500k (plan 1.2). The S809 cache has no equivalent
+    reference at its own build settings, so this is the stronger of the two
+    validations and should be reported as such.
+  low_re_caveat: >-
+    Nothing below Re = 100k has experimental support. The cache floor is 40k
+    because the design envelope reaches 49.4k at the root at cut-in, so the
+    40k-80k rows are XFOIL alone, in the regime where XFOIL is least
+    trustworthy, and the n_crit study can only validate 100k-500k and assume
+    the calibration carries downward. Name this in the limitations chapter
+    (plan 3.3, risk R4).
