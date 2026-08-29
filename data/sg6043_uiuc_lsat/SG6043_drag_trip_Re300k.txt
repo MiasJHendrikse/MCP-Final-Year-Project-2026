@@ -1,0 +1,65 @@
+::::::::::::::
+SG6043T3.DRG
+::::::::::::::
+Airfoil: SG6043
+Builder: M. Allen
+Comment: Re = 300,000: clean & plain trip (h = 0.006") @ x/c = 5%, 15%, 25%, 35%, 45%  
+
+Number of Reynolds #'s:
+6
+
+Average Reynolds #:
+298463
+Number of angles of attack:
+2
+ alpha  /   Cl   /  Cd   /  Spanwise Cd's >>>
+  5.23    1.248   0.0120  0.0124   0.0122  0.0118   0.0116
+  5.57    1.278   0.0122  0.0126   0.0124  0.0120   0.0118
+Tabulated from data in file pg02681.dat & reduced using program C06.01
+
+Average Reynolds #:
+298083
+Number of angles of attack:
+2
+ alpha  /   Cl   /  Cd   /  Spanwise Cd's >>>
+  5.23    1.220   0.0127  0.0128   0.0129  0.0123   0.0128
+  5.59    1.248   0.0135  0.0137   0.0136  0.0132   0.0136
+Tabulated from data in file pg02686.dat & reduced using program C06.01
+
+Average Reynolds #:
+298574
+Number of angles of attack:
+2
+ alpha  /   Cl   /  Cd   /  Spanwise Cd's >>>
+  5.21    1.229   0.0126  0.0128   0.0129  0.0121   0.0125
+  5.59    1.261   0.0132  0.0134   0.0136  0.0128   0.0131
+Tabulated from data in file pg02685.dat & reduced using program C06.01
+
+Average Reynolds #:
+298014
+Number of angles of attack:
+2
+ alpha  /   Cl   /  Cd   /  Spanwise Cd's >>>
+  5.18    1.236   0.0121  0.0123   0.0125  0.0117   0.0120
+  5.61    1.274   0.0126  0.0129   0.0129  0.0123   0.0123
+Tabulated from data in file pg02684.dat & reduced using program C06.01
+
+Average Reynolds #:
+297704
+Number of angles of attack:
+2
+ alpha  /   Cl   /  Cd   /  Spanwise Cd's >>>
+  5.19    1.240   0.0119  0.0122   0.0123  0.0116   0.0116
+  5.64    1.279   0.0125  0.0129   0.0128  0.0122   0.0120
+Tabulated from data in file pg02683.dat & reduced using program C06.01
+
+Average Reynolds #:
+298926
+Number of angles of attack:
+2
+ alpha  /   Cl   /  Cd   /  Spanwise Cd's >>>
+  4.82    1.213   0.0117  0.0121   0.0119  0.0114   0.0114
+  5.27    1.255   0.0120  0.0123   0.0121  0.0118   0.0117
+Tabulated from data in file pg02682.dat & reduced using program C06.01
+
+File sg6043t3.drg created using program C06.01 on Mon Feb 02 15:11:43 1998

@@ -1,0 +1,164 @@
+Summary of Low-Speed Airfoil Data, Volume 3
+Christopher A. Lyon, Andy P. Broeren, Philippe Giguere, Ashok
+Gopalarathnam, and Michael S. Selig
+
+Appendix E:
+
+UIUC Low-Speed Airfoil Tests Manifesto
+
+The UIUC LSATs Manifesto which appears below is a modified version of
+the initial announcement of the wind-tunnel test program written in
+December 1993. For recent information on the UIUC LSATs, please see
+the latest bulletin available from either the coordinator at the
+address given at the end of this Manifesto or from the world wide web
+at http://www.uiuc.edu/ph/www/m-selig.
+
+The University of Illinois at Urbana-Champaign Low-Speed Airfoil Tests
+(UIUC LSATs) team is continuing its search for experienced modelers to
+build a variety of airfoil wind-tunnel models to be tested in the UIUC
+Department of Aeronautical and Astronautical Engineering Subsonic
+Aerodynamics Research Laboratory. A low-speed, low-turbulence wind
+tunnel has been instrumented to take lift, moment, and drag measurements
+on airfoils at low speeds over the Reynolds number range from 40,000 to
+500,000. The scope of the airfoil wind-tunnel tests is limited only by
+the number of wind-tunnel models provided and the amount of funding
+received. While the LSATs program has been self-sustaining since its
+inception, additional support is needed to continue these tests. If you
+choose to support the program, your help will be acknowledged in
+subsequent project reports to be published through SoarTech Publications
+(Herk Stokely).
+
+At the present time, there is a need for new airfoils for R/C
+sailplanes. For example, R/C hand launch soaring is booming, but few
+good airfoils (e.g., E387 and SD7037) presently exist for such
+sailplanes. Sailplanes for the new F3J competition are just beginning
+to evolve, and new airfoils will probably be required. What will they
+look like? In the past, only a few airfoils (e.g., HQ 1.5/8.5, RG15
+and SD7003) have been favored for F3B competition. In shape, handling,
+and performance the SD7003 is quite different from the other airfoils
+mentioned. These significant differences suggest that it may be
+possible to design new airfoils that have better overall
+characteristics for F3B competition. In addition to the design and
+wind tunnel testing of new airfoils, several existing airfoils should
+be tested. The SD7037 and RG15 are quite popular and often used with
+flaps. The flap effectiveness of these airfoils should be quantified
+through wind-tunnel tests, and the results should be used in the
+design of new airfoils.
+
+
+There is also a need for new airfoils for R/C sport, aerobatic, and
+electric planes, as well as R/C helicopters. Often, NACA airfoils are
+used for these applications, but as compared with airfoils that could
+be designed today, many of the NACA airfoils (which were designed
+decades ago mostly by trial and error) are inferior. At the time the
+NACA airfoils were designed, little was known about the complex
+aerodynamics of airfoils operating at low Reynolds numbers. (Airfoils
+with small chords at low speeds, such as those on model aircraft, are
+said to operate in the low Reynolds number flight regime). In recent
+years, much has been learned about low Reynolds number aerodynamics,
+and this knowledge has successfully been applied to the design of new
+airfoils for R/C sailplanes, ushering in a new era in R/C
+soaring. Overall, R/C sailplane performance has improved
+dramatically. Older airfoils are no longer used. R/C power-aircraft
+performance could likewise be dramatically improved through the use of
+newly designed, specially tailored airfoils.
+
+Unique airfoil design requirements also exist for other categories of
+model aircraft. For example, FAI free flight aircraft (which
+incorporate both a powered launch segment and gliding flight) operate
+over a wide range of speeds. In the past, many airfoils with good
+performance characteristics have been designed for FAI free
+flight. These airfoils should be wind-tunnel tested to quantify their
+performance. The results gleaned from the tests could then be applied
+in the design process in an effort to develop new airfoils with
+improved performance.
+
+Other topics of interest include the effects of contour accuracy and
+blended airfoils. While previous tests have shed some light on how
+accurate airfoils must be in order to achieve expected performance, a
+more systematic effort should be made to test the best airfoils for
+sensitivity to contour accuracy. We are also interested in designing
+and testing families of airfoils for use in "blending" from one
+airfoil at the root to a different airfoil at the tip. It is unlikely
+that the best performance can be obtained from a single airfoil used
+along the entire wing span. This is especially true for flying
+wings. Companion airfoils for blending should be designed for use with
+the most popular existing airfoils, e.g., SD7037 and RG15. It is
+expected that the practice of blending airfoils along the span will
+become much more popular than it is today.
+
+Overall, the LSATs test objectives are to design and wind-tunnel test
+new airfoils for each category of aircraft listed above and to examine
+the effects of flaps, turbulators, and contour accuracy. We are
+especially interested in testing existing airfoils that are known to
+have superior performance. Wind-tunnel data on such airfoils will be
+used during the design of new and better airfoils. If you believe that
+we have overlooked an important area, we would be interested in your
+input and may consider expanding the scope of the project. The number
+of airfoil models to be tested has not been predefined; rather, it
+will be depend on the level of interest and support from the modeling
+community.
+
+The wind-tunnel models should have a 33 5/8-in. span with a 12-in.
+chord and can either be built-up or foam core. We will supply 12-in.
+chord wing templates to ensure the construction of accurate
+models. The surface finish should preferably be smooth (fiberglass or
+heat-shrinkable mylar covering); however, we are interested in the
+effects of surface finish and will consider testing models with
+non-smooth surfaces. The models will be attached to the wind-tunnel
+balance by standard model wing rods. Standard model construction
+techniques should provide the necessary strength (supporting 15--20 lb
+of lift when pinned at both ends). The brass tubing and collars for
+the models will be supplied along with full-scale plots and/or
+coordinates of the airfoil, if requested. (Please contact us before
+starting any construction on a wind-tunnel model.)
+
+As previously mentioned, the airfoils will be tested in the UIUC
+open-circuit 3 x 4 ft subsonic wind tunnel. The turbulence intensity
+level is minimal and more than sufficient to ensure good flow
+integrity at low Reynolds numbers. Lift and pitching moment
+characteristics will be determined through force-balance measurements,
+while drag will be evaluated by the momentum method through the use of
+total-head probes traversed through the airfoil wake at several
+spanwise locations.
+    
+If you are interested in building wind tunnel models for the tests or
+wish to request information, please write, fax or send e-mail to the
+coordinator:
+
+UIUC LSATs Coordinator
+c/o Prof. Michael Selig
+Dept. of Aeronautical and Astronautical Eng.
+University of Illinois at Urbana-Champaign
+306 Talbot Laboratory, 104 S. Wright St.
+Urbana, IL 61801-2935
+e-mail: m-selig@uiuc.edu
+fax: (217) 244-0720
+
+The program will be self-sustaining so long as funds are made available
+for equipment maintenance/upgrades and graduate student stipend support
+and tuition and fees (approximately $16,000/yr per student). It is
+envisioned that a small level of support from a large number of modeling
+enthusiasts could sustain the airfoil-design/wind-tunnel test program
+indefinitely. The impact on model aviation could be tremendous.
+Donations can be mailed to:
+
+Prof. Michael Selig
+Dept. of Aeronautical and Astronautical Eng.
+University of Illinois at Urbana-Champaign
+Talbot Laboratory, 104 S. Wright St. 
+Urbana, IL 61801-2935
+e-mail: m-selig@uiuc.edu
+ph: (217) 244-5757
+fax: (217) 244-0720
+
+Please make checks payable to "University of Illinois, AAE Dept."
+Also, please write on the check "Selig --- Wind Tunnel Testing/AAE
+Unrestricted Funds," and provide a letter stating that your
+contribution is to be used by Prof. Selig and his group of students
+(both undergraduate and graduate) in support of the airfoil wind-tunnel
+tests. Finally, for a suggested donation of $18 in US, Canada, and
+Mexico (or $22 in other countries) you can receive a UIUC LSATs white
+short-sleeve shirt. All proceeds will go toward the continuation of the
+project.
+
