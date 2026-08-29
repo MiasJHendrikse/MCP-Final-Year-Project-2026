@@ -42,14 +42,20 @@ src/
     station.py       single-station Ning (2014) residual + root-find
     rotor.py         spanwise loop, geometry, one operating point
     powercurve.py    wind-speed / TSR sweeps in dimensional units
+  polars/       The cache-consuming layer. No XFOIL dependency, by design.
+    viterna.py       post-stall extrapolation to +/-180 deg
+    cache_format.py  the cache CSV schema and its provenance column
+    envelope.py      the design rotor's Reynolds envelope, which sizes its cache
   xfoil/        Polar generation and lookup.
     xfoil_runner.py       XFOIL subprocess wrapper
     build_polar_cache.py  sweep Re, write data/polars/<airfoil>/
+    close_polar_gaps.py   repair a committed cache's holes, extend to +/-180
     polar_lookup.py       bilinear (alpha, Re) interpolation
   validation/   Everything that checks or cross-checks the above.
     validate_stage1..4.py    BEM solver, stage by stage
     validate_powercurve.py   power curve / Cp-lambda sweep layer
     validate_polars.py       5-check audit of a polar cache
+    check_stitch_continuity.py  value/slope jumps where XFOIL meets Viterna
     compare_pybemt.py        cross-check vs pyBEMT
     compare_ccblade.py       cross-check vs CCBlade
     compare_qblade.py        cross-check vs QBlade CE
@@ -62,6 +68,7 @@ config/         Versioned input configuration. Read only through src/config.
   rotor_design.yaml    the SG6043 design rotor being optimised
   rotor_phase_vi.yaml  the NREL Phase VI validation rotor's operating condition
   polars_s809.yaml     the committed S809 polar cache, as built
+  polars_sg6043.yaml   the design rotor's cache -- specified, not yet built
 data/           Inputs only.
   airfoils/       Selig-format coordinates (S809)
   polars/         the XFOIL polar cache, per airfoil, per Reynolds
@@ -131,7 +138,15 @@ python -m validation.validate_polars s809       # currently 4/5
 python -m validation.validate_polars naca4412   # currently 3/5
 ```
 
-Both have one documented, deliberately-retained residual — see the READMEs
+Both check the XFOIL-converged band only; the +/-180 deg Viterna extension the
+cache files carry is checked separately, for continuity with the measured data
+it is anchored to:
+
+```bash
+python -m validation.check_stitch_continuity s809
+```
+
+Both polar audits have one documented, deliberately-retained residual — see the READMEs
 in `data/polars/*/` and the 2026-07-26 / 2026-07-28 journal entries. A
 non-zero exit here is the known state, not a new regression.
 

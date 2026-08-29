@@ -6,12 +6,16 @@ Runs an alpha/Reynolds sweep for a single airfoil through the existing XFOIL wra
 data/polars/<airfoil>/. This is the cache the BEM solver and adjoint FD verification
 read from, instead of shelling out to XFOIL on every call.
 
-CSV schema (written by save_polar_csv): one header row "alpha,cl,cd,cm", one row per
-converged alpha, columns:
-    alpha : angle of attack, degrees
-    cl    : lift coefficient
-    cd    : total drag coefficient
-    cm    : quarter-chord pitching-moment coefficient
+CSV schema (written by save_polar_csv): one header row "alpha,cl,cd,cm,source",
+one row per alpha on a -180..180 deg grid, columns:
+    alpha  : angle of attack, degrees
+    cl     : lift coefficient
+    cd     : total drag coefficient
+    cm     : quarter-chord pitching-moment coefficient
+    source : provenance code -- see polars/cache_format.py. Rows outside the
+             XFOIL-converged band are Viterna extrapolation, written at build
+             time so the committed cache spans the full circle with no ragged
+             edge (work order Task 2).
 
 Author: MJ Hendrikse
 Project: DSP810S — Inverse Design of Small Wind Turbine Blades
@@ -22,6 +26,7 @@ import os
 
 import numpy as np
 
+from polars import cache_format
 from xfoil.xfoil_runner import run_xfoil_polar, RESULTS_DIR
 
 DATA_DIR = os.path.abspath(os.path.join(RESULTS_DIR, "..", "data"))
@@ -167,9 +172,17 @@ def fill_alpha_gaps(polar, airfoil_cmd, reynolds, alpha_min, alpha_max, alpha_st
     return merged[np.argsort(merged[:, 0])], len(recovered)
 
 
-def save_polar_csv(polar, csv_path):
+def save_polar_csv(polar, csv_path, source=None, extend=True,
+                   alpha_step=_DEFAULT_ALPHA_STEP, **viterna_kwargs):
     """
-    Write a converged XFOIL polar array to a CSV with columns alpha,cl,cd,cm.
+    Write a converged XFOIL polar array to a cache CSV.
+
+    The file spans -180..180 deg: the converged rows as XFOIL produced them,
+    Viterna-extrapolated outside the converged band (work order Task 2, item
+    4), with a provenance column saying which is which. Extending at *write*
+    time rather than at read time is what makes "the cache has no ragged edge"
+    a property of the committed data instead of a property of whoever happens
+    to be reading it -- see polars/cache_format.py.
 
     Parameters
     ----------
@@ -178,12 +191,29 @@ def save_polar_csv(polar, csv_path):
         [alpha, CL, CD, CDp, CM, Top_Xtr, Bot_Xtr].
     csv_path : str
         Destination CSV path. Parent directory is created if missing.
+    source : array_like of int or None, optional
+        Per-row provenance (see polars.cache_format). Defaults to
+        `SOURCE_XFOIL` for every row.
+    extend : bool, optional
+        Extend to +/-180 deg (default True). False writes the converged band
+        only, still with the provenance column.
+    alpha_step : float, optional
+        Output alpha resolution for the extension, degrees.
+    **viterna_kwargs
+        Passed to the extrapolation -- `cd_max` in particular, which should be
+        `polars.viterna.cd_max_finite_blade(AR)` for a design-rotor cache
+        rather than the S809 default.
     """
 
-    os.makedirs(os.path.dirname(csv_path), exist_ok=True)
     subset = polar[:, [0, 1, 2, 4]]  # alpha, cl, cd, cm
-    np.savetxt(csv_path, subset, delimiter=",", header="alpha,cl,cd,cm",
-               comments="", fmt="%.6f")
+    if source is None:
+        source = np.full(len(subset), cache_format.SOURCE_XFOIL, dtype=int)
+
+    if extend:
+        subset, source = cache_format.extend_to_full_range(
+            subset, source, step=alpha_step, **viterna_kwargs)
+
+    return cache_format.write_polar_csv(subset, source, csv_path)
 
 
 def build_polar_cache(airfoil_cmd, airfoil_label, reynolds_list,
@@ -254,6 +284,7 @@ def build_polar_cache(airfoil_cmd, airfoil_label, reynolds_list,
             print(f"  [WARN] No converged polar for {airfoil_cmd} at Re={re:,} — skipping cache entry.")
             continue
 
+        from_main_sweep = set(np.round(polar[:, 0], 6).tolist())
         polar, n_recovered = fill_alpha_gaps(
             polar, airfoil_cmd, re, alpha_min, alpha_max, alpha_step,
             raw_path=raw_path, n_iter=n_iter, timeout=timeout,
@@ -261,6 +292,14 @@ def build_polar_cache(airfoil_cmd, airfoil_label, reynolds_list,
         )
         if n_recovered:
             print(f"    Gap-fill recovered {n_recovered} alpha(s) the main sweep dropped.")
+
+        # Provenance: a retry row is a real viscous solution, but not one the
+        # main sweep reached, so it is recorded as its own kind rather than
+        # blended into the sweep's output.
+        source = np.where(
+            np.isin(np.round(polar[:, 0], 6), list(from_main_sweep)),
+            cache_format.SOURCE_XFOIL, cache_format.SOURCE_GAP_RETRY,
+        )
 
         still_missing = np.setdiff1d(
             _expected_alphas(alpha_min, alpha_max, alpha_step),
@@ -271,7 +310,7 @@ def build_polar_cache(airfoil_cmd, airfoil_label, reynolds_list,
                   f"{[float(a) for a in still_missing]}")
 
         csv_path = os.path.join(output_dir, f"{airfoil_label.upper()}_Re{re}.csv")
-        save_polar_csv(polar, csv_path)
+        save_polar_csv(polar, csv_path, source=source, alpha_step=alpha_step)
         cached[re] = csv_path
         print(f"    Converged points: {len(polar)} "
               f"(alpha {polar[:, 0].min():+.1f} to {polar[:, 0].max():+.1f} deg) "

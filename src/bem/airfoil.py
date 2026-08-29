@@ -111,8 +111,14 @@ class S809Polar:
 
     def __init__(self, reynolds):
         self._lookup = _get_s809_lookup()
-        self._alpha_min = float(self._lookup.alpha_values.min())
-        self._alpha_max = float(self._lookup.alpha_values.max())
+        # The clamp band is the XFOIL-converged band, not the table's extent.
+        # Since Task 2 the cache also carries the Viterna extrapolation out to
+        # +/-180 deg; clamping at the edge of the *measured* data keeps this
+        # adapter's behaviour exactly what it has always been, so the change
+        # of post-stall model is Task 4's to make deliberately (it deletes
+        # this class) rather than something that arrived with a cache rewrite.
+        self._alpha_min = float(self._lookup.xfoil_alpha_min)
+        self._alpha_max = float(self._lookup.xfoil_alpha_max)
         self._re_min = float(self._lookup.re_values.min())
         self._re_max = float(self._lookup.re_values.max())
         self.reynolds = min(max(reynolds, self._re_min), self._re_max)

@@ -1,0 +1,137 @@
+# SG6043 polar cache -- the design rotor's cache. PROJECT_PLAN.md section 3.3.
+#
+# NOT YET BUILT. Unlike polars_s809.yaml, which describes a cache that exists,
+# this file is the *specification* for one that does not: the Reynolds bounds
+# it has to cover, and why. Two inputs are still missing and neither may be
+# invented (remediation work order, ground rule 3):
+#
+#   * the SG6043 coordinates, from the UIUC coordinate database (plan 1.2);
+#   * n_crit, which plan 1.2's sensitivity study selects. S809's Ncrit = 5 is
+#     a result about a 21 % thick section at low Re and is NOT transferable --
+#     calibration is per-cache metadata, and there is deliberately no global
+#     default anywhere in the repo.
+#
+# Both are written as TODO below, so `load_polar_cache("sg6043")` returns
+# sentinels that raise on use rather than plausible numbers.
+#
+# Read only through `src/config` (config.load_polar_cache("sg6043")).
+
+name: sg6043
+airfoil: SG6043
+directory: data/polars/sg6043
+description: >-
+  XFOIL polar cache for the SG6043, covering the Khomas Hochland design
+  rotor's per-station Reynolds envelope across the cut-in to cut-out wind
+  sweep. Independent of the S809 cache; the two do not interact.
+
+build:
+  ncrit: "TODO: from the n_crit sensitivity study (plan 1.2)"
+  n_panel: 240      # as for S809: resolves the leading-edge suction peak.
+                    # Not a calibration choice -- panel count is a
+                    # discretisation setting, not a transition model.
+  alpha_min_deg: -8.0
+  alpha_max_deg: 18.0
+  alpha_step_deg: 0.5
+  # Reynolds bounds: see `reynolds_envelope` below for the derivation. 40k
+  # floor against a computed minimum of 49.4k (19 % margin); 1.0M ceiling
+  # against a computed maximum of 854k (17 % margin). Spacing is finer at the
+  # low end, where dCd/dRe is steepest and where the design rotor actually
+  # lives, and the interpolant of work order Task 3 works in log(Re), so even
+  # ratios matter more than even differences.
+  reynolds:
+    - 40000
+    - 60000
+    - 80000
+    - 100000
+    - 150000
+    - 200000
+    - 300000
+    - 400000
+    - 500000
+    - 600000
+    - 700000
+    - 800000
+    - 1000000
+
+# ---------------------------------------------------------------------------
+# Reynolds envelope -- work order Task 2, item 0
+# ---------------------------------------------------------------------------
+# Computed by `python -m polars.envelope` (from src/), which derives it from
+# config/rotor_design.yaml and config/site.yaml alone. Established BEFORE any
+# SG6043 polar is generated, because work order Task 4 removes the Reynolds
+# clamp and makes an out-of-range lookup raise: a cache floor above the real
+# envelope would turn a silent wrong answer into a hard crash across the
+# low wind-speed bins, which carry most of this site's AEP.
+#
+# Method: Re = W c / nu with W = hypot(V, Omega r), over
+#   * 25 stations over r/R = 0.15..1.0 plus the tip;
+#   * every 1 m/s wind bin from cut-in (3) to cut-out (20);
+#   * Schmitz optimum chord at C_L = 1.0 -- plan 1.4's own basis for choosing
+#     R = 2.0 m -- perturbed by 0.7, 1.0 and 1.4;
+#   * three rotor-speed schedules (see `cases`).
+#
+# The chord band is an assumption, not a config value: plan 7.1's chord bounds
+# are unset, so a stand-in is needed and is stated rather than hidden. It
+# covers the design-lift lever the plan records (chord scales as 1/C_L, so
+# C_L in 0.71..1.43 is the same band) and any plausible optimiser excursion.
+# Recompute when 7.1 fixes real bounds.
+reynolds_envelope:
+  computed_by: python -m polars.envelope
+  computed_on: 2026-08-29
+  kinematic_viscosity: 1.8690e-5     # site.yaml, 1800 m -- NOT sea level
+  chord_model: Schmitz optimum at C_L = 1.0, factors [0.7, 1.0, 1.4]
+  overall_min: 49413      # below-rated, V = 3 m/s, r/R = 0.17, c = 0.236 m
+  overall_max: 854069     # unregulated, V = 20 m/s, r/R = 1.00, c = 0.121 m
+  cases:
+    below_rated:          # variable speed, lambda = 6.5 +/- 1.5
+      min: 49413
+      max: 575863
+    above_rated:          # rotor speed held at its rated value
+      min: 214027
+      max: 588992
+    unregulated:          # constant lambda to cut-out -- not a sensible
+      min: 55980          # machine, but exactly what
+      max: 854069         # bem.powercurve.power_curve(tsr=...) computes today,
+                          # so a cache that does not cover it would raise
+                          # rather than answer
+  notes: >-
+    The floor is set at the inboard station at cut-in, not at the tip: at the
+    low end of the tip-speed-ratio band the root sees little relative velocity
+    despite its large chord. Rows below Re = 60k sit outside the UIUC
+    Low-Speed Airfoil Tests range (60k, 100k, 200k, 300k) and inherit the
+    low-Re XFOIL uncertainty plan 3.3 names as a dominant error source; they
+    are cached to keep the envelope covered, not because they are as
+    trustworthy as the rest.
+
+# ---------------------------------------------------------------------------
+# Post-stall extrapolation -- work order Task 2, item 3
+# ---------------------------------------------------------------------------
+# The +/-180 deg extension is written at build time (polars.viterna). CD_MAX
+# for this cache is DERIVED from the blade's aspect ratio through Viterna &
+# Corrigan's 1.11 + 0.018 AR, not carried over from the S809 cache's fitted
+# 1.8: that value was matched to QBlade for a 10 m NREL rotor and has no
+# bearing on a 2 m blade. The reversed-flow lift amplitude follows from it as
+# negative_cl_scale * CD_MAX / 2 (see polars/viterna.py).
+extrapolation:
+  aspect_ratio: 11.7        # R / mean Schmitz chord, python -m polars.envelope
+  cd_max: 1.32              # 1.11 + 0.018 * 11.7
+  negative_cl_scale: 0.7    # retained convention, see polars/viterna.py
+  recompute_when: the design chord distribution is fixed
+
+known_gaps: []      # nothing built yet
+
+history:
+  - date: 2026-08-29
+    change: >-
+      specified -- Reynolds envelope computed and bounds set with margin
+      (work order Task 2, item 0). No polars generated: coordinates and
+      n_crit are still outstanding.
+
+validation:
+  script: python -m validation.validate_polars sg6043
+  status: not built
+  residual: >-
+    Nothing to validate yet. When built, this cache must additionally be
+    cross-checked against the published UIUC Low-Speed Airfoil Tests SG6043
+    data at Re = 60k, 100k, 200k and 300k (plan 1.2), which the S809 cache
+    has no equivalent of.

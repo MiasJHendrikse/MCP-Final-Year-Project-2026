@@ -38,6 +38,8 @@ import sys
 
 import numpy as np
 
+from polars.cache_format import load_xfoil_band
+
 _HERE = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.abspath(os.path.join(_HERE, "..", "..", "data"))
 
@@ -51,7 +53,16 @@ _MAX_PRESTALL_DROP = 0.10  # largest tolerated Cl decrease below the stall shoul
 
 
 def load_cache(cache_dir):
-    """Load every <LABEL>_Re<value>.csv in cache_dir, sorted by Reynolds number."""
+    """
+    Load every <LABEL>_Re<value>.csv in cache_dir, sorted by Reynolds number.
+
+    XFOIL-converged rows only. Since work order Task 2 the caches also carry a
+    Viterna extrapolation out to +/-180 deg, and all five checks below are
+    checks on *XFOIL's* output -- a lift-curve slope or a Cl_max measured
+    across the extrapolated branch would be measuring the extrapolation, not
+    the cache. The extrapolation is checked separately, for continuity with
+    the data it is anchored to, by check_stitch_continuity.py.
+    """
     paths = sorted(glob.glob(os.path.join(cache_dir, "*_Re*.csv")))
     if not paths:
         raise FileNotFoundError(f"No cached polar CSVs found in '{cache_dir}'.")
@@ -61,9 +72,7 @@ def load_cache(cache_dir):
         match = _FNAME_RE.search(os.path.basename(path))
         if not match:
             continue
-        data = np.loadtxt(path, delimiter=",", skiprows=1)
-        if data.ndim == 1:
-            data = data.reshape(1, -1)
+        data, _source = load_xfoil_band(path)
         curves[int(match.group(1))] = data
     return dict(sorted(curves.items()))
 
