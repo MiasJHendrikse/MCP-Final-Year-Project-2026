@@ -3,7 +3,7 @@
 Same rule as `data/`: **inputs only, committed, never generated.** `results/` is
 where generated output goes.
 
-Four files, one per thing that has its own basis:
+Five files, one per thing that has its own basis:
 
 | File | What it fixes |
 |---|---|
@@ -11,6 +11,13 @@ Four files, one per thing that has its own basis:
 | `rotor_design.yaml` | The SG6043 design rotor being optimised: R, B, λ, wind-speed envelope, parameterisation. Plan §1.4, §2.2, §4. |
 | `rotor_phase_vi.yaml` | The NREL Phase VI validation rotor's operating condition, including its **sea-level** air. Plan §2.1. |
 | `polars_s809.yaml` | The committed S809 polar cache, as built. Descriptive metadata, not a rebuild instruction. Plan §3.3. |
+| `polars_sg6043.yaml` | The design rotor's cache — **not yet built**. A specification rather than a description: the Reynolds envelope it must cover, and the bounds set beyond it. Plan §3.3. |
+
+The last two are the same shape for a reason. `load_polar_cache()` takes a
+cache name and returns the same object either way, so code that reads a cache's
+build settings does not need to know which of the two it has — and the
+SG6043 file's unbuilt fields (`n_crit`) are `TODO` sentinels rather than
+S809's numbers copied across.
 
 ## Read these only through `src/config`
 
@@ -64,6 +71,10 @@ Outstanding at the time of writing:
   whole `wind_resource` block. Waiting on the Global Wind Atlas extraction. A
   fabricated wind resource propagates silently into every AEP figure and
   invalidates the results chapter, so these stay `TODO` (plan §1.3).
+- `polars_sg6043.yaml` → `build.ncrit`. Plan §1.2's sensitivity study selects
+  it. S809's `Ncrit = 5` is a result about a 21 % thick section at low Re and
+  does not transfer; copying it across is exactly the per-cache-calibration
+  mistake the two-file split exists to prevent.
 - `rotor_design.yaml` → `parameterisation.bounds.*`. Plan §7.1 fixes that chord
   and twist bounds exist and are applied to the *scaled* variables; it commits
   to no numbers and no study has selected any.

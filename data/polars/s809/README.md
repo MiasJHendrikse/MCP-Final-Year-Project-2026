@@ -1,7 +1,8 @@
 XFOIL polar cache for the NREL S809 — the project's primary airfoil (see
 PROJECT_PLAN.md and the 2026-07-04 journal entry for why S809 rather than NACA
-4412). One CSV per Reynolds number, columns `alpha,cl,cd,cm`, alpha −8° to +18°
-on a 0.5° grid. Re = 100k–1.3M in 6 steps up to 500k then 100k steps to 1.3M
+4412). One CSV per Reynolds number, columns `alpha,cl,cd,cm,source`, alpha
+−180° to +180° on a 0.5° grid — XFOIL-converged from −8° to +18°, Viterna
+extrapolation outside that (see *File format* below). Re = 100k–1.3M in 6 steps up to 500k then 100k steps to 1.3M
 (100k, 150k, 200k, 300k, 400k, 500k, 600k, 700k, 800k, 900k, 1.0M, 1.1M, 1.2M,
 1.3M) — extended from the original 100k–500k on 2026-07-28 to bracket the real
 NREL Phase VI rotor's chord-based station Reynolds numbers (~525k–1.31M across
@@ -26,13 +27,123 @@ Consequence to keep in mind: this cache is **not** directly comparable to the
 Somers/Delft/OSU/CSU S809 tunnel data, which is Ncrit≈9 (and at Re ≥ 1e6,
 outside this range anyway).
 
-Known residuals: a handful of Reynolds numbers are missing a single interior
-alpha the gap-fill retry could not converge (Re=100k at 13.0°; Re=600k at
-16.5°; Re=700k at 12.0°; Re=800k at 16.5°; Re=1.0M at 7.5°, 16.0° and 17.5°;
-Re=1.2M at 15.0°). `PolarLookup` interpolates across each; `validate_polars.py`
-check 1 confirms every one agrees with a local quadratic fit to within 0.0011
-in Cl. `bem.airfoil.S809Polar` falls back the same way it already did for the
-low-Re gaps (step alpha inward until a converged point is found).
+## File format, and what the fifth column means
+
+Since 2026-08-29 (remediation work order, Task 2) each CSV is
+`alpha,cl,cd,cm,source` and spans **−180 … 180°** on the same 0.5° grid, 721
+rows per file. The `source` column says where each row came from, because a
+cache that is gap-free everywhere is no use if you cannot tell measurement
+from fill:
+
+| code | label | meaning |
+|---|---|---|
+| 0 | `xfoil` | converged in the original sweep |
+| 1 | `gap_retry` | converged in the finer-step retry that closed a hole |
+| 2 | `local_fit` | **not converged anywhere** — quadratic through the four nearest converged points |
+| 3 | `viterna` | post-stall extrapolation, outside the −8…18° converged band |
+
+The definition lives in `src/polars/cache_format.py`; `load_xfoil_band()` is
+how a reader asks for the measured rows only, which is what
+`validate_polars.py`, the QBlade export and the pyBEMT comparison tables all
+do. **No converged row was altered by any of this**: all 748 pre-existing rows
+are byte-identical to what they were before (ground rule 1 — this cache is
+repaired, never regenerated).
+
+## The eight interior holes, and how each was closed
+
+The sweep previously left one unconverged alpha at each of eight (Re, α)
+points. `PolarLookup` bridged each by linear interpolation, which does not
+raise and does not announce itself — and Task 3 fits a C¹ interpolant over
+this grid, where a bridged hole becomes a fitted feature. All eight are now
+closed (`python -m xfoil.close_polar_gaps s809`):
+
+| Re | α | closed by |
+|---|---|---|
+| 100k | 13.0° | local fit |
+| 600k | 16.5° | local fit |
+| 700k | 12.0° | **XFOIL retry** (converged) |
+| 800k | 16.5° | local fit |
+| 1.0M | 7.5° | local fit |
+| 1.0M | 16.0° | local fit |
+| 1.0M | 17.5° | local fit |
+| 1.2M | 15.0° | local fit |
+
+Two retry passes were run — the standard quarter-step one and a tenth-step
+pass at 800 viscous iterations — at the cache's own `Ncrit = 5` / 240-panel
+settings, read from `config/polars_s809.yaml` so a retry cannot drift from the
+rows it fills between. The second pass recovered nothing the first had not, so
+the seven remaining points are where XFOIL genuinely will not go at these
+settings, not where it was merely unlucky. Each is filled from a quadratic
+through its four nearest converged neighbours — the same estimator
+`validate_polars.py` check 1 already used to *judge* those holes harmless
+(agreement within 0.0011 in Cl), now used to fill them — and is flagged
+`local_fit` in the data. Per-point values: `results/polar_cache/
+s809_gap_closure.json`.
+
+## Viterna extension, and the stitch
+
+Outside −8…18° the files carry the classical Viterna extrapolation from
+`src/polars/viterna.py` (`CD_MAX = 1.8`, negative-side scale 0.7,
+reversed-flow amplitude 0.63 = 0.7 × 1.8 / 2, derived rather than fitted).
+Written at build time, so the committed data is what the solver sees, not
+whatever the reader chooses to extrapolate.
+
+**Value continuity at the upper stitch is exact** — 0.0 at every Reynolds row,
+as it must be: the coefficients are matched to (α_s, Cl_s, Cd_s). The slope is
+not continuous, and the size of the kink is what Task 3 has to decide what to
+do with, so it is measured rather than assumed
+(`python -m validation.check_stitch_continuity s809`, full JSON in
+`results/polar_cache/`). Slopes are first differences on the file's own 0.5°
+grid; the percentage is against the thin-airfoil slope 0.1097 /deg, because
+the incoming slope at the upper stitch is the stall shoulder and passes
+through zero in the middle of this Reynolds range, which makes a
+slope-relative figure meaningless there.
+
+**Upper stitch, α = +18° (XFOIL → Viterna):**
+
+| Re | Cl slope in / out (/deg) | jump | % of 2π slope | Cd slope in / out (/deg) | jump |
+|---|---|---|---|---|---|
+| 100,000 | -0.1214 / +0.0031 | +0.1245 | 114 % | +0.0467 / +0.0188 | -0.0279 |
+| 150,000 | -0.0096 / -0.0063 | +0.0033 | 3 % | +0.0175 / +0.0190 | +0.0015 |
+| 200,000 | -0.0140 / -0.0084 | +0.0056 | 5 % | +0.0183 / +0.0190 | +0.0007 |
+| 300,000 | -0.0056 / -0.0115 | -0.0059 | 5 % | +0.0165 / +0.0191 | +0.0026 |
+| 400,000 | -0.0060 / -0.0143 | -0.0083 | 8 % | +0.0162 / +0.0191 | +0.0029 |
+| 500,000 | -0.0018 / -0.0169 | -0.0151 | 14 % | +0.0150 / +0.0191 | +0.0042 |
+| 600,000 | -0.0042 / -0.0190 | -0.0148 | 14 % | +0.0148 / +0.0192 | +0.0043 |
+| 700,000 | +0.0006 / -0.0208 | -0.0214 | 20 % | +0.0138 / +0.0192 | +0.0054 |
+| 800,000 | +0.0032 / -0.0223 | -0.0255 | 23 % | +0.0131 / +0.0192 | +0.0061 |
+| 900,000 | +0.0074 / -0.0236 | -0.0310 | 28 % | +0.0123 / +0.0192 | +0.0069 |
+| 1,000,000 | +0.0139 / -0.0247 | -0.0386 | 35 % | +0.0113 / +0.0192 | +0.0079 |
+| 1,100,000 | +0.0114 / -0.0256 | -0.0370 | 34 % | +0.0114 / +0.0192 | +0.0078 |
+| 1,200,000 | +0.0128 / -0.0263 | -0.0391 | 36 % | +0.0111 / +0.0193 | +0.0082 |
+| 1,300,000 | +0.0152 / -0.0271 | -0.0423 | 39 % | +0.0107 / +0.0193 | +0.0086 |
+
+**Lower stitch, α = −8° (linear ramp onto the negative branch → XFOIL):**
+
+| Re | Cl slope measured / ramp (/deg) | jump | % of 2π slope |
+|---|---|---|---|
+| 100,000 | +0.0880 / +0.0268 | -0.0612 | 56 % |
+| 150,000 | -0.0828 / +0.0304 | +0.1132 | 103 % |
+| 200,000 | +0.0098 / +0.0305 | +0.0207 | 19 % |
+| 300,000 | +0.0280 / +0.0320 | +0.0040 | 4 % |
+| 400,000 | +0.0312 / +0.0333 | +0.0021 | 2 % |
+| 500,000 | +0.0322 / +0.0346 | +0.0024 | 2 % |
+| 600,000 | +0.0348 / +0.0354 | +0.0006 | 1 % |
+| 700,000 | +0.0344 / +0.0361 | +0.0017 | 2 % |
+| 800,000 | +0.0362 / +0.0367 | +0.0005 | 0 % |
+| 900,000 | +0.0338 / +0.0371 | +0.0033 | 3 % |
+| 1,000,000 | +0.0348 / +0.0374 | +0.0026 | 2 % |
+| 1,100,000 | +0.0360 / +0.0375 | +0.0015 | 1 % |
+| 1,200,000 | +0.0356 / +0.0376 | +0.0020 | 2 % |
+| 1,300,000 | +0.0336 / +0.0377 | +0.0041 | 4 % |
+
+Two things to read off this. The kink is largest at Re = 100k on both sides —
+the one curve whose stall shoulder is a genuine collapse rather than a
+rounding — and it is not small anywhere: 3–39 % of the thin-airfoil slope
+across the upper half of the range. Normal operation keeps α below stall so
+the stitch sits outside the working range, but optimiser excursions and the
+Step 8 smoothness sweeps will visit it, and a C¹ fit across this join will
+either reproduce the kink or smooth it away. Neither is free.
 
 Check 5 (Reynolds-trend monotonicity) is the one check that does not pass at
 the full 100k–1.3M range: max L/D dips ~1.4–1.7% at two points in the upper

@@ -24,6 +24,8 @@ import re as re_module
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator
 
+from polars.cache_format import SOURCE_VITERNA, read_polar_csv
+
 _HERE = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.abspath(os.path.join(_HERE, "..", "..", "data"))
 
@@ -60,6 +62,15 @@ class PolarLookup:
         as a NaN result and __call__ raises PolarCacheError instead of silently
         returning an extrapolated value.
 
+        Since work order Task 2 the caches are written over the full -180..180
+        deg circle with a provenance column, so a curve no longer *has* a
+        ragged edge and no NaN survives this step -- but the reindexing is
+        kept, both because the NACA 4412 reference cache predates the change
+        and because "a hole here is a NaN, not a plausible number" is the
+        behaviour the layer should keep if a future cache is written ragged.
+        `xfoil_alpha_min`/`xfoil_alpha_max` report where the measured data
+        ends and the extrapolation begins.
+
         Parameters
         ----------
         cache_dir : str
@@ -81,6 +92,7 @@ class PolarLookup:
 
         re_values = []
         curves = []  # list of (alpha, cl, cd, cm) per Re, possibly ragged
+        bands = []   # per-curve (alpha_min, alpha_max) of the XFOIL-converged rows
 
         for path in paths:
             match = _FNAME_RE.search(os.path.basename(path))
@@ -88,10 +100,11 @@ class PolarLookup:
                 continue  # skip any non-conforming file sitting in the folder
             reynolds = int(match.group(1))
 
-            data = np.loadtxt(path, delimiter=",", skiprows=1)
-            if data.ndim == 1:
-                data = data.reshape(1, -1)
+            data, source = read_polar_csv(path)
             alpha, cl, cd, cm = data[:, 0], data[:, 1], data[:, 2], data[:, 3]
+
+            measured = alpha[source != SOURCE_VITERNA]
+            bands.append((float(measured.min()), float(measured.max())))
 
             re_values.append(reynolds)
             curves.append((alpha, cl, cd, cm))
@@ -112,6 +125,16 @@ class PolarLookup:
             cl_grid[row, in_range] = np.interp(alpha_ref[in_range], alpha, cl)
             cd_grid[row, in_range] = np.interp(alpha_ref[in_range], alpha, cd)
             cm_grid[row, in_range] = np.interp(alpha_ref[in_range], alpha, cm)
+
+        # The alpha band XFOIL actually converged at *every* cached Reynolds
+        # number -- the intersection, not the union, so a caller that limits
+        # itself to this range is on measured data whichever Re it lands on.
+        # For a cache written before the provenance column existed this is
+        # simply the whole table. Callers that must not step onto the Viterna
+        # extrapolation (the QBlade export, the pyBEMT comparison tables, the
+        # Stage 4 alpha clamp) read it from here rather than assuming -8..18.
+        self.xfoil_alpha_min = max(b[0] for b in bands)
+        self.xfoil_alpha_max = min(b[1] for b in bands)
 
         points = (self.re_values, self.alpha_values)
         self._cl_interp = RegularGridInterpolator(points, cl_grid)

@@ -68,9 +68,10 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + "/..")
 
-from validation import export_qblade  # noqa: E402
 from bem.rotor import phase_vi_geometry, solve_rotor  # noqa: E402
 from config import load_phase_vi_rotor  # noqa: E402
+from polars.cache_format import load_xfoil_band  # noqa: E402
+from polars.viterna import build_full_range_polar  # noqa: E402
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.abspath(os.path.join(_HERE, "..", ".."))
@@ -100,9 +101,20 @@ AIR_DYNAMIC_VISCOSITY = PHASE_VI.dynamic_viscosity   # Pa s
 ALPHA_GRID_DEG = np.arange(-180.0, 180.01, 0.5)
 
 
+def _cache_path(re_bucket):
+    return os.path.join(DATA_DIR, "polars", "s809", f"S809_Re{re_bucket}.csv")
+
+
 def _load_cache_csv(re_bucket):
-    path = os.path.join(DATA_DIR, "polars", "s809", f"S809_Re{re_bucket}.csv")
-    data = np.loadtxt(path, delimiter=",", skiprows=1)
+    """
+    (alpha, cl, cd) for one bucket, XFOIL-converged rows only.
+
+    The cache spans -180..180 deg since work order Task 2. Both table builders
+    below extrapolate for themselves -- one by clamping, one by Viterna -- and
+    both have to start from the measured band, so the extension is dropped
+    here rather than in each of them.
+    """
+    data, _source = load_xfoil_band(_cache_path(re_bucket))
     return data[:, 0], data[:, 1], data[:, 2]  # alpha, cl, cd
 
 
@@ -128,7 +140,7 @@ def build_dense_table_viterna(re_bucket):
     Same purpose as build_dense_table (alpha_grid_deg, cl, cd for one Reynolds
     bucket), but Viterna-extrapolated outside the XFOIL-converged range instead
     of flat-clamped -- i.e. the same post-stall model as the QBlade .plr export
-    (bem.export_qblade.build_full_range_polar).
+    (polars.viterna.build_full_range_polar).
 
     Use this one only for QBlade cross-checks (own solver vs QBlade Rotor BEM).
     build_dense_table's flat clamp remains the one used for the pyBEMT/CCBlade
@@ -138,9 +150,8 @@ def build_dense_table_viterna(re_bucket):
     the two extrapolation schemes disagree, which is the point of having both.
     """
 
-    path = os.path.join(DATA_DIR, "polars", "s809", f"S809_Re{re_bucket}.csv")
-    data = np.loadtxt(path, delimiter=",", skiprows=1)
-    full = export_qblade.build_full_range_polar(
+    data, _source = load_xfoil_band(_cache_path(re_bucket))
+    full = build_full_range_polar(
         data[:, 0], data[:, 1], data[:, 2], data[:, 3], step=0.5
     )
     alpha_full, cl_full, cd_full = full[:, 0], full[:, 1], full[:, 2]

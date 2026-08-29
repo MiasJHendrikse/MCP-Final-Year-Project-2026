@@ -31,9 +31,11 @@ build:
                     # Full reasoning: data/polars/s809/README.md and the
                     # 2026-07-26 journal entry.
   n_panel: 240      # resolves the leading-edge suction peak
-  alpha_min_deg: -8.0
-  alpha_max_deg: 18.0
-  alpha_step_deg: 0.5
+  alpha_min_deg: -8.0       # bounds of the XFOIL-converged band. The cache
+  alpha_max_deg: 18.0       # FILES span -180..180: outside this band they
+  alpha_step_deg: 0.5       # carry the Viterna extension, flagged row by row
+                            # in the CSV's `source` column (work order Task 2,
+                            # see src/polars/cache_format.py).
   reynolds:
     - 100000
     - 150000
@@ -58,23 +60,63 @@ history:
       extended from 100k-500k to 1.3M to bracket the real Phase VI per-station
       Reynolds range (~525k-1313k); before this every station was clamping to
       the 500k ceiling
+  - date: 2026-08-29
+    change: >-
+      work order Task 2 -- the 8 interior holes closed (1 by XFOIL retry, 7
+      from a documented local fit), every curve extended to -180..180 deg by
+      Viterna, and a provenance column added to the CSVs. No converged row was
+      touched: all 748 pre-existing rows are byte-identical (ground rule 1)
 
-# Single interior alpha values the gap-fill retry could not converge. Closing
-# these is Task 2 of the remediation work order; recorded here so the state of
-# the cache is not something a reader has to discover.
-known_gaps:
-  - {reynolds: 100000, alpha_deg: 13.0}
-  - {reynolds: 600000, alpha_deg: 16.5}
-  - {reynolds: 700000, alpha_deg: 12.0}
-  - {reynolds: 800000, alpha_deg: 16.5}
-  - {reynolds: 1000000, alpha_deg: 7.5}
-  - {reynolds: 1000000, alpha_deg: 16.0}
-  - {reynolds: 1000000, alpha_deg: 17.5}
-  - {reynolds: 1200000, alpha_deg: 15.0}
+# Interior alphas the original sweep left unconverged. All eight are now
+# closed (work order Task 2) and the cache is gap-free at every Reynolds
+# number, so this list is empty -- what filled each one is recorded under
+# `filled_alphas` below and, per row, in the CSVs themselves.
+known_gaps: []
+
+# How each former hole was closed. `gap_retry` is a converged viscous
+# solution the finer-step retry reached; `local_fit` is a quadratic through
+# the four nearest converged points, which is NOT a solution and is flagged as
+# such in the data. Two retry passes were run -- the standard quarter-step one
+# and a tenth-step pass at 800 iterations -- and the second recovered nothing
+# the first had not, so these seven are where XFOIL genuinely will not go at
+# Ncrit = 5.
+filled_alphas:
+  - {reynolds: 100000, alpha_deg: 13.0, how: local_fit}
+  - {reynolds: 600000, alpha_deg: 16.5, how: local_fit}
+  - {reynolds: 700000, alpha_deg: 12.0, how: gap_retry}
+  - {reynolds: 800000, alpha_deg: 16.5, how: local_fit}
+  - {reynolds: 1000000, alpha_deg: 7.5, how: local_fit}
+  - {reynolds: 1000000, alpha_deg: 16.0, how: local_fit}
+  - {reynolds: 1000000, alpha_deg: 17.5, how: local_fit}
+  - {reynolds: 1200000, alpha_deg: 15.0, how: local_fit}
+
+# Post-stall extension, written into the cache files at -180..180 deg.
+# CD_MAX is the fitted 1.8 the committed QBlade .plr pair and the pyBEMT
+# comparison tables were produced with, retained here for that reason and not
+# because it is derived -- Viterna & Corrigan's finite-blade relation would
+# give ~1.27 for the Phase VI blade's aspect ratio. The design rotor's cache
+# uses the derived value instead (config/polars_sg6043.yaml). The reversed-flow
+# lift amplitude is derived from these two as 0.7 * 1.8 / 2 = 0.63, which is
+# exactly the number it replaces. See src/polars/viterna.py.
+extrapolation:
+  scheme: classical Viterna, flat-plate reversed branch, linear negative ramp
+  cd_max: 1.8
+  negative_cl_scale: 0.7
+  reversed_cl_amplitude: 0.63     # derived: negative_cl_scale * cd_max / 2
+  stitch_continuity: >-
+    Value continuity at the upper stitch is exact (0.0 at every Reynolds row).
+    The Cl slope jumps by up to 0.1245 /deg (Re = 100k), 114 % of the
+    thin-airfoil slope; the lower stitch by up to 0.1132 /deg (Re = 150k).
+    Full per-row table in data/polars/s809/README.md and
+    results/polar_cache/s809_stitch_continuity.json.
 
 validation:
   script: python -m validation.validate_polars s809
   status: 4/5 checks pass
+  scope: >-
+    The five checks run over the XFOIL-converged band only; the extension is
+    checked separately for continuity with the data it is anchored to by
+    `python -m validation.check_stitch_continuity s809`.
   residual: >-
     Check 5 (Reynolds-trend monotonicity): max L/D dips ~1.4-1.7% at Re=800k
     and Re=1.2M before continuing to rise. Noise in an increasingly flat

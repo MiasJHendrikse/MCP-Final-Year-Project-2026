@@ -93,6 +93,35 @@ criterion is **not satisfiable as written** from the current tree, by anything
 those tasks do. Until the external tools are re-run, the golden files here are
 the operative check for "the Phase VI cross-check figures are unchanged".
 
+## Change log
+
+Every regeneration, what moved, and why. A task that changes these files
+appears here.
+
+### 2026-08-29 — Task 2 (gap-free cache, ±180° extension)
+
+**What moved:** 12 of 41 `phase_vi_cp_lambda` values (λ = 3.5 … 6.0) and 81 of
+1160 `phase_vi_spanwise` values, all at relative 1e-5 … 3e-4.
+
+**Why:** Task 2 closed the eight interior holes in the S809 cache. Before, a
+query landing on a hole read a linear bridge between the converged neighbours
+either side; now it reads the documented fill. The spanwise movement is
+entirely at the **v = 7 m/s** point, stations **12–14** (α = 7.17–7.66°,
+Re = 938k–945k) — the three whose lookup straddles α = 7.5° between the 900k
+and 1.0M curves, which is the (1.0M, 7.5°) hole. Station 11 (α = 8.18°) and
+station 15 (α = 6.64°) do not straddle it and did not move. The difference at
+the filled node is ~0.001 in Cl — the same figure `validate_polars` check 1 had
+already measured there.
+
+**What did not move:** `cross_tool_summary.json` in full, including both
+tracking percentages and the QBlade pinned per-station CSVs, and
+`test_snapshot_is_bitwise_reproducible`.
+
+**Not yet moved by Task 2:** the 15 m/s deep-stall point. The cache now extends
+to ±180°, but `S809Polar`'s α clamp is deliberately pinned to the
+XFOIL-converged band, so the clamp path is still live there. Task 4 deletes it;
+that is when this point should change.
+
 ## Regenerating
 
 ```
