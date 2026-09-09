@@ -1,29 +1,21 @@
 # SG6043 polar cache -- the design rotor's cache. PROJECT_PLAN.md section 3.3.
 #
 # NOT YET BUILT. Unlike polars_s809.yaml, which describes a cache that exists,
-# this file is the *specification* for one that does not: the Reynolds bounds
-# it has to cover, and why. Two inputs are still missing and neither may be
-# invented (remediation work order, ground rule 3):
+# this file is still the *specification* for one that does not: the Reynolds
+# bounds it has to cover, and why. Both inputs the build was blocked on are
+# now in hand (remediation work order, ground rule 3 -- neither was invented):
 #
-#   * ~~the SG6043 coordinates~~ -- LANDED 2026-08-29 as
-#     data/airfoils/sg6043.dat, fetched verbatim from the UIUC coordinate
-#     database and geometry-verified against published thickness/camber (see
-#     data/airfoils/README.md);
-#   * n_crit, which plan 1.2's sensitivity study selects. S809's Ncrit = 5 is
-#     a result about a 21 % thick section at low Re and is NOT transferable --
-#     calibration is per-cache metadata, and there is deliberately no global
-#     default anywhere in the repo.
+#   * the SG6043 coordinates -- LANDED 2026-08-29 as data/airfoils/sg6043.dat,
+#     fetched verbatim from the UIUC coordinate database and geometry-verified
+#     against published thickness/camber (see data/airfoils/README.md);
+#   * n_crit -- LANDED 2026-09-09, selected by plan 1.2's sensitivity study
+#     (python -m validation.ncrit_sensitivity, results/ncrit_sensitivity/).
+#     S809's Ncrit = 5 is a result about a 21 % thick section at low Re and
+#     does not transfer; this cache's own calibration is `build.ncrit` below.
 #
-# n_crit is written as TODO below, so `load_polar_cache("sg6043")` returns a
-# sentinel that raises on use rather than a plausible number. The data to
-# select it against has landed: data/sg6043_uiuc_lsat/ holds the UIUC
-# Low-Speed Airfoil Tests Vol. 3 measurements, clean model, at Re = 100k,
-# 150k, 200k, 300k, 400k and 500k. Note that this is NOT the
-# 60k/100k/200k/300k set plan 3.1 quotes -- there is no 60k run, and there are
-# two more points at the top than the plan credits. See that directory's
-# README.
-#
-# Read only through `src/config` (config.load_polar_cache("sg6043")).
+# The cache itself is still not built -- n_crit landing removes the last
+# blocker but does not build it. Read only through `src/config`
+# (config.load_polar_cache("sg6043")).
 
 name: sg6043
 airfoil: SG6043
@@ -34,7 +26,24 @@ description: >-
   sweep. Independent of the S809 cache; the two do not interact.
 
 build:
-  ncrit: "TODO: from the n_crit sensitivity study (plan 1.2)"
+  ncrit: 9.0
+  # Selected 2026-09-09 by python -m validation.ncrit_sensitivity, sweeping
+  # {5,7,9,11,13} against the UIUC clean-model data at Re=100k-500k (the same
+  # alpha range and n_panel this build section specifies). Full results,
+  # per-Reynolds breakdown and the reasoning for picking 9 over the script's
+  # own naive mean-aggregate pick of 11 are in results/ncrit_sensitivity/README.md.
+  # Short version: 9 wins 4 of the 6 individual Reynolds comparisons
+  # (100k/200k/300k/400k) against 11's 2 (150k/500k), it is the value that
+  # wins across the low-Re band closest to this cache's unmeasured 40k-100k
+  # floor, and -- unlike S809's atmospheric-turbulence-motivated Ncrit=5 --
+  # 9 is XFOIL's own clean-wind-tunnel default, which is the physically
+  # expected match when validating against a wind-tunnel dataset.
+  #
+  # n_crit in {5,7,13} were NOT ruled out on merit -- each hit a 400s sweep
+  # timeout at exactly one Reynolds number and is incompletely characterized,
+  # not disqualified. n_crit=13 in particular scored best of anything in the
+  # table at Re=300k. See the README's "What this study did not settle"
+  # section before treating 9 as unconditionally final.
   n_panel: 240      # as for S809: resolves the leading-edge suction peak.
                     # Not a calibration choice -- panel count is a
                     # discretisation setting, not a transition model.
@@ -135,6 +144,15 @@ history:
       specified -- Reynolds envelope computed and bounds set with margin
       (work order Task 2, item 0). No polars generated: coordinates and
       n_crit are still outstanding.
+  - date: 2026-09-09
+    change: >-
+      n_crit calibrated to 9.0 by the sensitivity study (plan 1.2); see
+      build.ncrit above and results/ncrit_sensitivity/README.md for the full
+      comparison and the reasoning for overriding the study script's own
+      naive pick of 11. n_crit in {5,7,13} left incompletely characterized
+      (sweep timeouts at one Re each, not disqualified on merit) -- flagged
+      in the README for anyone revisiting this calibration later. Cache
+      still not built.
 
 validation:
   script: python -m validation.validate_polars sg6043
@@ -145,11 +163,15 @@ validation:
     data committed under data/sg6043_uiuc_lsat/ -- clean model, Re = 100k,
     150k, 200k, 300k, 400k, 500k (plan 1.2). The S809 cache has no equivalent
     reference at its own build settings, so this is the stronger of the two
-    validations and should be reported as such.
+    validations and should be reported as such. The n_crit=9 comparison
+    against this data at the un-extended, un-extrapolated XFOIL sweep is
+    already done -- results/ncrit_sensitivity/ -- but that is the calibration
+    check, not a substitute for validating the built, ±180°-extended,
+    interpolated cache once it exists.
   low_re_caveat: >-
     Nothing below Re = 100k has experimental support. The cache floor is 40k
     because the design envelope reaches 49.4k at the root at cut-in, so the
     40k-80k rows are XFOIL alone, in the regime where XFOIL is least
-    trustworthy, and the n_crit study can only validate 100k-500k and assume
-    the calibration carries downward. Name this in the limitations chapter
-    (plan 3.3, risk R4).
+    trustworthy, and the n_crit study could only validate 100k-500k and must
+    assume the calibration carries downward. Name this in the limitations
+    chapter (plan 3.3, risk R4).
