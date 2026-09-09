@@ -186,8 +186,17 @@ QUIT
             cwd=polar_dir,
         )
     except subprocess.TimeoutExpired:
-        print(f"  [WARN] XFOIL timed out after {timeout}s for {airfoil_cmd} at Re={reynolds}")
-        return None
+        # A kill discards the running process, not the polar file: PACC writes
+        # each alpha's row as it converges, so whatever the sweep completed
+        # before the timeout is still on disk. Do not throw it away -- fall
+        # through to the normal read path below and return what is there
+        # (None only if that turns out to be nothing). This matters most for
+        # a genuine XFOIL hang on one specific alpha (seen on SG6043 at
+        # Re=60k, alpha=15.5 deg, just past its stall peak, independent of
+        # n_iter or timeout length): the rest of the sweep up to that point is
+        # real, converged data and should not be lost with it.
+        print(f"  [WARN] XFOIL timed out after {timeout}s for {airfoil_cmd} at Re={reynolds}; "
+              f"recovering whatever converged before the kill")
     except FileNotFoundError:
         raise RuntimeError(
             f"Could not find XFOIL executable '{xfoil_executable}'. "
@@ -203,6 +212,15 @@ QUIT
         data = np.loadtxt(polar_path, skiprows=12)
     except (ValueError, StopIteration):
         print(f"  [WARN] Polar file empty or malformed for {airfoil_cmd} at Re={reynolds}")
+        return None
+
+    # A file that exists but has zero data rows (PACC opened, nothing ever
+    # converged) loads as a size-0 array, which np.ndim reports as 1D --
+    # reshape(1, -1) then "succeeds" into shape (1, 0) instead of raising,
+    # and the caller's column indexing fails opaquely. Catch it here, in the
+    # same place and with the same outcome as every other no-data case above.
+    if data.size == 0:
+        print(f"  [WARN] No alpha converged for {airfoil_cmd} at Re={reynolds}")
         return None
 
     # If only one alpha converged, np.loadtxt returns a 1D array — promote to 2D

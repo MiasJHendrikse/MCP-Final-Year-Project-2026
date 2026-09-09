@@ -103,6 +103,27 @@ AIRFOILS = {
         ],
         ncrit=9.0,
         cd_max=cd_max_finite_blade(11.7),
+        # NOT S809's n_iter=400/timeout=900 (2026-09-09): at n_iter=400, a
+        # handful of alphas near stall that the n_crit sensitivity study
+        # (n_iter=200, zero timeouts across the whole 100k-500k band at this
+        # same n_crit=9) skipped cleanly instead ground for the full 900s
+        # without finishing the rest of the sweep -- Ncrit=9 is deliberately
+        # less bubble-suppressing than S809's Ncrit=5, so SG6043 is more
+        # exposed to exactly the slow-Newton-convergence-near-stall pathology
+        # that setting exists to avoid. Lower n_iter matches what already
+        # demonstrably worked; any alphas it still drops go through the same
+        # fill_alpha_gaps finer-step retry (and, on a residual holdout,
+        # close_polar_gaps's documented local_fit) S809 also relies on.
+        n_iter=200,
+        timeout=120,
+        # 120 s, not 300: Re=60k hangs at exactly alpha=15.5 deg regardless of
+        # timeout length (300s and 900s both stopped at the same 15.0 deg
+        # last-converged point -- a genuine non-terminating case, not a slow
+        # one), so a longer budget buys nothing there and only delays moving
+        # on. xfoil_runner.run_xfoil_polar recovers whatever converged before
+        # a kill, so a short timeout costs little even for a run that was
+        # merely slow rather than hung; fill_alpha_gaps and close_polar_gaps
+        # pick up whatever this leaves missing.
     ),
 }
 
@@ -366,6 +387,14 @@ if __name__ == "__main__":
     ncrit = config.get("ncrit", _DEFAULT_NCRIT)
     n_panel = config.get("n_panel", _DEFAULT_N_PANEL)
     cd_max = config.get("cd_max")
+    # A 240-panel bidirectional sweep is a few hundred viscous solves; the
+    # 120 s default is not enough and silently truncates the polar (XFOIL is
+    # killed mid-sweep, so the run looks "converged up to alpha X" rather
+    # than failed). 900 s per Reynolds number leaves ample headroom -- S809's
+    # own settings, kept as the default; sg6043 overrides both (see its
+    # AIRFOILS entry).
+    n_iter = config.get("n_iter", 400)
+    timeout = config.get("timeout", 900)
 
     cached = build_polar_cache(
         airfoil_cmd=config["airfoil_cmd"],
@@ -374,12 +403,8 @@ if __name__ == "__main__":
         alpha_min=_DEFAULT_ALPHA_MIN,
         alpha_max=_DEFAULT_ALPHA_MAX,
         alpha_step=_DEFAULT_ALPHA_STEP,
-        n_iter=400,
-        # A 240-panel bidirectional sweep is a few hundred viscous solves; the
-        # 120 s default is not enough and silently truncates the polar (XFOIL is
-        # killed mid-sweep, so the run looks "converged up to alpha X" rather
-        # than failed). 900 s per Reynolds number leaves ample headroom.
-        timeout=900,
+        n_iter=n_iter,
+        timeout=timeout,
         ncrit=ncrit,
         n_panel=n_panel,
         cd_max=cd_max,
