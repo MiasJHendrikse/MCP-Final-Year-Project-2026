@@ -132,7 +132,9 @@ reynolds_envelope:
 # negative_cl_scale * CD_MAX / 2 (see polars/viterna.py).
 extrapolation:
   aspect_ratio: 11.7        # R / mean Schmitz chord, python -m polars.envelope
-  cd_max: 1.32              # 1.11 + 0.018 * 11.7
+  cd_max: 1.3206            # 1.11 + 0.018 * 11.7, exact -- matches what
+                            # xfoil.build_polar_cache.AIRFOILS["sg6043"]
+                            # actually computes via cd_max_finite_blade(11.7)
   negative_cl_scale: 0.7    # retained convention, see polars/viterna.py
   recompute_when: the design chord distribution is fixed
 
