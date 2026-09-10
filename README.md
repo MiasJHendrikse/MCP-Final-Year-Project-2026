@@ -80,9 +80,25 @@ data/           Inputs only.
 docs/
   journal/        Obsidian vault: project plan, overview, session notes
   validation/     cross-validation writeups, plots, reference case files
+  OUTSTANDING-INPUTS.md  external data this project is waiting on — read this
+                  before wondering why something raises
+tests/            pytest suite: the machine-checkable Phase 1 exit criteria.
+  golden/         Task 0 regression snapshot: Cp(lambda), spanwise a/a'/phi
+verification/     Versioned report figures — committed evidence, not scratch.
+  polar_interpolant/     C1 interpolant vs the bilinear staircase
+  phase_vi/              solver residual histories across the envelope
+  representation_study/  control-point count, justified against Schmitz
 results/          Generated plots and polars. results/_archive/ is scratch
                   (gitignored) — the XFOIL scripts write raw output there.
 ```
+
+**Waiting on external input.** Several exit criteria are blocked on data that
+cannot be inferred or defaulted: the Global Wind Atlas wind resource (Weibull
+`k`, `c`), the manufacturability bounds, and two papers needed for provenance.
+[`docs/OUTSTANDING-INPUTS.md`](docs/OUTSTANDING-INPUTS.md) is the single list,
+with what each blocks and what happens in the meantime. Code that needs an
+unresolved value raises `UnresolvedConfigError` naming the field, rather than
+substituting anything.
 
 **Rule of thumb:** `data/` and `config/` are inputs, `results/` is generated
 output, `src/` is the only place Python lives.

@@ -92,6 +92,7 @@ class DesignRotorConfig:
     description: str
     radius_m: float
     n_blades: int
+    root_fraction: float
     design_tsr: float
     rated_wind_speed_ms: float
     cut_in_wind_speed_ms: float

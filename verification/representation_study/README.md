@@ -1,37 +1,96 @@
 # Blade representation study
 
-**Empty. Lands with plan step 1.6.** Created by work order Task 8 so the
-location is fixed before the work starts.
+Plan section 4.3 and step 1.6's final bullet: the control-point count is to be
+*justified* by a documented comparison across 6, 8, 10, 12 and 16, not
+asserted.
 
-## What goes here
+**Conclusion: 10 total — 5 chord + 5 twist.** That is the plan's intended
+configuration; this study is what makes it a justified choice rather than a
+stated one. The reasoning is below, including why the count that fits best is
+not the one selected.
 
-Plan step 1.6 builds `src/design/parameterisation.py`: the map from a design
-vector `d` to a spanwise chord and twist distribution, with analytic `∂c/∂d`
-and `∂θ/∂d`. This directory holds the evidence for the *choices* in that map,
-which are not obvious and which the writeup has to defend:
+```
+python verification/representation_study/run_study.py
+```
+→ `representation_study.json`, `representation_study.png`
 
-- **Control-point count.** Too few and the optimum is not reachable; too many
-  and the optimiser has freedom to produce a wavy blade that scores well and
-  cannot be manufactured. `config/rotor_design.yaml` carries
-  `n_control_points_chord` and `n_control_points_twist` as separate fields
-  precisely so the study can vary them independently.
-- **Spline family and knot placement**, and what each does to the achievable
-  chord and twist distributions.
-- **Strip count against control-point count.** `ParameterisationConfig` keeps
-  `n_bem_strips` separate from the design-variable count so the two cannot be
-  conflated; this is where the separation is justified rather than asserted.
+## Method
 
-Expected artefacts: recovered-shape comparisons against the Schmitz baseline
-(step 1.7), convergence of the achievable optimum with control-point count,
-and the complex-step verification plots for `∂c/∂d` and `∂θ/∂d` to ~1e-14 that
-`tests/test_parameterisation.py` will assert numerically.
+The reference is the **analytic Schmitz blade** for this rotor (R = 2.0 m,
+B = 3, λ = 6.5) at the SG6043 maximum-L/D point — L/D = 98.5 at α = 5.36°,
+Cl = 1.2825, at Re = 200,000. That reference is the honest target: it is the
+shape the optimiser is started from, so what matters is whether the
+parameterisation can hold *it*, not whether it can hold a generic taper chosen
+to be easy to fit.
 
-## Note on the derivative tests
+The reference blade runs from 263 mm chord at the root to 69 mm at the tip
+(mean 132 mm), with twist 23.07° → 0.57°.
 
-`tests/test_parameterisation.py` is named in work order Task 7's list but does
-not exist yet — it has nothing to test until this module lands. When it does,
-the dtype trap that caught the polar interpolant applies here too: a NumPy
-array pre-allocated with a real dtype silently discards the imaginary part of
-a complex-step perturbation, capping observed accuracy near 1e-6 while looking
-entirely plausible. If verification plateaus there, suspect dtype before
-suspecting the mathematics.
+Because the parameterisation is linear in its control points, fitting is a
+single linear least-squares solve — exact, no starting guess, no local minima.
+The error reported is a property of the **basis**, not of an optimiser that
+fitted it.
+
+## Results
+
+| total | chord/twist | degree | chord RMS | (% of mean) | twist RMS | cond(N) | sawtooth reproduced |
+|---|---|---|---|---|---|---|---|
+| 6 | 3 + 3 | 2 | 4.112 mm | 3.111 % | 0.8626° | 3.17 | 9.8 % |
+| 8 | 4 + 4 | 3 | 0.642 mm | 0.486 % | 0.2926° | 5.98 | 9.8 % |
+| **10** | **5 + 5** | **3** | **0.515 mm** | **0.389 %** | **0.1061°** | **5.59** | **14.5 %** |
+| 12 | 6 + 6 | 3 | 0.427 mm | 0.323 % | 0.0301° | 5.43 | 15.6 % |
+| 16 | 8 + 8 | 3 | 0.122 mm | 0.093 % | 0.0041° | 5.60 | 20.7 % |
+
+"Sawtooth reproduced" is the fraction of a pure strip-to-strip oscillation the
+basis can represent — 0 % means the null space of §4.2 is invisible to the
+optimiser, 100 % is what per-station design variables would give.
+
+## Why 10
+
+**6 is excluded outright.** Three control points per block cannot carry a
+cubic, so the degree drops to 2, and it shows: 3.1 % chord error, 0.86° of
+twist error, and a visible miss at both the root and the tip in the left-hand
+panel of the figure. It cannot represent the shape it would be asked to start
+from.
+
+**Fitting accuracy stops meaning anything after 8.** At 10 control points the
+chord RMS error is **0.515 mm on a 132 mm mean chord**. No composite blade of
+this size is manufactured to a tolerance anywhere near that, so the additional
+accuracy from 12 (0.427 mm) or 16 (0.122 mm) buys nothing physical. The
+error curve in the middle panel is steep from 6 to 8 and flat from 8 to 12,
+which is the signature of a basis that has already captured the shape.
+
+**Conditioning does not discriminate here**, which is worth saying plainly
+because plan 4.3 lists it first. cond(N) sits between 5.4 and 6.0 across every
+count from 8 upward — the basis functions are well separated at all of these
+resolutions on 25 strips. The low value at 6 is an artefact of the reduced
+degree, not a virtue. So the criterion the plan expected to be decisive is not,
+and the decision rests on the other three.
+
+**16 fits best and is still not chosen.** This is the one genuine trade in the
+table, and it goes the other way for two reasons: it reproduces **20.7 %** of a
+strip-to-strip oscillation against 14.5 % at 10, i.e. it hands the optimiser
+appreciably more of the exact sawtooth freedom §4.2 says the parameterisation
+exists to remove; and it costs 60 % more chain-rule work through the
+parameterisation in every adjoint evaluation, for a fitting improvement that is
+already far below manufacturing tolerance.
+
+**10 sits at the knee.** Twist error at 10 (0.106°) is an order of magnitude
+better than at 8 (0.293°) for one extra control point per block, while chord
+error is essentially unchanged — twist is the more demanding of the two
+distributions here, and 10 is where it becomes negligible.
+
+## What this study does not settle
+
+- **Demonstrable optimisation improvement**, the fifth criterion in plan 4.3.
+  That needs the optimiser, which is Phase 5. If a converged optimum at 10
+  control points turns out to be materially worse than at 12, this conclusion
+  should be revisited — the study is cheap to re-run.
+- **Ease of imposing bounds**, the third criterion. The bounds are still `TODO`
+  (see `docs/OUTSTANDING-INPUTS.md`), and a manufacturability envelope that
+  constrains root chord tightly might favour more control points inboard, or an
+  uneven split between the chord and twist blocks rather than the even one
+  assumed throughout here.
+- **An uneven chord/twist split.** Every row splits the total evenly. Given
+  that twist error dominates at low counts, `4 chord + 6 twist` might beat
+  `5 + 5` at the same cost. Not explored, and worth a look before Phase 5.
