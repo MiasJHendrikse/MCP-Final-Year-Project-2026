@@ -17,12 +17,18 @@ Task 2 adds:
   `envelope`      -- the design rotor's per-station Reynolds envelope, which
                      is what sets the SG6043 cache bounds.
 
-Task 3 adds `cache.py` and `interpolant.py` here.
+Task 3 adds:
+  `cache`         -- CSV load and ragged->rectangular reindexing into a
+                     `PolarGrid`, lifted from `xfoil.polar_lookup`.
+  `interpolant`   -- `PolarInterpolant`, the C1 analytically differentiable
+                     (alpha, Reynolds) -> (Cl, Cd, Cm) surface built on top
+                     of a `PolarGrid`.
 
 Author: MJ Hendrikse
 Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
 """
 
+from polars.cache import PolarGrid, PolarGridError
 from polars.cache_format import (
     HEADER,
     SOURCE_GAP_RETRY,
@@ -35,6 +41,7 @@ from polars.cache_format import (
     read_polar_csv,
     write_polar_csv,
 )
+from polars.interpolant import PolarDomainError, PolarInterpolant
 from polars.viterna import (
     CD_MAX,
     CD_MAX_QBLADE_MATCHED,
@@ -56,6 +63,10 @@ __all__ = [
     "CD_MAX_QBLADE_MATCHED",
     "HEADER",
     "NEGATIVE_CL_SCALE",
+    "PolarDomainError",
+    "PolarGrid",
+    "PolarGridError",
+    "PolarInterpolant",
     "REVERSED_CD_FLOOR",
     "SOURCE_GAP_RETRY",
     "SOURCE_LABELS",
