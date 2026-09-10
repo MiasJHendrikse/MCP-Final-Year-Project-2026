@@ -34,6 +34,7 @@ Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
 from config.loader import (
     ATMOSPHERE_TOLERANCE,
     CONFIG_DIR,
+    REPO_ROOT,
     ConfigError,
     load_design_rotor,
     load_phase_vi_rotor,
@@ -57,6 +58,7 @@ __all__ = [
     "DesignRotorConfig",
     "ParameterisationConfig",
     "PolarCacheConfig",
+    "REPO_ROOT",
     "SiteConfig",
     "StandardAtmosphere",
     "Unresolved",

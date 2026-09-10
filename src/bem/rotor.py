@@ -1,7 +1,8 @@
 """
 Stage 4: multi-station spanwise loop over the Stage 1-3 single-station
-solver, using real S809 polar data (airfoil.S809Polar) instead of Stage 1's
-synthetic linear polar.
+solver, using real cached polar data (polars.polar.CachedPolar) instead of
+Stage 1's synthetic linear polar. Which cache is a property of the blade --
+see RotorGeometry.polar_cache.
 
 Each station is solved independently via station.solve_station -- there is
 deliberately no spanwise coupling/smoothing between stations at this stage
@@ -30,8 +31,8 @@ Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
 import math
 from dataclasses import dataclass
 
-from bem.airfoil import S809Polar
 from bem.station import StationParams, solve_station
+from polars.polar import polar_factory_for
 
 # No module-level air properties, deliberately. A sea-level kinematic
 # viscosity used to be a module constant here and a sea-level density a
@@ -59,6 +60,20 @@ class RotorGeometry:
         Station twist (+ pitch), radians.
     R : float
         Rotor (blade tip) radius, m.
+    polar_cache : str
+        Which polar cache this blade's sections are, named by its
+        `config/polars_<name>.yaml` file -- "sg6043" for the design rotor,
+        "s809" for the NREL Phase VI validation rotor.
+
+        Required, with no default, and carried here rather than passed to
+        `solve_rotor`, for one reason: the airfoil is a property of the blade,
+        not of the call. Two caches are live simultaneously from Phase 1.4
+        onward, and anything that lets the two drift apart -- a module-level
+        "active airfoil" (retired in Task 4), or a default on the solver --
+        produces a plausible number computed from the wrong table. This is the
+        same rule Task 1 applied to air density and viscosity: a default is
+        worse than no default when the wrong answer stays inside the
+        believable band.
     n_blades : int
         Number of blades, B.
     r_hub : float or None
@@ -69,6 +84,7 @@ class RotorGeometry:
     chord: list
     twist: list
     R: float
+    polar_cache: str
     n_blades: int = 3
     r_hub: float = None
 
@@ -80,7 +96,8 @@ class RotorGeometry:
             raise ValueError("r must be strictly increasing")
 
 
-def demo_rotor_geometry(n_stations=15, R=5.5, r_hub=0.5, n_blades=3):
+def demo_rotor_geometry(n_stations=15, R=5.5, r_hub=0.5, n_blades=3,
+                        polar_cache="s809"):
     """
     A synthetic, smoothly-tapered/twisted blade spanning r_hub to R --
     linear chord taper (0.5 m -> 0.1 m) and linear twist (15 deg -> -2 deg),
@@ -88,6 +105,12 @@ def demo_rotor_geometry(n_stations=15, R=5.5, r_hub=0.5, n_blades=3):
     confound the Stage 4 smoothness checks. This is a placeholder geometry
     for exercising the pipeline, not NREL Phase VI's actual blade (see
     module docstring).
+
+    `polar_cache` defaults to "s809" only because that is what this
+    placeholder has always been solved with -- naming it here keeps
+    `RotorGeometry`'s required field satisfied at the one place this blade is
+    defined, rather than reintroducing a solver-side default. Retire with the
+    function after Phase 1.7.
     """
 
     stations = n_stations
@@ -107,7 +130,8 @@ def demo_rotor_geometry(n_stations=15, R=5.5, r_hub=0.5, n_blades=3):
         chord.append(chord_root + (chord_tip - chord_root) * frac)
         twist.append(twist_root + (twist_tip - twist_root) * frac)
 
-    return RotorGeometry(r=r, chord=chord, twist=twist, R=R, n_blades=n_blades, r_hub=r_hub)
+    return RotorGeometry(r=r, chord=chord, twist=twist, R=R,
+                         polar_cache=polar_cache, n_blades=n_blades, r_hub=r_hub)
 
 
 #: NREL Phase VI, Table A-1 "Blade chord and twist distributions"
@@ -196,14 +220,21 @@ def phase_vi_geometry(tip_pitch_deg=PHASE_VI_SEQUENCE_S_TIP_PITCH_DEG):
 
     return RotorGeometry(
         r=r, chord=chord, twist=twist, R=PHASE_VI_R,
+        # Phase VI is an S809 blade -- "Except for the root, the blade uses
+        # the S809 at all span locations" (Hand et al. 2001, Appendix A).
+        # Pinned here, at the blade's definition, so this validation rotor can
+        # never inherit the design rotor's SG6043 sections from a caller that
+        # did not say which airfoil it meant.
+        polar_cache="s809",
         n_blades=PHASE_VI_N_BLADES, r_hub=PHASE_VI_R_HUB,
     )
 
 
 def solve_rotor(geometry: RotorGeometry, tsr, v_inf=7.0, *,
-                air_density, kinematic_viscosity, airfoils=None):
+                air_density, kinematic_viscosity,
+                airfoil_for_reynolds=None, airfoils=None):
     """
-    Solve every station independently (Stage 1-3 solver, real S809 polar)
+    Solve every station independently (Stage 1-3 solver, real cached polar)
     and integrate to rotor-level Ct, Cp.
 
     Parameters
@@ -226,15 +257,29 @@ def solve_rotor(geometry: RotorGeometry, tsr, v_inf=7.0, *,
         the polar. Required and keyword-only for the same reason -- the site
         value is 23 % above the sea-level one, and that difference lands
         directly on every Reynolds number.
+    airfoil_for_reynolds : callable or None
+        Optional `reynolds -> polar object` factory, overriding the
+        `polars.polar.CachedPolar` built over `geometry.polar_cache`. The
+        normal path needs nothing here: the blade already names its own
+        airfoil (see `RotorGeometry.polar_cache`), which is why there is no
+        default airfoil on this signature to get wrong.
     airfoils : list of airfoil objects or None
-        Optional, one per station, overriding the default per-station
-        S809Polar(reynolds) construction -- used by the Stage 6 pyBEMT
-        cross-check (compare_pybemt.py) to force both solvers onto the
-        exact same discretized (alpha, Re-bucket) polar table rather than
-        this module's normal continuous Re interpolation, so any
-        difference in results comes from the solver, not the input data.
-        Reynolds is still estimated and reported either way. Default
-        (None) preserves Stage 4's original behaviour exactly.
+        Optional, one per station, overriding both of the above -- used by the
+        Stage 6 pyBEMT cross-check (compare_pybemt.py) and the QBlade
+        comparison to force both solvers onto the exact same discretized
+        (alpha, Re-bucket) polar table rather than this module's normal
+        continuous Re interpolation, so any difference in results comes from
+        the solver, not the input data. Reynolds is still estimated and
+        reported either way.
+
+    Raises
+    ------
+    polars.interpolant.PolarDomainError
+        If a station's estimated Reynolds number or solved angle of attack
+        falls outside what `geometry.polar_cache` covers. Since Task 4 this
+        raises rather than clamping to the table edge: an out-of-envelope
+        station is a cache-coverage fact the caller needs, not something to
+        be silently replaced with the nearest value that happens to exist.
 
     Returns
     -------
@@ -250,15 +295,24 @@ def solve_rotor(geometry: RotorGeometry, tsr, v_inf=7.0, *,
     omega = tsr * v_inf / geometry.R
     stations = []
 
+    if airfoils is None and airfoil_for_reynolds is None:
+        # Built once per call and shared by every station: the interpolant
+        # behind it is immutable and memoised per cache, so this costs one
+        # dict lookup, not a rebuild (see polars.polar.interpolant_for).
+        airfoil_for_reynolds = polar_factory_for(geometry.polar_cache)
+
     for i, (r, chord, twist) in enumerate(zip(geometry.r, geometry.chord, geometry.twist)):
-        # Zero-induction relative-velocity estimate for the Reynolds lookup
-        # (see airfoil.S809Polar) -- a fixed Re per station, not re-solved
-        # iteratively; adequate for this stage's sanity check, not for
-        # AEP-grade accuracy.
+        # Zero-induction relative-velocity estimate for the polar's Reynolds
+        # number -- a fixed Re per station, not re-solved iteratively;
+        # adequate for this stage's sanity check, not for AEP-grade accuracy.
+        # Since Task 4 this estimate is load-bearing in a way it was not
+        # before: an estimate outside the cache's Reynolds range raises here
+        # instead of clamping to the ceiling, which is what hid the total loss
+        # of Reynolds dependence in every Phase VI run before 2026-07-28.
         w_approx = math.hypot(v_inf, omega * r)
         reynolds = w_approx * chord / kinematic_viscosity
 
-        airfoil = airfoils[i] if airfoils is not None else S809Polar(reynolds)
+        airfoil = airfoils[i] if airfoils is not None else airfoil_for_reynolds(reynolds)
 
         tsr_local = omega * r / v_inf
         station = StationParams(

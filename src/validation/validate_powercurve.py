@@ -77,8 +77,26 @@ PHASE_VI_SEQUENCE_S_REFERENCE = {
     13.0: (0.1830, 0.2518),
     15.0: (0.1501, 0.2016),
     20.0: (0.1017, 0.1298),
-    25.0: (0.0760, 0.0948),
+    25.0: (0.0760, 0.0948),  # not swept -- see PHASE_VI_MAX_CACHED_WIND_SPEED_MS
 }
+
+#: Highest Sequence S wind speed the S809 cache can actually serve at
+#: 71.63 RPM, and the reason the 25 m/s reference point above is recorded but
+#: not swept.
+#:
+#: The root station (r = 1.2575 m, chord 0.737 m) has the largest chord, so at
+#: a fixed rotor speed it is the *root* that runs out of cache first as wind
+#: speed rises: at 25 m/s its Reynolds estimate is 1,312,857 against the
+#: cache's 1,300,000 ceiling -- over by 1 %. At 20 m/s the whole span sits at
+#: 1,014,447-1,125,817 and is comfortably inside.
+#:
+#: Before work order Task 4 that station silently clamped to the 1.3M curve
+#: and the sweep ran to 25 m/s on a Reynolds number that was not the
+#: station's. It now raises, so the sweep stops where the cache's coverage
+#: stops. Extending the cache above 1.3M would be a fresh XFOIL build for a
+#: band the Phase VI validation does not otherwise need; the deliberate
+#: choice is to record the limit rather than paper over it.
+PHASE_VI_MAX_CACHED_WIND_SPEED_MS = 20.0
 
 
 def check_1_dimensional_round_trip():
@@ -112,7 +130,8 @@ def check_1_dimensional_round_trip():
 def check_2_phase_vi_fixed_speed_regression():
     print("=== Check 2: NREL Phase VI fixed-speed regression (71.63 RPM) ===")
     geometry = phase_vi_geometry()
-    speeds = sorted(PHASE_VI_SEQUENCE_S_REFERENCE)
+    speeds = sorted(v for v in PHASE_VI_SEQUENCE_S_REFERENCE
+                    if v <= PHASE_VI_MAX_CACHED_WIND_SPEED_MS)
     curve = power_curve(geometry, speeds, rpm=PHASE_VI_RATED_RPM,
                         air_density=AIR_DENSITY,
                         kinematic_viscosity=AIR_KINEMATIC_VISCOSITY)
@@ -173,7 +192,16 @@ def check_3_variable_speed_cp_near_constant():
 def check_4_cp_lambda_curve_shape():
     print("=== Check 4: Cp-lambda curve shape ===")
     geometry = phase_vi_geometry()
-    tsr_values = [round(1.0 + 0.5 * i, 2) for i in range(23)]  # 1.0 .. 12.0
+    # 1.0 .. 7.5. The upper end is set by the S809 cache, not by the physics.
+    # At v_inf = 7 m/s the tip station's Reynolds estimate is
+    # hypot(7, omega*r)*chord/nu; tsr = 7.5 puts it at 1,299,666 against the
+    # cache's 1,300,000 ceiling, and tsr = 8.0 at 1,384,108 -- outside it.
+    # Before Task 4 those points silently clamped to the ceiling curve and the
+    # sweep ran to tsr = 12 on a Reynolds number that was not the station's.
+    # Now they raise, correctly, so the sweep stops where the cache's coverage
+    # actually stops. The Cp peak (~tsr = 7) is still bracketed, which is what
+    # the unimodality assertions below need.
+    tsr_values = [round(1.0 + 0.5 * i, 2) for i in range(14)]  # 1.0 .. 7.5
     curve = cp_lambda_curve(geometry, tsr_values, v_inf=7.0,
                             air_density=AIR_DENSITY,
                             kinematic_viscosity=AIR_KINEMATIC_VISCOSITY)

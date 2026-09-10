@@ -28,14 +28,16 @@ What is captured, and why each piece is here
                         v = 5.0 m/s   alpha  1.9 to  4.3 deg  fully attached
                         v = 7.0 m/s   alpha  3.4 to 10.2 deg  attached, stall approaching inboard
                         v = 10.0 m/s  alpha  5.9 to 19.7 deg  stall onset / near-stall
-                        v = 15.0 m/s  alpha 10.6 to 31.9 deg  deep stall, past the S809 table's
-                                                              +18 deg upper bound, so the
-                                                              alpha-clamp path in
-                                                              bem.airfoil.S809Polar is live here
+                        v = 15.0 m/s  alpha 10.6 to 32.4 deg  deep stall, past the S809 table's
+                                                              +18 deg XFOIL-converged band, so
+                                                              this point reads the Viterna
+                                                              extrapolation
 
-                      The last point is included precisely because Task 4
-                      deletes that clamp. It should change, deliberately and
-                      visibly, rather than quietly.
+                      The last point was included precisely because Task 4
+                      deleted bem.airfoil.S809Polar's alpha clamp, which used
+                      to return Cl(18 deg) here for a station sitting at 32
+                      deg. It changed, deliberately and visibly (-25 % in Cp);
+                      see tests/golden/README.md's change log.
 
 3. `cross_tool`    -- our solver's side of the three cross-tool comparisons,
                       recomputed through the exact airfoil construction each
@@ -265,11 +267,12 @@ def build_cross_tool():
         dev_pb.append(abs(result["Cp"] - stored_pb[v_inf]) / stored_pb[v_inf])
 
     # QBlade side: single pinned Reynolds per run, all stations.
-    from bem.airfoil import S809Polar
+    from polars.polar import CachedPolar, interpolant_for
 
     qblade = []
+    interpolant = interpolant_for(geometry.polar_cache)
     for reynolds in QBLADE_FIXED_REYNOLDS:
-        pinned = [S809Polar(reynolds) for _ in geometry.r]
+        pinned = [CachedPolar(interpolant, reynolds) for _ in geometry.r]
         result = solve_rotor(geometry, tsr=omega * geometry.R / 7.0, v_inf=7.0,
                              air_density=AIR_DENSITY,
                              kinematic_viscosity=KINEMATIC_VISCOSITY,

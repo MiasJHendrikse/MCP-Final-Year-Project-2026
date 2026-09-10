@@ -60,7 +60,8 @@ def omega_to_rpm(omega):
 
 
 def operating_point(geometry: RotorGeometry, v_inf, tsr, *, air_density,
-                    kinematic_viscosity, airfoils=None, keep_stations=False):
+                    kinematic_viscosity, airfoil_for_reynolds=None,
+                    airfoils=None, keep_stations=False):
     """
     One operating point, with `solve_rotor`'s dimensionless result converted
     to dimensional power/thrust/torque.
@@ -78,6 +79,9 @@ def operating_point(geometry: RotorGeometry, v_inf, tsr, *, air_density,
     kinematic_viscosity : float
         m^2/s. Likewise required; passed through to `solve_rotor` for the
         per-station Reynolds estimate.
+    airfoil_for_reynolds : callable or None
+        Passed straight through to `solve_rotor` -- see its docstring. The
+        normal path leaves this None; the blade names its own airfoil.
     airfoils : list or None
         Passed straight through to `solve_rotor` -- see its docstring.
     keep_stations : bool
@@ -100,6 +104,7 @@ def operating_point(geometry: RotorGeometry, v_inf, tsr, *, air_density,
     result = solve_rotor(geometry, tsr=tsr, v_inf=v_inf,
                          air_density=air_density,
                          kinematic_viscosity=kinematic_viscosity,
+                         airfoil_for_reynolds=airfoil_for_reynolds,
                          airfoils=airfoils)
 
     area = swept_area(geometry)
@@ -129,7 +134,8 @@ def operating_point(geometry: RotorGeometry, v_inf, tsr, *, air_density,
 
 
 def power_curve(geometry: RotorGeometry, wind_speeds, rpm=None, tsr=None, *,
-                air_density, kinematic_viscosity, airfoils=None,
+                air_density, kinematic_viscosity,
+                airfoil_for_reynolds=None, airfoils=None,
                 keep_stations=False):
     """
     Sweep the solver across a range of wind speeds.
@@ -151,6 +157,8 @@ def power_curve(geometry: RotorGeometry, wind_speeds, rpm=None, tsr=None, *,
         kg/m^3. Required and keyword-only, from `config/`.
     kinematic_viscosity : float
         m^2/s. Required and keyword-only, from `config/`.
+    airfoil_for_reynolds : callable or None
+        Passed through to `solve_rotor`.
     airfoils : list or None
         Passed through to `solve_rotor`.
     keep_stations : bool
@@ -184,6 +192,7 @@ def power_curve(geometry: RotorGeometry, wind_speeds, rpm=None, tsr=None, *,
         points.append(operating_point(
             geometry, v_inf=v, tsr=tsr_v, air_density=air_density,
             kinematic_viscosity=kinematic_viscosity,
+            airfoil_for_reynolds=airfoil_for_reynolds,
             airfoils=airfoils, keep_stations=keep_stations,
         ))
 
@@ -191,7 +200,8 @@ def power_curve(geometry: RotorGeometry, wind_speeds, rpm=None, tsr=None, *,
 
 
 def cp_lambda_curve(geometry: RotorGeometry, tsr_values, v_inf=7.0, *,
-                    air_density, kinematic_viscosity, airfoils=None,
+                    air_density, kinematic_viscosity,
+                airfoil_for_reynolds=None, airfoils=None,
                     keep_stations=False):
     """
     Sweep TSR at fixed wind speed -- the Cp-lambda (and Ct-lambda) curve.
@@ -214,6 +224,7 @@ def cp_lambda_curve(geometry: RotorGeometry, tsr_values, v_inf=7.0, *,
     points = [
         operating_point(geometry, v_inf=v_inf, tsr=t, air_density=air_density,
                         kinematic_viscosity=kinematic_viscosity,
+                        airfoil_for_reynolds=airfoil_for_reynolds,
                         airfoils=airfoils, keep_stations=keep_stations)
         for t in tsr_values
     ]
