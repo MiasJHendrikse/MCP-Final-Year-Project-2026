@@ -231,6 +231,39 @@ The distinction is worth keeping straight when reading the next task's diff: a
 tolerance test staying green and a bitwise test going red are consistent
 outcomes for the same change, and here they bracket the size of it.
 
+### 2026-09-10 — Task 5 (Ning bracket and residual): golden JSONs again **not** regenerated
+
+Same outcome as Task 6, for a different reason, and with one instructive
+difference.
+
+Task 5 replaced the residual with Ning's form and the 2000-point bracket scan
+with a region-classified bracket. Both changes alter *how* the root is located,
+not *which* root it is, so the movement is convergence noise around the same
+solution rather than a different answer:
+
+| file | values moved | largest move |
+|---|---|---|
+| `phase_vi_cp_lambda.json` | 25 of 41 | 1.1e-13 relative |
+| `phase_vi_spanwise.json` | 760 of 1160 | **8.0e-12 relative** |
+| `cross_tool_summary.json` | 347 of 868 | 1.2e-12 relative |
+
+The largest move anywhere is 8.0e-12, still comfortably under `rtol = 1e-10`,
+so all three JSON tests pass and the files were left alone. Only the bitwise
+`data/qblade/bem_solver_phase_vi_result_Re*.csv` needed regenerating.
+
+**The instructive difference:** `cross_tool_summary.sweep` **did** move this
+time — 14 values, and both tracking percentages shifted in their last three
+digits (13.324537038059685 → 13.324537038062505). In Tasks 4 and 6 that block
+was bitwise frozen and served as the control. It is not frozen here, and that
+is correct: `TableS809Polar` pins the *polar* those runs see, not the *solver*.
+Task 4 and Task 6 changed the polar layer, so the pinned-table paths were
+insulated from them; Task 5 changed the solver itself, which nothing insulates.
+A reader comparing the three change-log entries should expect exactly this, and
+its absence would have been the thing to investigate.
+
+**What did not move:** `reynolds_buckets_per_station`, the fixed operating
+conditions, and `test_snapshot_is_bitwise_reproducible`.
+
 ## Regenerating
 
 ```

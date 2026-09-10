@@ -150,19 +150,23 @@ def check_4_turbulent_wake_case():
     print("PASS: residual itself stays smooth near the solved (a > ac) root, not just Ct(a) "
           "in isolation.")
 
-    # Separately: flag (do not silently accept) a *pre-existing*, Buhl-
-    # unrelated pole found while building this test case. The plain
-    # momentum-theory 'a' formula (a = Y / (4F + Y), Y = sigma*Cn/sin^2(phi))
-    # has its own singularity whenever Y = -4F, i.e. Cn = -4F*sin^2(phi)/sigma
-    # -- mirroring the Ct=0 pole in a' documented back in Stage 1/2
-    # (station._select_bracket), just never triggered by those stations'
-    # geometry. This test case's high solidity happens to sweep through a
-    # small negative Cn near phi~1.9 deg, well below the solved root at
-    # phi~3.0 deg, and hits it. solve_station's existing bracket-scan
-    # strategy (pick the sign change nearest the zero-induction guess) is
-    # unaffected -- it already avoids this region -- but it is a real,
-    # separate discontinuity in the raw residual, not a Buhl blend defect.
-    # Confirmed here rather than left for a future session to rediscover.
+    # Separately: the *pre-existing*, Buhl-unrelated 'a' pole found while
+    # building this test case. The plain momentum-theory formula
+    # a = Y / (4F + Y), Y = sigma*Cn/sin^2(phi), is singular wherever Y = -4F,
+    # i.e. Cn = -4F*sin^2(phi)/sigma. This case's high solidity sweeps through
+    # a small negative Cn near phi~1.9 deg, well below the solved root at
+    # phi~3.0 deg, and hits it.
+    #
+    # Task 5 resolved what this flag was tracking, and the resolution is worth
+    # stating rather than deleting the check. The pole lives where Cn < 0, and
+    # Cn < 0 is precisely what `station.momentum_region_bracket` now excludes:
+    # the bracket starts at the Cn = 0 boundary, so this discontinuity is
+    # outside the interval the root-finder is ever given. It is no longer
+    # "avoided" by a heuristic that happened to look elsewhere (the old
+    # nearest-to-phi0 scan) but excluded by the region classification, which
+    # is the difference between luck and a guarantee. The measurement is kept
+    # because the pole is still there in the raw residual, and Phase 3 will
+    # differentiate a function that has it.
     phi_pole_lo, phi_pole_hi = math.radians(1.7), math.radians(2.1)
     n_pole = 50
     phis_pole = [phi_pole_lo + (phi_pole_hi - phi_pole_lo) * i / (n_pole - 1) for i in range(n_pole)]
@@ -170,9 +174,10 @@ def check_4_turbulent_wake_case():
     max_pole_step = max(abs(res_pole[i] - res_pole[i - 1]) for i in range(1, n_pole))
     print(f"[flagged, not a Buhl defect] pre-existing 'a' pole near phi~1.9 deg "
           f"(Cn crosses -4F*sin^2(phi)/sigma): max adjacent residual step = {max_pole_step:.3e} "
-          f"(vs {max_step:.3e} near the actual solved root) -- solve_station's bracket scan "
-          f"avoids this region, but it is a genuine discontinuity, distinct from Stage 3's "
-          f"Buhl blend, worth tracking before this solver is differentiated.\n")
+          f"(vs {max_step:.3e} near the actual solved root) -- since Task 5 this sits "
+          f"outside the bracket entirely (Cn < 0 is excluded by the momentum-region "
+          f"classification), but it is a genuine discontinuity in the raw residual, "
+          f"distinct from Stage 3's Buhl blend, and Phase 3 differentiates through it.\n")
 
 
 def main():
