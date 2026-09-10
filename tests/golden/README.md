@@ -32,9 +32,10 @@ attached-flow and one near-stall condition:
 | 15.0 m/s | 2.515 | 10.6 – 31.9° | Deep stall |
 
 The 15 m/s point is past the S809 cache's +18° upper bound, so
-`bem.airfoil.S809Polar`'s α-clamp is live there. That is deliberate: **Task 4
-deletes that clamp**, and this point is where the deletion will show up.
-It should change visibly, not quietly.
+`bem.airfoil.S809Polar`'s α-clamp was live there. That was deliberate: **Task 4
+deleted that clamp**, and this point is where the deletion showed up — Cp moved
+−25.2 %, with 16 of 19 stations previously clamped. See the 2026-09-10 entry in
+the change log below.
 
 ## Tolerance
 
@@ -121,6 +122,82 @@ tracking percentages and the QBlade pinned per-station CSVs, and
 to ±180°, but `S809Polar`'s α clamp is deliberately pinned to the
 XFOIL-converged band, so the clamp path is still live there. Task 4 deletes it;
 that is when this point should change.
+
+### 2026-09-10 — Task 4 (polar adapter replaced; clamping and substitution removed)
+
+**What moved:** 26 of 41 `phase_vi_cp_lambda` values, 992 of 1160
+`phase_vi_spanwise` values, and 420 values in `cross_tool_summary` — all of the
+latter inside `qblade_pinned`.
+
+**What did not move, and why that matters.** The `sweep` block —
+our side of the CCBlade and pyBEMT comparisons — is **bitwise unchanged**, all
+28 values, and both tracking percentages are identical to every digit
+(13.324537038059685 % and 15.787123761875879 %). So is
+`reynolds_buckets_per_station`. Those paths run on `TableS809Polar`, a
+deliberately discretised table over the already-±180° Viterna export, which
+Task 4 does not touch. That is the control: it shows the movement below comes
+from the adapter being replaced, not from anything shifting underneath the
+whole snapshot.
+
+**Why, in two separable parts.** Both causes are present, and they are
+distinguishable by where they appear:
+
+*1. The interpolant (bilinear → cubic-in-α, PCHIP-in-log(Re)).* Small,
+everywhere, and the only cause wherever the whole span is attached:
+
+| point | Cp before | Cp after | |
+|---|---|---|---|
+| `cp_lambda`, λ = 4.0 … 7.5 | — | — | **+0.007 % … +0.099 %** |
+| spanwise v = 5.0 m/s (α ≤ 4.3°) | 0.406172 | 0.406212 | +0.010 % |
+| spanwise v = 7.0 m/s (α ≤ 10.2°) | 0.367031 | 0.367103 | +0.020 % |
+
+The largest single interpolant-only move in the whole snapshot is **+4.1 %**,
+on `qblade_pinned[Re=100k].Cd` at station 9 — Cd is convex in α, and linear
+interpolation between 0.5° knots systematically over-reads it.
+
+*2. The α clamp deleted.* Large, and confined to points with stations past the
++18° XFOIL-converged band. This is the change `tests/golden_reference.py` and
+this file both said in writing should happen here:
+
+| point | stations past 18° | Cp before | Cp after | |
+|---|---|---|---|---|
+| spanwise v = 10.0 m/s | 7 / 19 | 0.258726 | 0.256597 | −0.823 % |
+| spanwise v = 15.0 m/s | 16 / 19 | 0.150104 | 0.112335 | **−25.16 %** |
+| `cp_lambda` λ = 3.5 | — | 0.220746 | 0.212980 | −3.518 % |
+| `cp_lambda` λ = 2.5 | — | 0.128481 | 0.093871 | −26.94 % |
+| `cp_lambda` λ = 1.5 | — | 0.060918 | 0.023875 | **−60.81 %** |
+
+The mechanism is clearest in drag. At v = 15 m/s the six innermost stations sit
+at α = 25–32°; the old adapter returned `Cd(18°) ≈ 0.079` for every one of
+them, and the ±180° cache gives 0.34–0.43. That is a **+340 % to +449 %**
+correction on the largest `Cd` values in the snapshot, and it is what drives
+Cp down. Clamped lift does not fall off past stall and clamped drag does not
+rise, so every previously-clamped point was reporting too much power.
+
+**None of these numbers are a regression.** The old values were computed from
+lift and drag the airfoil was not producing at those angles. The new ones are
+read from the Viterna extrapolation that Task 2 built, verified and recorded —
+the same extrapolation that was exported to the `.plr` QBlade has been running
+against all along, so our solver and QBlade now share a post-stall model as
+well as a measured band.
+
+**Also re-anchored in the same commit,** for the same cause and with the same
+before/after recorded at the site:
+`validation/validate_powercurve.PHASE_VI_SEQUENCE_S_REFERENCE`, and
+`data/qblade/bem_solver_phase_vi_result_Re{100000,500000}.csv`.
+
+**Coverage limits this exposed.** Removing the Re clamp made two sweeps stop
+where the S809 cache actually stops, rather than running on a clamped Reynolds
+number: the Cp-λ sweep in `validate_powercurve` check 4 (λ ≤ 7.5; λ = 8.0 puts
+the tip station at Re = 1,384,108 against a 1,300,000 ceiling) and its
+fixed-speed sweep in check 2 (≤ 20 m/s; at 25 m/s the *root* station, which has
+the largest chord and so runs out of cache first at fixed RPM, reaches
+1,312,857). Neither is a Task 4 defect — both are the cache's real coverage,
+previously hidden.
+
+**What did not move:** `test_snapshot_is_bitwise_reproducible` still passes,
+and the four fixed operating conditions (wind speeds, λ values, ρ, ν, RPM) are
+unchanged, so this is a like-for-like comparison.
 
 ## Regenerating
 

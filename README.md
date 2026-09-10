@@ -37,7 +37,7 @@ src/
     loader.py        YAML read, TODO handling, derived-value checks
     unresolved.py    the TODO sentinel that raises instead of defaulting
   bem/          Solver core. No I/O beyond the polar cache, no plotting.
-    airfoil.py       polar adapters (LinearPolar, S809Polar)
+    airfoil.py       LinearPolar, the analytic fixture (real polars: polars/)
     corrections.py   Prandtl tip/hub loss, Glauert/Buhl high-thrust
     station.py       single-station Ning (2014) residual + root-find
     rotor.py         spanwise loop, geometry, one operating point
@@ -46,11 +46,15 @@ src/
     viterna.py       post-stall extrapolation to +/-180 deg
     cache_format.py  the cache CSV schema and its provenance column
     envelope.py      the design rotor's Reynolds envelope, which sizes its cache
+    cache.py         CSV load + ragged->rectangular reindexing into a PolarGrid
+    interpolant.py   C1 (alpha, Re) surface with analytic partials
+    polar.py         CachedPolar: one station's view of it, no clamping
   xfoil/        Polar generation and lookup.
     xfoil_runner.py       XFOIL subprocess wrapper
     build_polar_cache.py  sweep Re, write data/polars/<airfoil>/
     close_polar_gaps.py   repair a committed cache's holes, extend to +/-180
-    polar_lookup.py       bilinear (alpha, Re) interpolation
+    polar_lookup.py       bilinear (alpha, Re) interpolation -- retired from
+                          the solve path, kept as the Task 3 "before" baseline
   validation/   Everything that checks or cross-checks the above.
     validate_stage1..4.py    BEM solver, stage by stage
     validate_powercurve.py   power curve / Cp-lambda sweep layer

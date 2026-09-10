@@ -24,7 +24,7 @@ Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
 
 import math
 
-from bem.airfoil import S809Polar
+from polars.polar import CachedPolar, interpolant_for
 from bem.rotor import RotorGeometry, demo_rotor_geometry, solve_rotor
 from bem.station import StationParams, solve_station
 from config import load_phase_vi_rotor
@@ -57,7 +57,21 @@ def check_1_spanwise_smoothness():
     # tight tolerance -- taper/twist/Reynolds all vary smoothly by
     # construction, so a real solver bug would show up as an obvious spike,
     # not a borderline violation).
-    thresholds = {"alpha": math.radians(15), "Cl": 0.5, "Cd": 0.1, "a": 0.2, "a_prime": 0.1}
+    #
+    # The Cd threshold was raised from 0.1 to 0.25 by work order Task 4, and
+    # the reason is worth recording. This demo blade's three innermost
+    # stations sit at alpha = 31.6, 25.6 and 20.3 deg at tsr = 5 -- deeply
+    # stalled, and always were. The old S809Polar clamped alpha to the
+    # XFOIL-converged band, so all three read Cd(18 deg) = 0.079 and the
+    # spanwise Cd profile was flat there by construction: a 0.1 limit was
+    # unreachable, and the check was passing on drag the blade was not
+    # producing. Reading the real Viterna extrapolation instead gives
+    # Cd = 0.437, 0.273, 0.149 over a ~6 deg alpha step per station, i.e. a
+    # steep but perfectly smooth post-stall rise, max step 0.165. The limit
+    # is set above that and well below the ~0.41 full-span Cd range, so it
+    # still catches a genuine discontinuity while no longer being a test of
+    # the clamp.
+    thresholds = {"alpha": math.radians(15), "Cl": 0.5, "Cd": 0.25, "a": 0.2, "a_prime": 0.1}
     for key, limit in thresholds.items():
         steps = [abs(stations[i][key] - stations[i - 1][key]) for i in range(1, len(stations))]
         max_step = max(steps)
@@ -110,7 +124,8 @@ def check_3_integrated_rotor_plausible():
 def check_4_regression_single_station():
     print("=== Check 4: single-station regression (loop wiring vs. direct solve_station) ===")
     r, chord, twist_deg, R, tsr_tip, v_inf = 3.0, 0.3, 6.0, 8.0, 5.0, 7.0
-    geometry = RotorGeometry(r=[r], chord=[chord], twist=[math.radians(twist_deg)], R=R, n_blades=3)
+    geometry = RotorGeometry(r=[r], chord=[chord], twist=[math.radians(twist_deg)],
+                             R=R, polar_cache="s809", n_blades=3)
 
     result = solve_rotor(geometry, tsr=tsr_tip, v_inf=v_inf,
                          air_density=AIR_DENSITY,
@@ -122,7 +137,7 @@ def check_4_regression_single_station():
     reynolds = w_approx * chord / AIR_KINEMATIC_VISCOSITY
     tsr_local = omega * r / v_inf
     station = StationParams(
-        r=r, chord=chord, twist=math.radians(twist_deg), airfoil=S809Polar(reynolds),
+        r=r, chord=chord, twist=math.radians(twist_deg), airfoil=CachedPolar(interpolant_for("s809"), reynolds),
         tsr=tsr_local, R=R, n_blades=3,
     )
     direct = solve_station(station)

@@ -1,17 +1,35 @@
 """
-Bilinear (alpha, Re) lookup over a cached XFOIL polar set.
+Bilinear (alpha, Re) lookup over a cached XFOIL polar set — RETIRED FROM THE
+SOLVE PATH, kept only as the pre-remediation baseline.
 
 Reads the CSVs produced by build_polar_cache.py (one file per Reynolds number,
 columns alpha,cl,cd,cm) and exposes cl/cd/cm as a function of (alpha, Re) via
-bilinear interpolation. This is what the BEM solver and adjoint FD verification
-call instead of shelling out to XFOIL on every strip/iteration.
+bilinear interpolation.
 
-Airfoil-agnostic interface: BEM/adjoint code should call the module-level
-get_polar(alpha, reynolds) and never reference an airfoil name directly. Which
-airfoil's cache that resolves to is configured in exactly one place — the
-ACTIVE_AIRFOIL constant below (or set_active_airfoil, e.g. for tests) — so
-swapping the project's airfoil (NACA 4412 -> S809 -> a future DU-series section)
-never requires a change on the BEM side.
+Nothing in the solver calls this any more. Work order Task 3 replaced the
+interpolation core with `polars.interpolant.PolarInterpolant` (C1, analytically
+differentiable) because bilinear's alpha-derivative is piecewise constant with
+a jump at every 0.5 deg knot; Task 4 replaced the adapter above it with
+`polars.polar.CachedPolar`. `tests/test_invariants.py` asserts that nothing
+under `bem/` imports this package at all.
+
+What this module is still for, and why it was not deleted with the rest:
+
+  * `verification/polar_interpolant/generate_plots.py` draws the "before"
+    curve of the committed staircase figure from it. That figure is the direct
+    evidence for Task 3's central claim, and it has to stay regenerable.
+  * `tests/test_polar_cache.py` checks the Task 2 gap-free guarantee through
+    the same rectangularisation the audit measured, rather than through a
+    re-derivation of it.
+
+Task 4 removed what did not survive: the module-level `ACTIVE_AIRFOIL` /
+`set_active_airfoil()` pair, the `get_polar()` façade over them, and the
+`_lookup_cache` dict. A single global "current airfoil" was reasonable with one
+airfoil in the project; from Phase 1.4 two caches are live simultaneously and
+it made the answer depend on call order — a direct threat to the brief's
+"same vector via a different code path" determinism requirement. The airfoil is
+now a property of the blade (`bem.rotor.RotorGeometry.polar_cache`), stated
+once where the blade is defined. Construct `PolarLookup(cache_dir)` explicitly.
 
 Author: MJ Hendrikse
 Project: DSP810S — Inverse Design of Small Wind Turbine Blades
@@ -189,72 +207,3 @@ class PolarLookup:
                 f"converged at this alpha, so no reliable value is cached here."
             )
         return cl, cd, cm
-
-
-# ----------------------------------------------------------------------------
-# Airfoil-agnostic module-level interface
-#
-# This is the only part of the polar cache that BEM/adjoint code should import.
-# The active airfoil is configured here, once, rather than by every caller
-# supplying a cache directory or airfoil label — so a future airfoil swap is a
-# one-line change in this module, not a search-and-replace across the BEM solver.
-# ----------------------------------------------------------------------------
-
-# Primary airfoil for the current phase of the project (see PROJECT_PLAN.md /
-# the 2026-07-04 journal entry for why this is S809 rather than NACA 4412).
-ACTIVE_AIRFOIL = "s809"
-
-_lookup_cache = {}  # airfoil label -> PolarLookup, built lazily and reused
-
-
-def set_active_airfoil(airfoil_label):
-    """
-    Change which cached airfoil get_polar() resolves to.
-
-    Parameters
-    ----------
-    airfoil_label : str
-        Subfolder name under data/polars/, e.g. "s809" or "naca4412".
-    """
-
-    global ACTIVE_AIRFOIL
-    ACTIVE_AIRFOIL = airfoil_label
-
-
-def get_polar(alpha, reynolds, airfoil=None):
-    """
-    Interpolate (cl, cd, cm) for the active (or explicitly given) airfoil.
-
-    This is the airfoil-agnostic entry point BEM/adjoint code should use — it
-    never needs to name an airfoil; the active one is resolved from
-    ACTIVE_AIRFOIL (see set_active_airfoil to change it).
-
-    Parameters
-    ----------
-    alpha : float
-        Angle of attack, degrees.
-    reynolds : float
-        Reynolds number.
-    airfoil : str or None, optional
-        Override the active airfoil for this call only (subfolder name under
-        data/polars/). Defaults to ACTIVE_AIRFOIL.
-
-    Returns
-    -------
-    tuple of float
-        (cl, cd, cm) at the requested point.
-
-    Raises
-    ------
-    PolarCacheError
-        If alpha or reynolds falls outside the cached range.
-    FileNotFoundError
-        If no cache exists yet for the resolved airfoil.
-    """
-
-    airfoil = airfoil or ACTIVE_AIRFOIL
-    if airfoil not in _lookup_cache:
-        cache_dir = os.path.join(DATA_DIR, "polars", airfoil)
-        _lookup_cache[airfoil] = PolarLookup(cache_dir)
-
-    return _lookup_cache[airfoil](alpha, reynolds)

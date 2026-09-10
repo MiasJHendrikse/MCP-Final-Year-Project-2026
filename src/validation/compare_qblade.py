@@ -40,8 +40,8 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + "/..")
 
-from bem.airfoil import S809Polar  # noqa: E402
 from bem.rotor import phase_vi_geometry, solve_rotor  # noqa: E402
+from polars.polar import CachedPolar, interpolant_for  # noqa: E402
 from config import load_phase_vi_rotor  # noqa: E402
 
 # Results are written next to the QBlade .bld/.plr exports they pair with, so
@@ -71,9 +71,13 @@ geometry = phase_vi_geometry(tip_pitch_deg=TIP_PITCH_DEG)
 omega_rad_s = RPM * 2.0 * 3.141592653589793 / 60.0
 tsr = omega_rad_s * geometry.R / V_INF_MS
 
-# One S809Polar per station, all pinned to the same Re so both solvers query
-# the identical XFOIL curve (see module docstring).
-airfoils = [S809Polar(FIXED_REYNOLDS) for _ in geometry.r]
+# One CachedPolar per station, all pinned to the same Re so both solvers query
+# the identical XFOIL curve (see module docstring). Since Task 4 this reads the
+# +/-180 deg Viterna-extended cache with no alpha clamp -- the same extension
+# that was exported to the .plr QBlade is running, so the two solvers now see
+# the same post-stall model as well as the same measured band.
+airfoils = [CachedPolar(interpolant_for(geometry.polar_cache), FIXED_REYNOLDS)
+            for _ in geometry.r]
 
 result = solve_rotor(geometry, tsr=tsr, v_inf=V_INF_MS,
                      air_density=PHASE_VI.air_density,

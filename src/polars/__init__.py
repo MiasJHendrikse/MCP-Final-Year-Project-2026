@@ -24,6 +24,12 @@ Task 3 adds:
                      (alpha, Reynolds) -> (Cl, Cd, Cm) surface built on top
                      of a `PolarGrid`.
 
+Task 4 adds:
+  `polar`         -- `CachedPolar`, the BEM solver's per-station view of that
+                     surface at one fixed Reynolds number. Replaces
+                     `bem.airfoil.S809Polar`; clamps nothing, substitutes
+                     nothing, raises out of range.
+
 Author: MJ Hendrikse
 Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
 """
@@ -42,6 +48,12 @@ from polars.cache_format import (
     write_polar_csv,
 )
 from polars.interpolant import PolarDomainError, PolarInterpolant
+from polars.polar import (
+    CachedPolar,
+    CachedPolarFactory,
+    interpolant_for,
+    polar_factory_for,
+)
 from polars.viterna import (
     CD_MAX,
     CD_MAX_QBLADE_MATCHED,
@@ -61,6 +73,8 @@ from polars.viterna import (
 __all__ = [
     "CD_MAX",
     "CD_MAX_QBLADE_MATCHED",
+    "CachedPolar",
+    "CachedPolarFactory",
     "HEADER",
     "NEGATIVE_CL_SCALE",
     "PolarDomainError",
@@ -76,7 +90,9 @@ __all__ = [
     "build_full_range_polar",
     "cd_max_finite_blade",
     "extend_to_full_range",
+    "interpolant_for",
     "load_xfoil_band",
+    "polar_factory_for",
     "read_polar_csv",
     "reversed_cl_amplitude",
     "viterna_coefficients",

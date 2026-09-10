@@ -37,8 +37,8 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + "/..")
 
-from bem.airfoil import S809Polar  # noqa: E402
 from bem.rotor import phase_vi_geometry, solve_rotor  # noqa: E402
+from polars.polar import CachedPolar, interpolant_for  # noqa: E402
 from config import load_phase_vi_rotor  # noqa: E402
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -70,7 +70,8 @@ OUT_DIR = os.path.abspath(os.path.join(_HERE, "..", "..", "results", "phase_vi_s
 os.makedirs(OUT_DIR, exist_ok=True)
 
 geometry = phase_vi_geometry(tip_pitch_deg=TIP_PITCH_DEG)
-airfoils = [S809Polar(FIXED_REYNOLDS) for _ in geometry.r]
+airfoils = [CachedPolar(interpolant_for(geometry.polar_cache), FIXED_REYNOLDS)
+            for _ in geometry.r]
 
 n_steps = round((TSR_MAX - TSR_MIN) / TSR_STEP) + 1
 tsr_values = [round(TSR_MIN + i * TSR_STEP, 4) for i in range(n_steps)]

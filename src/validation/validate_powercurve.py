@@ -65,20 +65,58 @@ AIR_DENSITY = PHASE_VI.air_density
 AIR_KINEMATIC_VISCOSITY = PHASE_VI.kinematic_viscosity
 PHASE_VI_RATED_RPM = PHASE_VI.rated_rpm
 
-#: NREL Phase VI (Sequence S) at 71.63 RPM, from the 2026-07-28 journal entry
-#: (the run that confirmed station Reynolds numbers were no longer clamped to
-#: the old 500k cache ceiling). v_inf -> (Cp, Ct). These are this project's
-#: own solver's values, not experimental data -- a regression anchor, not a
-#: validation against ground truth.
+#: NREL Phase VI (Sequence S) at 71.63 RPM. v_inf -> (Cp, Ct). These are this
+#: project's own solver's values, not experimental data -- a regression
+#: anchor, not a validation against ground truth.
+#:
+#: Re-anchored 2026-09-10 by work order Task 4, which deleted the alpha clamp
+#: in the polar adapter. The values below 10 m/s barely moved (the whole span
+#: is attached, so only the bilinear -> C1 interpolant change shows); above
+#: it they moved a lot, because that is where stations run past the S809
+#: cache's +18 deg converged band and the old adapter returned Cl(18 deg) for
+#: them instead of the Viterna extrapolation. Previous anchor, for the record:
+#:
+#:      v      old Cp    new Cp      old Ct    new Ct
+#:      5.0    0.4062    0.4062      0.6777    0.6777
+#:      7.0    0.3670    0.3671      0.5415    0.5416
+#:     10.0    0.2587    0.2566      0.3653    0.3648
+#:     13.0    0.1830    0.1582      0.2518    0.2505
+#:     15.0    0.1501    0.1123      0.2016    0.2025
+#:     20.0    0.1017    0.0533      0.1298    0.1414
+#:
+#: The old post-stall figures were high because clamped lift does not fall
+#: off and clamped drag does not rise. See tests/golden/README.md's change
+#: log for the same movement measured station by station.
 PHASE_VI_SEQUENCE_S_REFERENCE = {
     5.0: (0.4062, 0.6777),
-    7.0: (0.3670, 0.5415),
-    10.0: (0.2587, 0.3653),
-    13.0: (0.1830, 0.2518),
-    15.0: (0.1501, 0.2016),
-    20.0: (0.1017, 0.1298),
-    25.0: (0.0760, 0.0948),
+    7.0: (0.3671, 0.5416),
+    10.0: (0.2566, 0.3648),
+    13.0: (0.1582, 0.2505),
+    15.0: (0.1123, 0.2025),
+    20.0: (0.0533, 0.1414),
+    25.0: (0.0760, 0.0948),  # stale, and not swept -- see
+                             # PHASE_VI_MAX_CACHED_WIND_SPEED_MS. Kept as the
+                             # record of a Sequence S point this cache cannot
+                             # serve, not as a value to compare against.
 }
+
+#: Highest Sequence S wind speed the S809 cache can actually serve at
+#: 71.63 RPM, and the reason the 25 m/s reference point above is recorded but
+#: not swept.
+#:
+#: The root station (r = 1.2575 m, chord 0.737 m) has the largest chord, so at
+#: a fixed rotor speed it is the *root* that runs out of cache first as wind
+#: speed rises: at 25 m/s its Reynolds estimate is 1,312,857 against the
+#: cache's 1,300,000 ceiling -- over by 1 %. At 20 m/s the whole span sits at
+#: 1,014,447-1,125,817 and is comfortably inside.
+#:
+#: Before work order Task 4 that station silently clamped to the 1.3M curve
+#: and the sweep ran to 25 m/s on a Reynolds number that was not the
+#: station's. It now raises, so the sweep stops where the cache's coverage
+#: stops. Extending the cache above 1.3M would be a fresh XFOIL build for a
+#: band the Phase VI validation does not otherwise need; the deliberate
+#: choice is to record the limit rather than paper over it.
+PHASE_VI_MAX_CACHED_WIND_SPEED_MS = 20.0
 
 
 def check_1_dimensional_round_trip():
@@ -112,7 +150,8 @@ def check_1_dimensional_round_trip():
 def check_2_phase_vi_fixed_speed_regression():
     print("=== Check 2: NREL Phase VI fixed-speed regression (71.63 RPM) ===")
     geometry = phase_vi_geometry()
-    speeds = sorted(PHASE_VI_SEQUENCE_S_REFERENCE)
+    speeds = sorted(v for v in PHASE_VI_SEQUENCE_S_REFERENCE
+                    if v <= PHASE_VI_MAX_CACHED_WIND_SPEED_MS)
     curve = power_curve(geometry, speeds, rpm=PHASE_VI_RATED_RPM,
                         air_density=AIR_DENSITY,
                         kinematic_viscosity=AIR_KINEMATIC_VISCOSITY)
@@ -140,7 +179,15 @@ def check_2_phase_vi_fixed_speed_regression():
 def check_3_variable_speed_cp_near_constant():
     print("=== Check 3: variable-speed mode holds Cp constant but for Reynolds ===")
     geometry = phase_vi_geometry()
-    curve = power_curve(geometry, [5.0, 7.0, 10.0, 15.0, 20.0], tsr=6.0,
+    # 3-7 m/s, not the old 5-20. At fixed TSR, Reynolds scales linearly with
+    # wind speed, so the old sweep left the S809 cache's 1.3M ceiling at
+    # 10 m/s (tip station 1,496,248) and was over it by 2.3x at 20 m/s. Three
+    # of its five points therefore clamped to the ceiling curve -- which
+    # hollowed out this check specifically, since Reynolds drift is the one
+    # thing it exists to measure. The replacement span sits entirely inside
+    # the cache (265k at 3 m/s to 1,047k at 7 m/s) and delivers a 3.9x
+    # Reynolds range, more real drift than the old sweep actually had.
+    curve = power_curve(geometry, [3.0, 4.0, 5.0, 6.0, 7.0], tsr=6.0,
                         air_density=AIR_DENSITY,
                         kinematic_viscosity=AIR_KINEMATIC_VISCOSITY)
 
@@ -173,7 +220,16 @@ def check_3_variable_speed_cp_near_constant():
 def check_4_cp_lambda_curve_shape():
     print("=== Check 4: Cp-lambda curve shape ===")
     geometry = phase_vi_geometry()
-    tsr_values = [round(1.0 + 0.5 * i, 2) for i in range(23)]  # 1.0 .. 12.0
+    # 1.0 .. 7.5. The upper end is set by the S809 cache, not by the physics.
+    # At v_inf = 7 m/s the tip station's Reynolds estimate is
+    # hypot(7, omega*r)*chord/nu; tsr = 7.5 puts it at 1,299,666 against the
+    # cache's 1,300,000 ceiling, and tsr = 8.0 at 1,384,108 -- outside it.
+    # Before Task 4 those points silently clamped to the ceiling curve and the
+    # sweep ran to tsr = 12 on a Reynolds number that was not the station's.
+    # Now they raise, correctly, so the sweep stops where the cache's coverage
+    # actually stops. The Cp peak (~tsr = 7) is still bracketed, which is what
+    # the unimodality assertions below need.
+    tsr_values = [round(1.0 + 0.5 * i, 2) for i in range(14)]  # 1.0 .. 7.5
     curve = cp_lambda_curve(geometry, tsr_values, v_inf=7.0,
                             air_density=AIR_DENSITY,
                             kinematic_viscosity=AIR_KINEMATIC_VISCOSITY)
