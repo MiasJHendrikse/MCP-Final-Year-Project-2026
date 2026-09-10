@@ -55,19 +55,20 @@ sys.path.insert(0, os.path.join(REPO_ROOT, "src"))
 
 from config import load_design_rotor  # noqa: E402
 from design import BladeParameterisation  # noqa: E402
-from design.schmitz import max_lift_to_drag_point, schmitz_distribution  # noqa: E402
+from design.schmitz import (  # noqa: E402
+    DEFAULT_DESIGN_REYNOLDS,
+    max_lift_to_drag_point,
+    schmitz_distribution,
+)
 from polars.polar import interpolant_for  # noqa: E402
 
 #: Total control-point counts to compare, split evenly between chord and
 #: twist. Plan 4.3 names 6, 8, 10, 12 and 16.
 TOTAL_COUNTS = [6, 8, 10, 12, 16]
 
-#: Representative Reynolds number for the design point. The design rotor's
-#: computed envelope is roughly 49k-854k; 200k sits in the band the blade
-#: spends most of its energy-producing hours in, and is inside the range where
-#: the SG6043 cache has independent UIUC experimental support (100k-500k).
-#: Recorded as an input because the max-L/D point moves materially with Re.
-DESIGN_REYNOLDS = 200_000.0
+#: Shared with the baseline (design/schmitz.py) so the study and x0 cannot
+#: drift apart on the design point.
+DESIGN_REYNOLDS = DEFAULT_DESIGN_REYNOLDS
 
 #: Sawtooth amplitude used to probe oscillation rejection, metres.
 SAWTOOTH_AMPLITUDE = 0.02

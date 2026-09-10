@@ -13,13 +13,21 @@ it afterwards.
                       bounds themselves are still TODO in config -- this is
                       the mechanism, not the numbers.
 
-Still to come: `schmitz.py` and `baseline.py` (plan step 1.7), which construct
-the x0 the whole results chapter is measured against.
+  `schmitz`           the analytic Schmitz optimum blade.
+  `baseline`          x0: Schmitz fitted onto the parameterisation, its
+                      feasibility status, and the reference numbers the whole
+                      results chapter is measured against.
 
 Author: MJ Hendrikse
 Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
 """
 
+from design.baseline import (
+    BaselineBlade,
+    build_schmitz_baseline,
+    evaluate_baseline,
+    root_bending_moment,
+)
 from design.bounds import DesignBounds
 from design.parameterisation import (
     DEFAULT_DEGREE,
@@ -29,9 +37,13 @@ from design.parameterisation import (
 )
 
 __all__ = [
+    "BaselineBlade",
     "DEFAULT_DEGREE",
     "BladeParameterisation",
     "DesignBounds",
     "basis_matrix",
+    "build_schmitz_baseline",
     "clamped_knots",
+    "evaluate_baseline",
+    "root_bending_moment",
 ]

@@ -45,6 +45,16 @@ import numpy as np
 from config import load_design_rotor
 
 
+#: Representative Reynolds number for the design point (plan step 1.7 says "at
+#: a representative Re", which makes the choice a documented input rather than
+#: a detail). The design rotor's computed envelope is roughly 49k-854k; 200k
+#: sits in the band the blade spends most of its energy-producing hours in, and
+#: is inside the range where the SG6043 cache has independent UIUC experimental
+#: support (100k-500k). Defined here so the baseline and the representation
+#: study cannot drift apart on it.
+DEFAULT_DESIGN_REYNOLDS = 200_000.0
+
+
 def schmitz_inflow_angle(r_over_R, tip_speed_ratio):
     """
     phi(r) = (2/3) * arctan(1 / lambda_r), radians.
