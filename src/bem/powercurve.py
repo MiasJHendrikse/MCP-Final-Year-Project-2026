@@ -22,7 +22,7 @@ faked a 40-degree AoA disagreement against QBlade):
                            tracks the wind. Cp is then constant with wind
                            speed apart from Reynolds-number drift, which is a
                            useful check on the polar cache (see
-                           validation/validate_powercurve.py, check 3).
+                           tests/test_powercurve.py, check 3).
 
 Power here is aerodynamic rotor power: no generator/gearbox efficiency, no
 rated-power cap or pitch regulation above rated. Those belong with the AEP
@@ -112,7 +112,7 @@ def operating_point(geometry: RotorGeometry, v_inf, tsr, *, air_density,
 
     # Cp/Ct are defined by solve_rotor against exactly these references, so
     # inverting them here is an identity, not an independent estimate --
-    # validate_powercurve.py check 1 asserts the round-trip holds.
+    # tests/test_powercurve.py's check 1 asserts the round-trip holds.
     power = result["Cp"] * 0.5 * air_density * v_inf ** 3 * area
     thrust = result["Ct"] * 0.5 * air_density * v_inf ** 2 * area
     torque = power / omega
@@ -240,7 +240,7 @@ def peak_cp(curve):
     dict
         The winning `operating_point` dict, plus "index" -- its position in
         curve["points"]. Useful both for reporting a rotor's design point and
-        for the unimodality check in validate_powercurve.py.
+        for the unimodality check in tests/test_powercurve.py.
     """
 
     points = curve["points"]

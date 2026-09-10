@@ -55,9 +55,8 @@ src/
     close_polar_gaps.py   repair a committed cache's holes, extend to +/-180
     polar_lookup.py       bilinear (alpha, Re) interpolation -- retired from
                           the solve path, kept as the Task 3 "before" baseline
-  validation/   Everything that checks or cross-checks the above.
-    validate_stage1..4.py    BEM solver, stage by stage
-    validate_powercurve.py   power curve / Cp-lambda sweep layer
+  validation/   Cross-checks against external tools and measured data.
+                Solver checks live in tests/ -- see below.
     validate_polars.py       5-check audit of a polar cache
     check_stitch_continuity.py  value/slope jumps where XFOIL meets Viterna
     compare_pybemt.py        cross-check vs pyBEMT
@@ -121,19 +120,23 @@ cd src
 
 ### Validate the BEM solver
 
-Run in order; each is a regression check on everything before it.
-
 ```bash
-python -m validation.validate_stage1      # single-station induction solve
-python -m validation.validate_stage2      # + Prandtl tip/hub loss
-python -m validation.validate_stage3      # + Glauert/Buhl high-thrust
-python -m validation.validate_stage4      # + multi-station, real S809 polars
-python -m validation.validate_powercurve  # + power curve / Cp-lambda sweep
+pytest
 ```
 
-Each ends with `ALL CHECKS PASSED`. Stage 3 also prints one intentionally
-flagged, non-fatal note about a pre-existing residual pole — that is
-expected, not a failure.
+from the repo root — no install step and no `cd src` needed; `pyproject.toml`
+puts `src/` and `tests/` on the path. Takes a few seconds.
+
+Everything passes. Five tests are `xfail` with a documented physical reason
+(the `validate_polars` checks a cache is known to fail — see
+`tests/test_polar_cache.py`, where each carries its explanation); nothing
+errors, and there is no known-failing test.
+
+The solver checks that used to be `validation/validate_stage1..4.py` and
+`validate_powercurve.py` are now `tests/test_bem_stages.py` and
+`tests/test_powercurve.py`. Same physics, same tolerances, same reference
+values — what changed is that they are a suite rather than five scripts run
+by hand, two of which used to exit non-zero in their known-good state.
 
 ### Audit the polar cache
 

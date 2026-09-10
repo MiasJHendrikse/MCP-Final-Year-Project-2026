@@ -31,7 +31,7 @@ including a one-line Python-3.12 compatibility patch pyBEMT's own
 SafeConfigParser usage needs (removed from the stdlib in 3.12; this repo
 does not carry that patch, it is applied to the external clone only). Run
 this script with THAT virtualenv's python, invoked from src/ so `bem` and
-`xfoil` resolve the same way every validate_stageN script already relies
+`xfoil` resolve the same way every test under `tests/` already relies
 on:
 
     cd src
