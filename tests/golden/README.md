@@ -297,3 +297,34 @@ no install step and no `cd src` is needed. Takes about 3½ minutes on unmodified
 operating points at the ~9 s each the audit measured, plus the fast pinned-table
 sweeps. Task 5's cost target (under 0.1 s per operating point) brings this down
 to seconds.
+
+### 2026-09-10 — interpolant knot-continuity fix (found by plan step 1.7)
+
+The first regeneration in this log that is a **correctness fix rather than a
+refactor**, so unlike the Task 5 and Task 6 entries the golden files did have
+to move.
+
+**What moved:** 26 of 41 `phase_vi_cp_lambda`, 992 of 1160 `phase_vi_spanwise`,
+362 of 868 `cross_tool_summary` (including 14 in `sweep`), and both QBlade CSVs.
+
+**Largest moves:** `Cd` up to **2.6e-4** relative, `Cp` up to **4.2e-5**. Above
+the `rtol = 1e-10` these files are compared at, hence a real regeneration.
+
+**Why.** The polar interpolant had a value discontinuity at every alpha knot,
+for any Reynolds number *between* cache rows — Cl jumping up to 5.4e-3 on
+SG6043. Blending cubic-spline *coefficients* across log(Re) with PCHIP does not
+preserve continuity at the alpha knots, because continuity there is a linear
+constraint on the coefficient channels and PCHIP is nonlinear in its data. The
+old golden numbers were computed on a polar with those jumps in it; the new
+ones are not.
+
+It surfaced as a BEM station on the Schmitz baseline failing to converge at
+Re = 70,995 with a genuinely discontinuous residual — which is Task 5's
+reported-non-convergence doing exactly the job it was built for. Under the
+Phase 0 solver this would have been a `ValueError` aborting the sweep, or worse,
+a quietly wrong number.
+
+**Direction of the change:** these values are *more* correct, not merely
+different. On a cache row at a cache node the surface now reproduces the cached
+number bitwise, so the underlying data is unchanged — only the interpolation
+between data points moved, and it moved onto a surface that is actually C¹.
