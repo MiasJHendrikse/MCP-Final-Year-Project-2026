@@ -1,6 +1,16 @@
-XFOIL polar cache for the NREL S809 — the project's primary airfoil (see
-PROJECT_PLAN.md and the 2026-07-04 journal entry for why S809 rather than NACA
-4412). One CSV per Reynolds number, columns `alpha,cl,cd,cm,source`, alpha
+XFOIL polar cache for the NREL S809 — the project's **validation** airfoil.
+S809 is the NREL Phase VI rotor's section, and this cache exists so the BEM
+solver can be cross-checked against a rotor that CCBlade, pyBEMT and QBlade
+have also computed. It is **not** the airfoil being optimised: the **design**
+airfoil is SG6043 (`../sg6043/`). See PROJECT_PLAN.md and the 2026-07-04
+journal entry for why S809 rather than NACA 4412 for the validation role, and
+the Phase 1.2 entries for the SG6043 selection.
+
+This cache is retained **unchanged** and is not to be regenerated or
+reorganised (repo-audit ground rule 1): the golden regression and the
+cross-validation figures are all anchored to it as it stands.
+
+One CSV per Reynolds number, columns `alpha,cl,cd,cm,source`, alpha
 −180° to +180° on a 0.5° grid — XFOIL-converged from −8° to +18°, Viterna
 extrapolation outside that (see *File format* below). Re = 100k–1.3M in 6 steps up to 500k then 100k steps to 1.3M
 (100k, 150k, 200k, 300k, 400k, 500k, 600k, 700k, 800k, 900k, 1.0M, 1.1M, 1.2M,

@@ -1,8 +1,11 @@
-NACA 4412 was the original primary airfoil target for the polar cache. The primary
-target has since moved to S809 (`../s809/`) — see PROJECT_PLAN.md and the
-2026-07-04 journal entry for the rationale (S809 is the actual NREL Phase VI rotor
-airfoil and has real low-Re tunnel data from Delft/OSU/CSU, unlike this NACA
-section). This cache is retained as a validated secondary reference dataset; the
+NACA 4412 was the original airfoil target for the polar cache. It is no longer
+either of the project's two working airfoils: **S809** (`../s809/`) is the
+validation airfoil, and **SG6043** (`../sg6043/`) is the design airfoil that is
+actually being optimised. See PROJECT_PLAN.md and the 2026-07-04 journal entry
+for why S809 displaced this section in the validation role (S809 is the actual
+NREL Phase VI rotor airfoil and has real low-Re tunnel data from
+Delft/OSU/CSU), and the Phase 1.2 entries for the SG6043 selection. This cache
+is retained as a validated secondary reference dataset; the
 pipeline (`src/xfoil/build_polar_cache.py`) and lookup interface
 (`src/xfoil/polar_lookup.py`) are airfoil-agnostic, so nothing here needed to
 change to make room for S809.
