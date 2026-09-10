@@ -4,9 +4,16 @@ Final-year Mechanical Engineering project (DSP810S, NUST). An adjoint-BEM
 aerodynamic optimisation framework for small wind turbine blades targeting
 Namibian low-wind conditions (~5–6 m/s mean, Windhoek reference site).
 
-**Full title:** *Gradient-Based Aerodynamic Optimisation of a Small Wind
-Turbine Blade for Low-Wind-Speed Conditions Using an Adjoint-BEM Framework
-and CFD Validation*
+**Registered title:** *Gradient-Based Aerodynamic Optimisation of a Small Wind
+Turbine Blade for Low-Wind-Speed Conditions Using an Adjoint-BEM Framework and
+CFD Validation*
+
+**Scope note.** CFD validation is **out of scope** — see `PROJECT_PLAN.md`,
+"Priority hierarchy": with ~11 weeks to 6 November and the WCE placement load,
+CFD was cut to protect the core adjoint work. The registered title above still
+carries it. Supervisor sign-off on that scope boundary is an open item
+(`PROJECT_PLAN.md`, sign-off table), so the title is quoted here as registered
+rather than silently shortened; it changes once the boundary is agreed.
 
 - **Author:** MJ Hendrikse
 - **Supervisor:** Prof. Hannes van der Walt
@@ -20,11 +27,24 @@ record of every session is in `docs/journal/Session Notes/`.
 
 ## Pipeline
 
-XFOIL polars → BEM solver → discrete adjoint → SLSQP optimisation →
-Weibull/AEP → STEP export → (optional) Streamlit UI.
+XFOIL polars → BEM solver → objective function → finite-difference gradients →
+discrete adjoint → SLSQP optimisation → structural constraint → STEP export.
 
-Phase 1 (the forward BEM solver) is built and cross-validated. Phase 2
-(the discrete adjoint) is the next major piece of work.
+Phase numbering follows the plan rewrite of 2026-08-23:
+
+| Phase | | Status |
+|---|---|---|
+| **0** | Tooling, solver, cross-validation | complete |
+| **1** | Objective function (AEP, parameterisation, baseline, smoothness gate) | complete except where blocked on external data |
+| **2** | Finite-difference gradient path | next |
+| **3** | Discrete adjoint | highest-risk phase |
+| **4** | Structural constraint and cost scaling | |
+| **5** | Production runs and results | |
+| **6** | Report | |
+
+The forward BEM solver is Phase **0**, not Phase 1, and the adjoint is Phase
+**3**. Dates and exit criteria for each are in
+[`docs/journal/PROJECT_PLAN.md`](docs/journal/PROJECT_PLAN.md).
 
 ---
 
@@ -49,6 +69,15 @@ src/
     cache.py         CSV load + ragged->rectangular reindexing into a PolarGrid
     interpolant.py   C1 (alpha, Re) surface with analytic partials
     polar.py         CachedPolar: one station's view of it, no clamping
+  design/       The design vector and what it turns into. Phase 1.6/1.7.
+    parameterisation.py  B-spline chord/twist; d -> RotorGeometry, linear in d
+    bounds.py            box bounds, scaling, feasibility (bounds are TODO)
+    schmitz.py           Schmitz optimum-rotor closed form, max-L/D point
+    baseline.py          the Schmitz baseline blade and its x0
+  objective/    What the optimiser will minimise. Phase 1.5.
+    power.py         wind-speed bins, aerodynamic power, rated limiting
+    weibull.py       WeibullResource; bin masses from the CDF (k, c are TODO)
+    objective.py     AEP, the unit-weighted surrogate, J, the sanity band
   xfoil/        Polar generation and lookup.
     xfoil_runner.py       XFOIL subprocess wrapper
     build_polar_cache.py  sweep Re, write data/polars/<airfoil>/
@@ -59,6 +88,9 @@ src/
                 Solver checks live in tests/ -- see below.
     validate_polars.py       5-check audit of a polar cache
     check_stitch_continuity.py  value/slope jumps where XFOIL meets Viterna
+    ncrit_sensitivity.py     the {5,7,9,11,13} n_crit sweep behind the SG6043 cache
+    uiuc_sg6043.py           digitised UIUC SG6043 wind-tunnel data
+    compare_sg6043_uiuc.py   XFOIL vs that measured data
     compare_pybemt.py        cross-check vs pyBEMT
     compare_ccblade.py       cross-check vs CCBlade
     compare_qblade.py        cross-check vs QBlade CE
@@ -71,10 +103,11 @@ config/         Versioned input configuration. Read only through src/config.
   rotor_design.yaml    the SG6043 design rotor being optimised
   rotor_phase_vi.yaml  the NREL Phase VI validation rotor's operating condition
   polars_s809.yaml     the committed S809 polar cache, as built
-  polars_sg6043.yaml   the design rotor's cache -- specified, not yet built
+  polars_sg6043.yaml   the design rotor's cache, as built
 data/           Inputs only.
-  airfoils/       Selig-format coordinates (S809)
+  airfoils/       Selig-format coordinates (S809 validation, SG6043 design)
   polars/         the XFOIL polar cache, per airfoil, per Reynolds
+                  s809/ validation, sg6043/ design, naca4412/ retained reference
   naca0012_validated/  Abbott & von Doenhoff + Ladson experimental data
   qblade/         QBlade .bld/.plr exports and their reference results
 docs/
@@ -84,13 +117,26 @@ docs/
                   before wondering why something raises
 tests/            pytest suite: the machine-checkable Phase 1 exit criteria.
   golden/         Task 0 regression snapshot: Cp(lambda), spanwise a/a'/phi
+  golden_reference.py, generate_golden.py   the snapshot's loader and writer
+  test_invariants.py  AST-checked import rules (e.g. bem/ must not import xfoil)
 verification/     Versioned report figures — committed evidence, not scratch.
   polar_interpolant/     C1 interpolant vs the bilinear staircase
   phase_vi/              solver residual histories across the envelope
   representation_study/  control-point count, justified against Schmitz
+  baseline/              the Schmitz baseline blade and x0.json, the design
+                         vector every later phase starts from
+  smoothness_gate/       plan step 1.8: is J smooth enough to differentiate
 results/          Generated plots and polars. results/_archive/ is scratch
                   (gitignored) — the XFOIL scripts write raw output there.
+misc/             Gitignored. Scratch for things written for MJ rather than for
+                  the record — session briefings and the like.
 ```
+
+Each `verification/` subdirectory has a README stating what was run, what came
+out, and how to reproduce it. `verification/smoothness_gate/README.md` carries
+the Phase 1 exit verdict: **`J` is C¹ but not C²**, which is what the adjoint
+needs, with the one non-smoothness traced to stations crossing the Buhl
+`a = 0.4` threshold.
 
 **Waiting on external input.** Several exit criteria are blocked on data that
 cannot be inferred or defaulted: the Global Wind Atlas wind resource (Weibull
@@ -102,6 +148,17 @@ substituting anything.
 
 **Rule of thumb:** `data/` and `config/` are inputs, `results/` is generated
 output, `src/` is the only place Python lives.
+
+**Two airfoils, two jobs.** **SG6043** is the **design** airfoil — the section
+on the blade being optimised, chosen for its low-Reynolds performance at this
+rotor's scale. **S809** is the **validation** airfoil: it is the NREL Phase VI
+rotor's section, and it exists in this repository so the solver can be checked
+against a rotor other people have also computed. Neither is a default for the
+other, and there is no project-wide "primary" airfoil. `RotorGeometry` takes a
+required `polar_cache` field with **no default anywhere**, so a rotor cannot be
+built without saying which cache it reads: `phase_vi_geometry()` pins `"s809"`,
+the design rotor pins `"sg6043"`. NACA 4412 was the original target before
+either and is retained only as a secondary reference dataset.
 
 **No site value is hard-coded.** Air density and kinematic viscosity are
 **required keyword arguments** on `solve_rotor` and every `powercurve` entry
@@ -127,26 +184,41 @@ comments in `requirements.txt` for what each external tool is for.
 
 ## Running
 
-Every command below is run **from `src/`**, since `bem`, `xfoil`,
-`validation` and `demos` are sibling packages there.
+Two working directories, and it matters which:
 
-```bash
-cd src
-```
+- **`pytest` and the `verification/` scripts run from the repo root.** No
+  install step and no `cd`; `pyproject.toml` puts `src/` and `tests/` on the
+  path.
+- **The `python -m …` module commands run from `src/`**, since `bem`, `xfoil`,
+  `validation`, `design`, `objective` and `demos` are sibling packages there.
 
 ### Validate the BEM solver
 
 ```bash
-pytest
+pytest          # from the repo root
 ```
 
-from the repo root — no install step and no `cd src` needed; `pyproject.toml`
-puts `src/` and `tests/` on the path. Takes a few seconds.
-
-Everything passes. Five tests are `xfail` with a documented physical reason
-(the `validate_polars` checks a cache is known to fail — see
+**351 passed, 5 xfailed, ~7 s.** The five `xfail`s carry a documented physical
+reason (the `validate_polars` checks a cache is known to fail — see
 `tests/test_polar_cache.py`, where each carries its explanation); nothing
 errors, and there is no known-failing test.
+
+**Five tests are designed to fail later, on purpose.** Where an external input
+is still missing, the mechanism around it is built and tested, and a test
+asserts that it *still raises*:
+
+| test | file | fails when |
+|---|---|---|
+| `test_weibull_from_config_still_raises` | `test_objective.py` | the GWA Weibull `k`, `c` land |
+| `test_aep_raises_while_the_resource_is_unresolved` | `test_objective.py` | ″ |
+| `test_aep_is_reported_as_outstanding_not_estimated` | `test_baseline.py` | ″ |
+| `test_bounds_from_config_still_raise` | `test_parameterisation.py` | the manufacturability bounds land |
+| `test_feasibility_reports_that_it_was_not_checked` | `test_baseline.py` | ″ |
+
+If one of these fails, nothing is broken — it means a value in
+`docs/OUTSTANDING-INPUTS.md` arrived and the placeholder needs removing.
+Documenting a known gap is easy; the point of these is guaranteeing somebody
+notices when it closes.
 
 The solver checks that used to be `validation/validate_stage1..4.py` and
 `validate_powercurve.py` are now `tests/test_bem_stages.py` and
@@ -157,47 +229,99 @@ by hand, two of which used to exit non-zero in their known-good state.
 ### Audit the polar cache
 
 ```bash
-python -m validation.validate_polars s809       # currently 4/5
-python -m validation.validate_polars naca4412   # currently 3/5
+python -m validation.validate_polars sg6043     # currently 3/5  (design)
+python -m validation.validate_polars s809       # currently 4/5  (validation)
+python -m validation.validate_polars naca4412   # currently 3/5  (reference)
 ```
 
-Both check the XFOIL-converged band only; the +/-180 deg Viterna extension the
+These check the XFOIL-converged band only; the +/-180 deg Viterna extension the
 cache files carry is checked separately, for continuity with the measured data
 it is anchored to:
 
 ```bash
 python -m validation.check_stitch_continuity s809
+python -m validation.check_stitch_continuity sg6043
 ```
 
-Both polar audits have one documented, deliberately-retained residual — see the READMEs
-in `data/polars/*/` and the 2026-07-26 / 2026-07-28 journal entries. A
-non-zero exit here is the known state, not a new regression.
+Every one of these audits has documented, deliberately-retained failures — see
+the READMEs in `data/polars/*/` and the 2026-07-26 / 2026-07-28 journal
+entries. **A non-zero exit here is the known state, not a new regression.**
+`validate_polars` applies plausibility heuristics written for thick, mildly
+cambered sections; SG6043 is a thin high-camber low-Reynolds section, and its
+two failures (Cl(0) spread of 0.638, and Cd monotonicity) are the *physics* of
+laminar-separation-bubble behaviour at 40k–100k rather than cache defects. That
+argument is made in full, and checked against UIUC wind-tunnel measurements, in
+[`data/polars/sg6043/README.md`](data/polars/sg6043/README.md).
 
 ### Use the solver
 
 ```python
+from config import load_phase_vi_rotor
 from bem.rotor import phase_vi_geometry, PHASE_VI_RATED_RPM
 from bem.powercurve import power_curve, cp_lambda_curve, peak_cp
 
-geometry = phase_vi_geometry()
+rotor = load_phase_vi_rotor()
+geometry = phase_vi_geometry()          # pins polar_cache="s809"
+
+# The atmosphere is required, not defaulted -- see "No site value is
+# hard-coded" above. Phase VI ran at sea level, so it comes from that rotor's
+# own config, never from the design rotor's.
+air = dict(air_density=rotor.air_density,
+           kinematic_viscosity=rotor.kinematic_viscosity)
 
 # Fixed-speed machine (NREL Phase VI: 71.63 RPM synchronous)
-curve = power_curve(geometry, [5, 7, 10, 13, 15, 20, 25], rpm=PHASE_VI_RATED_RPM)
+curve = power_curve(geometry, [5, 7, 10, 13, 15, 20], rpm=PHASE_VI_RATED_RPM, **air)
 for p in curve["points"]:
     print(f"V={p['v_inf']:5.1f} m/s  Cp={p['Cp']:.4f}  P={p['power']:9.1f} W")
 
 # Cp-lambda curve
-cl = cp_lambda_curve(geometry, [1.0 + 0.5 * i for i in range(23)])
-print(peak_cp(cl))   # peak Cp = 0.4159 at TSR = 7.0
+cl = cp_lambda_curve(geometry, [1.0 + 0.5 * i for i in range(14)], **air)
+print(peak_cp(cl)["Cp"], peak_cp(cl)["tsr"])   # 0.4163 at TSR = 7.0
 ```
+
+```
+V=  5.0 m/s  Cp=0.4062  P=   2471.1 W
+V=  7.0 m/s  Cp=0.3671  P=   6127.8 W
+V= 10.0 m/s  Cp=0.2566  P=  12487.4 W
+V= 13.0 m/s  Cp=0.1582  P=  16912.7 W
+V= 15.0 m/s  Cp=0.1123  P=  18450.5 W
+V= 20.0 m/s  Cp=0.0533  P=  20769.2 W
+```
+
+**Why the sweeps stop at 20 m/s and λ = 7.5.** Above those the blade's station
+Reynolds numbers leave the committed S809 cache (which tops out at 1.3 M) and
+`CachedPolar` raises `PolarDomainError` naming the station. That is deliberate:
+the previous code silently clamped to the cache edge, and removing the clamp
+moved Cp by up to −61 % at low λ. An out-of-range request is now an error
+rather than a plausible wrong number. Sequence S also has a 25 m/s point; it is
+recorded in `tests/test_powercurve.py` as a point this cache **cannot serve**,
+not as a value to compare against.
 
 ### Regenerate the polar cache (needs XFOIL)
 
 ```bash
 python -m xfoil.build_polar_cache s809
+python -m xfoil.build_polar_cache sg6043
 ```
 
-Set the XFOIL path via `_DEFAULT_XFOIL` in `src/xfoil/xfoil_runner.py`.
+Set the XFOIL path via `_DEFAULT_XFOIL` in `src/xfoil/xfoil_runner.py`. This is
+still a hard-coded absolute path into one machine's filesystem and should move
+to an environment variable or `config/` (a known, unfixed chore — the repo-audit
+work order raises it under plan item 1.2). It affects only cache regeneration,
+never the solver, since the caches are committed.
+
+**Neither cache needs regenerating to use this repository**, and the S809 cache
+in particular is deliberately frozen: the golden regression and every
+cross-validation figure are anchored to it exactly as committed.
+
+### Reproduce the Phase 1 evidence
+
+```bash
+python verification/baseline/generate_baseline.py         # the Schmitz x0
+python verification/representation_study/run_study.py     # control-point count
+python verification/phase_vi/generate_residual_histories.py
+python verification/smoothness_gate/run_gate.py           # ~11 min
+```
 
 ---
 
@@ -219,4 +343,38 @@ Full writeup, per-station diagnostics and exact reproduction steps:
 against ground truth.** NREL Phase VI *experimental* performance data has not
 been sourced (see the 2026-07-25 journal entry, Stage 5), so the Cp–λ curve
 has never been checked against measurements. That gap is tracked as an open
-item in `PROJECT_PLAN.md`.
+item in `PROJECT_PLAN.md` and as item 6 of `docs/OUTSTANDING-INPUTS.md`.
+
+---
+
+## Phase 1 status
+
+The objective function is built, and the question Phase 1 exists to answer has
+been answered:
+
+> **Is `J` smooth enough to differentiate?** Yes. `J` is **C¹ but not C²**,
+> which is what the adjoint requires and what finite differences need to be
+> interpretable.
+
+3000 objective evaluations across all 10 design variables converged, with no
+staircasing, no high-frequency noise and no discontinuous jumps. The single
+non-smoothness is a curvature break where blade stations cross the Buhl
+turbulent-wake threshold `a = 0.4` — inherent to a correction constructed to
+match momentum theory in value and slope and nothing further, not an
+implementation defect. Evidence and the full argument:
+[`verification/smoothness_gate/README.md`](verification/smoothness_gate/README.md).
+
+What is **not** finished, and why, in every case for want of external data
+rather than code:
+
+| exit criterion | state |
+|---|---|
+| AEP of the baseline blade in 4–6 MWh/yr | **blocked** — needs Weibull `k`, `c` |
+| Feasibility of `x0` against the bounds | **blocked** — needs the bounds |
+| Everything else in Phase 1 | done |
+
+The mechanism around each hole is complete and tested; only the numbers are
+missing, and nothing anywhere substitutes a default for them. See
+[`docs/OUTSTANDING-INPUTS.md`](docs/OUTSTANDING-INPUTS.md) for what is needed,
+and the *"When the data lands"* section of
+`docs/journal/Session Notes/2026-09-10.md` for what to do when it arrives.

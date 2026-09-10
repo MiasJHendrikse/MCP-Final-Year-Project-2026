@@ -12,6 +12,13 @@ Each entry says exactly what is needed, where it goes, and what unblocks when
 it lands. Keep this file current: an item that gets filled should be deleted
 from here in the same commit that fills it.
 
+> **When one of these arrives, read the resumption checklist first:**
+> `docs/journal/Session Notes/2026-09-10.md`, section *"When the data lands"*.
+> This file says **what** is missing; that section says **what to do** with it
+> — which config line, which tests will deliberately go red and what to replace
+> them with, what evidence to regenerate, and how to tell whether the result is
+> actually right rather than merely green.
+
 Last reviewed: **2026-09-10**.
 
 ---
