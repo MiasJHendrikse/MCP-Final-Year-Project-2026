@@ -1,0 +1,55 @@
+{
+ "description": "Fitted-Schmitz control-point vector. The starting point for all gradient and optimisation work (plan step 1.7). Chord block first (metres), then twist block (radians).",
+ "n_chord": 5,
+ "n_twist": 5,
+ "n_bem_strips": 25,
+ "spline_degree": 3,
+ "chord_control_points_m": [
+  0.27579071642734754,
+  0.18161320987881632,
+  0.09713355431852173,
+  0.07864351363070732,
+  0.06700234064946949
+ ],
+ "twist_control_points_rad": [
+  0.4281306164915448,
+  0.16975885372514066,
+  0.0705030380285644,
+  0.01746444725446997,
+  0.010223752012068798
+ ],
+ "twist_control_points_deg": [
+  24.530077405299558,
+  9.726465853429254,
+  4.039526521887084,
+  1.0006391192099673,
+  0.5857778410799256
+ ],
+ "construction": {
+  "source": "analytic Schmitz, least-squares fitted onto the spline",
+  "design_reynolds": 200000.0,
+  "alpha_design_deg": 5.359999999999999,
+  "design_cl": 1.2824940749519613,
+  "max_lift_to_drag": 98.48571947945833,
+  "chord_rms_fit_error_m": 0.0005146608481385687,
+  "twist_rms_fit_error_deg": 0.1060685944716805
+ },
+ "feasibility": {
+  "checked": false,
+  "reason": "design-variable bounds are still TODO in config/rotor_design.yaml: chord_min_m, chord_max_m, twist_min_deg, twist_max_deg. Plan section 7.1 requires them to come from a manufacturability study, not from a default. See docs/OUTSTANDING-INPUTS.md. Pass explicit values to DesignBounds(...) for a study that states its own provisional range.",
+  "clipped": false,
+  "violations": []
+ },
+ "rotor": {
+  "radius_m": 2.0,
+  "n_blades": 3,
+  "root_fraction": 0.15,
+  "design_tsr": 6.5,
+  "rated_wind_speed_ms": 11.0,
+  "cut_in_wind_speed_ms": 3.0
+ },
+ "site": {
+  "air_density": 0.96839,
+  "kinematic_viscosity": 1.869e-05
+ }
+}
