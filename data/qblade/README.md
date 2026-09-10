@@ -135,13 +135,24 @@ comparison built on top of it.
    (XFOIL settings + extrapolation choice) versus the BEM solver mechanics
    already checked in Workflow 1.
 
-## Known asymmetry to keep in mind
+## Post-stall asymmetry: resolved 2026-09-10
 
-`bem.airfoil.S809Polar` (this project's solver) *clamps* alpha to the cached
-[-8, 18] deg band rather than extrapolating past it, while the `.plr` files
-hand QBlade a full Viterna extrapolation. At the Sequence S operating point
-above, every station sits at alpha 3.5-11 deg -- well inside the converged
-band -- so this does not affect Workflows 1 or 4 at this operating point. It
-would matter for a TSR sweep that pushes a station into stall; keep it in
-mind if extending any of this past the single operating point documented
-here.
+There used to be one here, recorded as a caveat on every workflow below.
+`bem.airfoil.S809Polar` *clamped* alpha to the cached [-8, 18] deg band rather
+than extrapolating past it, while the `.plr` files hand QBlade a full Viterna
+extrapolation -- so past stall the two solvers were reading different polars,
+not the same polar through different code.
+
+Work order Task 4 deleted that clamp. `polars.polar.CachedPolar` reads the
++/-180 deg cache the `.plr` files were exported from, so the two solvers now
+share a post-stall model as well as a measured band, and a TSR sweep that
+pushes stations into stall is a fair comparison rather than a caveated one.
+
+At the Sequence S operating point documented here every station sits at
+alpha 3.5-11 deg, well inside the converged band, so Workflows 1 and 4 were
+never affected either way. What did change at this point is second-order and
+worth knowing about when re-running them: the interpolation scheme moved from
+bilinear to cubic-in-alpha (Task 3), which shifts Cd by up to 4 % at Re = 100k
+where Cd's curvature is highest. `bem_solver_phase_vi_result_Re*.csv` were
+regenerated for both effects in the same commit as the golden snapshot; see
+`tests/golden/README.md`'s 2026-09-10 change-log entry.
