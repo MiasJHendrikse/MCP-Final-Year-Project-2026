@@ -199,6 +199,38 @@ previously hidden.
 and the four fixed operating conditions (wind speeds, λ values, ρ, ν, RPM) are
 unchanged, so this is a like-for-like comparison.
 
+### 2026-09-10 — Task 6 (Ning γ-form): the golden JSON files were **not** regenerated
+
+Recorded because the absence of a change is itself the result.
+
+Task 6 rewrote `corrections.corrected_axial_induction` in Ning's γ₁γ₂γ₃ form.
+That is the same equation reparameterised, not a different model, so the only
+movement it can produce is floating-point reassociation. Measured across the
+whole snapshot:
+
+| file | values moved | largest move |
+|---|---|---|
+| `phase_vi_cp_lambda.json` | 4 of 41 (all `Ct`) | 2.3e-15 relative |
+| `phase_vi_spanwise.json` | 63 of 1160 | **2.4e-15 relative** |
+| `cross_tool_summary.json` | 19 of 868 (all `qblade_pinned`) | 1.9e-15 relative |
+| `cross_tool_summary.sweep` | **0** | — |
+
+The largest move anywhere is 2.4e-15, five orders of magnitude below the
+`rtol = 1e-10` these files are compared at. All three JSON regression tests
+**pass unchanged**, so per this file's own rule — regeneration happens only
+when the test fails, and never as a routine step — the golden files were left
+exactly as Task 4 wrote them.
+
+**What did have to be regenerated:**
+`data/qblade/bem_solver_phase_vi_result_Re{100000,500000}.csv`. Those are
+compared **bitwise** by `test_qblade_pinned_matches_committed_csv`, not to a
+tolerance, so a 4-ulp change breaks them by design. One row moved in each file
+(station 18 at Re = 100k: `phi_deg` 5.010656781762976 → 5.010656781762972).
+
+The distinction is worth keeping straight when reading the next task's diff: a
+tolerance test staying green and a bitwise test going red are consistent
+outcomes for the same change, and here they bracket the size of it.
+
 ## Regenerating
 
 ```
