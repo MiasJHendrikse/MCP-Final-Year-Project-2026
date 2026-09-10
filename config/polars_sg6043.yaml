@@ -1,9 +1,10 @@
 # SG6043 polar cache -- the design rotor's cache. PROJECT_PLAN.md section 3.3.
 #
-# NOT YET BUILT. Unlike polars_s809.yaml, which describes a cache that exists,
-# this file is still the *specification* for one that does not: the Reynolds
-# bounds it has to cover, and why. Both inputs the build was blocked on are
-# now in hand (remediation work order, ground rule 3 -- neither was invented):
+# BUILT 2026-09-10. data/polars/sg6043/README.md has the full account: gap
+# closure, Viterna stitch measurement, and -- the piece S809 has no
+# equivalent of -- validation against real UIUC LSAT measurements. Both
+# inputs the build was blocked on were landed first (remediation work order,
+# ground rule 3 -- neither was invented):
 #
 #   * the SG6043 coordinates -- LANDED 2026-08-29 as data/airfoils/sg6043.dat,
 #     fetched verbatim from the UIUC coordinate database and geometry-verified
@@ -13,9 +14,7 @@
 #     S809's Ncrit = 5 is a result about a 21 % thick section at low Re and
 #     does not transfer; this cache's own calibration is `build.ncrit` below.
 #
-# The cache itself is still not built -- n_crit landing removes the last
-# blocker but does not build it. Read only through `src/config`
-# (config.load_polar_cache("sg6043")).
+# Read only through `src/config` (config.load_polar_cache("sg6043")).
 
 name: sg6043
 airfoil: SG6043
@@ -132,11 +131,47 @@ reynolds_envelope:
 # negative_cl_scale * CD_MAX / 2 (see polars/viterna.py).
 extrapolation:
   aspect_ratio: 11.7        # R / mean Schmitz chord, python -m polars.envelope
-  cd_max: 1.32              # 1.11 + 0.018 * 11.7
+  cd_max: 1.3206            # 1.11 + 0.018 * 11.7, exact -- matches what
+                            # xfoil.build_polar_cache.AIRFOILS["sg6043"]
+                            # actually computes via cd_max_finite_blade(11.7)
   negative_cl_scale: 0.7    # retained convention, see polars/viterna.py
   recompute_when: the design chord distribution is fixed
 
-known_gaps: []      # nothing built yet
+known_gaps: []      # all 79 holes found were closed -- none remain open.
+                    # See `filled_alphas` below and the cache README's
+                    # "Interior holes" table for the per-Reynolds breakdown;
+                    # full per-point detail is
+                    # results/polar_cache/sg6043_gap_closure.json.
+
+# How each former hole was closed, S809-README convention. 79 total after the
+# main sweep's own retry pass: 4 by a further XFOIL retry, 75 by local
+# quadratic fit (source=2, never source=0). Listed by Reynolds number rather
+# than per-alpha (unlike S809's 8) because of the count; see the JSON above
+# for every (Re, alpha) pair. Every hole sits at a curve's stall shoulder or
+# deep-negative-alpha extreme, outside the rated-operation Reynolds band
+# (~150k-450k).
+filled_alphas_by_re:
+  - {reynolds: 40000, n_gap_retry: 0, n_local_fit: 4}
+  - {reynolds: 60000, n_gap_retry: 0, n_local_fit: 10}
+  - {reynolds: 80000, n_gap_retry: 1, n_local_fit: 8}
+  - {reynolds: 100000, n_gap_retry: 3, n_local_fit: 2}
+  - {reynolds: 150000, n_gap_retry: 0, n_local_fit: 2}
+  - {reynolds: 200000, n_gap_retry: 0, n_local_fit: 8}
+  - {reynolds: 300000, n_gap_retry: 0, n_local_fit: 8}
+  - {reynolds: 400000, n_gap_retry: 0, n_local_fit: 7}
+  - {reynolds: 500000, n_gap_retry: 0, n_local_fit: 7}
+  - {reynolds: 600000, n_gap_retry: 0, n_local_fit: 3}
+  - {reynolds: 700000, n_gap_retry: 0, n_local_fit: 6}
+  - {reynolds: 800000, n_gap_retry: 0, n_local_fit: 6}
+  - {reynolds: 1000000, n_gap_retry: 0, n_local_fit: 4}
+# Notable: Re=60k's negative-leg/stall-tail hang, flagged as a real risk
+# before this build (main sweep's bidirectional strategy losing its negative
+# leg entirely), did not materialise at that scale -- 12 gap-retry points
+# during the main build (counted separately, above table is close_polar_gaps
+# only) plus the 10 local-fit points above, a bounded gap not a large swath.
+# Re=100k carries the cache's worst upper-stitch slope kink (+0.5685 /deg,
+# 518% of the thin-airfoil slope) and the largest Check 2 violation -- same
+# Reynolds number as S809's own worst-case row. See README.
 
 history:
   - date: 2026-08-29
@@ -153,21 +188,42 @@ history:
       (sweep timeouts at one Re each, not disqualified on merit) -- flagged
       in the README for anyone revisiting this calibration later. Cache
       still not built.
+  - date: 2026-09-10
+    change: >-
+      Cache built: 13/13 Reynolds numbers, no NaN after gap closure (79
+      holes: 4 XFOIL retry, 75 local fit), extended to +/-180 by Viterna at
+      cd_max=1.3206. validate_polars: 3/5 (checks 2 and 5 fail on a real,
+      located low-Re laminar-separation-bubble effect at Re<=200k, not a
+      build defect -- see README). Validated against real UIUC LSAT
+      measurements for the first time (compare_sg6043_uiuc.py): mean Cl RMSE
+      0.0914, Cd RMSE 0.00856 over the six shared Reynolds numbers, improving
+      monotonically with Re. Stitch continuity measured, real kinks present
+      at both stitches (see README), same characterisation Task 3 needs.
 
 validation:
   script: python -m validation.validate_polars sg6043
-  status: not built
+  status: >-
+    built, 3/5 (checks 2 and 5 fail on a documented, located low-Re LSB
+    effect -- see data/polars/sg6043/README.md, not tuned away per ground
+    rule 5)
+  uiuc_comparison:
+    script: python -m validation.compare_sg6043_uiuc
+    mean_cl_rmse: 0.0914
+    mean_cd_rmse: 0.00856
+    note: >-
+      Improves monotonically with Re (Cl RMSE 0.1442 at 100k to 0.0240 at
+      500k). Full per-Reynolds table, provenance breakdown and comparison
+      plots: results/sg6043_uiuc_validation/.
   residual: >-
-    Nothing to validate yet. When built, this cache must additionally be
-    cross-checked against the measured UIUC Low-Speed Airfoil Tests SG6043
-    data committed under data/sg6043_uiuc_lsat/ -- clean model, Re = 100k,
-    150k, 200k, 300k, 400k, 500k (plan 1.2). The S809 cache has no equivalent
-    reference at its own build settings, so this is the stronger of the two
-    validations and should be reported as such. The n_crit=9 comparison
-    against this data at the un-extended, un-extrapolated XFOIL sweep is
-    already done -- results/ncrit_sensitivity/ -- but that is the calibration
-    check, not a substitute for validating the built, ±180°-extended,
-    interpolated cache once it exists.
+    Checks 2 and 5 fail because of a real, XFOIL-converged (not filled)
+    laminar-separation-bubble burst at Re=40k (Cl jumps 1.114->1.429 between
+    alpha=8.5 and 9.0 deg) that weakens with rising Re, plus the same effect's
+    aggregate signature in Cl_max non-monotonicity (dips to 1.646 at 300k,
+    matching the n_crit study's own free-transition sanity check within
+    0.008) and Cl(0) varying 0.638 across the range. Corroborated by the UIUC
+    comparison above showing the largest measured-vs-computed error at
+    exactly this low-Re band. See data/polars/sg6043/README.md for the full
+    account.
   low_re_caveat: >-
     Nothing below Re = 100k has experimental support. The cache floor is 40k
     because the design envelope reaches 49.4k at the root at cut-in, so the

@@ -286,6 +286,11 @@ if __name__ == "__main__":
     parser.add_argument("--n-iter", type=int, default=_RETRY_N_ITER,
                         help=f"Viscous iterations per alpha in the retry "
                              f"(default {_RETRY_N_ITER}).")
+    parser.add_argument("--cd-max", type=float, default=None,
+                        help="Post-stall drag maximum for the extension "
+                             "(default: None, uses the Viterna module default "
+                             "1.8; a design-rotor cache should pass "
+                             "polars.viterna.cd_max_finite_blade(AR)).")
     args = parser.parse_args()
 
     print("=" * 68)
@@ -293,6 +298,6 @@ if __name__ == "__main__":
     print("=" * 68)
     result = close_gaps(args.airfoil, run_xfoil=not args.no_xfoil,
                         dry_run=args.dry_run, refine=args.refine,
-                        n_iter=args.n_iter)
+                        n_iter=args.n_iter, cd_max=args.cd_max)
     _summarise(result, args.airfoil, args.dry_run)
     sys.exit(0)

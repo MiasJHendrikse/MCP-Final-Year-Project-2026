@@ -27,6 +27,7 @@ import os
 import numpy as np
 
 from polars import cache_format
+from polars.viterna import cd_max_finite_blade
 from xfoil.xfoil_runner import run_xfoil_polar, RESULTS_DIR
 
 DATA_DIR = os.path.abspath(os.path.join(RESULTS_DIR, "..", "data"))
@@ -86,6 +87,43 @@ AIRFOILS = {
     "s809": dict(
         airfoil_cmd="LOAD " + os.path.join(DATA_DIR, "airfoils", "s809.dat"),
         label="s809",
+    ),
+    # The design-rotor cache -- its own Reynolds range and calibration, per
+    # config/polars_sg6043.yaml (plan 1.2). n_crit=9 selected by the
+    # sensitivity study (results/ncrit_sensitivity/README.md, 2026-09-09);
+    # cd_max is DERIVED from the Schmitz-baseline aspect ratio (~11.7) via
+    # Viterna & Corrigan's 1.11 + 0.018*AR, not the S809/QBlade-matched 1.8
+    # (work order Task 2, item 3 -- see polars/viterna.py).
+    "sg6043": dict(
+        airfoil_cmd="LOAD " + os.path.join(DATA_DIR, "airfoils", "sg6043.dat"),
+        label="sg6043",
+        reynolds_list=[
+            40_000, 60_000, 80_000, 100_000, 150_000, 200_000, 300_000,
+            400_000, 500_000, 600_000, 700_000, 800_000, 1_000_000,
+        ],
+        ncrit=9.0,
+        cd_max=cd_max_finite_blade(11.7),
+        # NOT S809's n_iter=400/timeout=900 (2026-09-09): at n_iter=400, a
+        # handful of alphas near stall that the n_crit sensitivity study
+        # (n_iter=200, zero timeouts across the whole 100k-500k band at this
+        # same n_crit=9) skipped cleanly instead ground for the full 900s
+        # without finishing the rest of the sweep -- Ncrit=9 is deliberately
+        # less bubble-suppressing than S809's Ncrit=5, so SG6043 is more
+        # exposed to exactly the slow-Newton-convergence-near-stall pathology
+        # that setting exists to avoid. Lower n_iter matches what already
+        # demonstrably worked; any alphas it still drops go through the same
+        # fill_alpha_gaps finer-step retry (and, on a residual holdout,
+        # close_polar_gaps's documented local_fit) S809 also relies on.
+        n_iter=200,
+        timeout=120,
+        # 120 s, not 300: Re=60k hangs at exactly alpha=15.5 deg regardless of
+        # timeout length (300s and 900s both stopped at the same 15.0 deg
+        # last-converged point -- a genuine non-terminating case, not a slow
+        # one), so a longer budget buys nothing there and only delays moving
+        # on. xfoil_runner.run_xfoil_polar recovers whatever converged before
+        # a kill, so a short timeout costs little even for a run that was
+        # merely slow rather than hung; fill_alpha_gaps and close_polar_gaps
+        # pick up whatever this leaves missing.
     ),
 }
 
@@ -220,7 +258,7 @@ def build_polar_cache(airfoil_cmd, airfoil_label, reynolds_list,
                        alpha_min, alpha_max, alpha_step,
                        n_iter=200, timeout=120,
                        ncrit=_DEFAULT_NCRIT, n_panel=_DEFAULT_N_PANEL,
-                       bidirectional=True):
+                       bidirectional=True, cd_max=None):
     """
     Sweep Reynolds numbers for one airfoil and cache each converged polar as a CSV.
 
@@ -252,6 +290,10 @@ def build_polar_cache(airfoil_cmd, airfoil_label, reynolds_list,
     bidirectional : bool, optional
         Sweep outward from alpha = 0 in both directions (default True) rather
         than straight through from alpha_min.
+    cd_max : float or None, optional
+        Post-stall drag maximum for the +/-180 deg extension. None (default)
+        uses the Viterna module default (1.8, the S809/QBlade-matched value);
+        a design-rotor cache should pass `polars.viterna.cd_max_finite_blade(AR)`.
 
     Returns
     -------
@@ -309,8 +351,10 @@ def build_polar_cache(airfoil_cmd, airfoil_label, reynolds_list,
             print(f"    [WARN] {len(still_missing)} alpha(s) still unconverged: "
                   f"{[float(a) for a in still_missing]}")
 
+        viterna_kwargs = {} if cd_max is None else {"cd_max": cd_max}
         csv_path = os.path.join(output_dir, f"{airfoil_label.upper()}_Re{re}.csv")
-        save_polar_csv(polar, csv_path, source=source, alpha_step=alpha_step)
+        save_polar_csv(polar, csv_path, source=source, alpha_step=alpha_step,
+                       **viterna_kwargs)
         cached[re] = csv_path
         print(f"    Converged points: {len(polar)} "
               f"(alpha {polar[:, 0].min():+.1f} to {polar[:, 0].max():+.1f} deg) "
@@ -336,21 +380,36 @@ if __name__ == "__main__":
     print(f"Building XFOIL polar cache: {config['label']}")
     print("=" * 60)
 
+    # Per-airfoil overrides (reynolds_list, ncrit, cd_max, ...) fall back to
+    # this module's own S809-derived defaults when a registry entry doesn't
+    # specify them, so naca4412/s809 behaviour is unchanged by this branch.
+    reynolds_list = config.get("reynolds_list", _DEFAULT_REYNOLDS_LIST)
+    ncrit = config.get("ncrit", _DEFAULT_NCRIT)
+    n_panel = config.get("n_panel", _DEFAULT_N_PANEL)
+    cd_max = config.get("cd_max")
+    # A 240-panel bidirectional sweep is a few hundred viscous solves; the
+    # 120 s default is not enough and silently truncates the polar (XFOIL is
+    # killed mid-sweep, so the run looks "converged up to alpha X" rather
+    # than failed). 900 s per Reynolds number leaves ample headroom -- S809's
+    # own settings, kept as the default; sg6043 overrides both (see its
+    # AIRFOILS entry).
+    n_iter = config.get("n_iter", 400)
+    timeout = config.get("timeout", 900)
+
     cached = build_polar_cache(
         airfoil_cmd=config["airfoil_cmd"],
         airfoil_label=config["label"],
-        reynolds_list=_DEFAULT_REYNOLDS_LIST,
+        reynolds_list=reynolds_list,
         alpha_min=_DEFAULT_ALPHA_MIN,
         alpha_max=_DEFAULT_ALPHA_MAX,
         alpha_step=_DEFAULT_ALPHA_STEP,
-        n_iter=400,
-        # A 240-panel bidirectional sweep is a few hundred viscous solves; the
-        # 120 s default is not enough and silently truncates the polar (XFOIL is
-        # killed mid-sweep, so the run looks "converged up to alpha X" rather
-        # than failed). 900 s per Reynolds number leaves ample headroom.
-        timeout=900,
+        n_iter=n_iter,
+        timeout=timeout,
+        ncrit=ncrit,
+        n_panel=n_panel,
+        cd_max=cd_max,
     )
 
     print()
-    print(f"Done. Cached {len(cached)}/{len(_DEFAULT_REYNOLDS_LIST)} Reynolds numbers "
+    print(f"Done. Cached {len(cached)}/{len(reynolds_list)} Reynolds numbers "
           f"to data/polars/{config['label']}/.")

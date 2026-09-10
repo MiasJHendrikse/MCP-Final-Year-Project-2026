@@ -1,0 +1,133 @@
+[
+  {
+    "re": 100000,
+    "missing": false,
+    "cl_rmse": 0.14416682396122413,
+    "cl_n": 52,
+    "cl_provenance_in_range": {
+      "xfoil": 39,
+      "gap_retry": 12,
+      "local_fit": 2
+    },
+    "cd_rmse": 0.008113773812012509,
+    "cd_n": 16,
+    "cd_provenance_in_range": {
+      "xfoil": 26,
+      "gap_retry": 4,
+      "local_fit": 1
+    },
+    "cache_alpha_range": [
+      -8.0,
+      18.0
+    ],
+    "cache_n_rows": 53
+  },
+  {
+    "re": 150000,
+    "missing": false,
+    "cl_rmse": 0.1487675671404946,
+    "cl_n": 52,
+    "cl_provenance_in_range": {
+      "xfoil": 42,
+      "gap_retry": 9,
+      "local_fit": 2
+    },
+    "cd_rmse": 0.003714258991254872,
+    "cd_n": 17,
+    "cd_provenance_in_range": {
+      "xfoil": 30,
+      "gap_retry": 2,
+      "local_fit": 1
+    },
+    "cache_alpha_range": [
+      -8.0,
+      18.0
+    ],
+    "cache_n_rows": 53
+  },
+  {
+    "re": 200000,
+    "missing": false,
+    "cl_rmse": 0.11347982839170824,
+    "cl_n": 52,
+    "cl_provenance_in_range": {
+      "xfoil": 43,
+      "gap_retry": 2,
+      "local_fit": 8
+    },
+    "cd_rmse": 0.003757493542515023,
+    "cd_n": 19,
+    "cd_provenance_in_range": {
+      "xfoil": 34,
+      "local_fit": 3
+    },
+    "cache_alpha_range": [
+      -8.0,
+      18.0
+    ],
+    "cache_n_rows": 53
+  },
+  {
+    "re": 300000,
+    "missing": false,
+    "cl_rmse": 0.09070503162517235,
+    "cl_n": 52,
+    "cl_provenance_in_range": {
+      "xfoil": 45,
+      "local_fit": 8
+    },
+    "cd_rmse": 0.012979411357476519,
+    "cd_n": 21,
+    "cd_provenance_in_range": {
+      "xfoil": 35,
+      "local_fit": 4
+    },
+    "cache_alpha_range": [
+      -8.0,
+      18.0
+    ],
+    "cache_n_rows": 53
+  },
+  {
+    "re": 400000,
+    "missing": false,
+    "cl_rmse": 0.02717126680681289,
+    "cl_n": 51,
+    "cl_provenance_in_range": {
+      "xfoil": 46,
+      "local_fit": 7
+    },
+    "cd_rmse": 0.009408280933530397,
+    "cd_n": 19,
+    "cd_provenance_in_range": {
+      "xfoil": 34,
+      "local_fit": 3
+    },
+    "cache_alpha_range": [
+      -8.0,
+      18.0
+    ],
+    "cache_n_rows": 53
+  },
+  {
+    "re": 500000,
+    "missing": false,
+    "cl_rmse": 0.02395268710462444,
+    "cl_n": 48,
+    "cl_provenance_in_range": {
+      "xfoil": 46,
+      "local_fit": 3
+    },
+    "cd_rmse": 0.013379949928648346,
+    "cd_n": 19,
+    "cd_provenance_in_range": {
+      "xfoil": 34,
+      "local_fit": 3
+    },
+    "cache_alpha_range": [
+      -8.0,
+      18.0
+    ],
+    "cache_n_rows": 53
+  }
+]
