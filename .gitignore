@@ -28,3 +28,8 @@ results/_archive/*
 
 # Local one-time testing scratch space (not synced)
 /testing/
+
+# Personal notes and briefings written for MJ, not part of the project record.
+# The journal under docs/journal/ is the versioned account; misc/ is scratch
+# for things like session summaries rendered to PDF for reading on a phone.
+/misc/
