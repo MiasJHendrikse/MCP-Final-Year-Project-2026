@@ -210,8 +210,8 @@ def _blade_element_and_induction(phi, station: StationParams):
     (a, a', Cl, Cd, Cn, Ct, F) at one trial phi.
 
     Kept with this name and return shape because it is the decomposition the
-    adjoint wants and because `validation/validate_stage3.py` imports it
-    directly. `a'` is reported here but is deliberately *not* what `residual`
+    adjoint wants and because `tests/test_bem_stages.py` exercises the
+    Stage 3 turbulent-wake path through it. `a'` is reported here but is deliberately *not* what `residual`
     divides by -- see that function on why.
     """
 

@@ -20,7 +20,7 @@ import pytest
 
 from config import load_polar_cache
 from polars import cache_format, envelope, viterna
-from validation import check_stitch_continuity, export_qblade
+from validation import check_stitch_continuity, export_qblade, validate_polars
 from xfoil.polar_lookup import PolarLookup
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -245,3 +245,97 @@ def test_sg6043_bounds_cover_the_computed_envelope_with_margin():
     assert bounds[-1] > re_max, f"cache ceiling {bounds[-1]:,} is below the envelope"
     assert bounds[0] <= 0.9 * re_min, "less than 10 % margin below the envelope"
     assert bounds[-1] >= 1.1 * re_max, "less than 10 % margin above the envelope"
+
+
+# ---------------------------------------------------------------------------
+# validate_polars.py's five physical-plausibility checks, per cache
+# ---------------------------------------------------------------------------
+#
+# Work order Task 7. This was the one Task 2 clause with no test behind it --
+# "that script prints a report and is run by hand" -- which is exactly the
+# harness problem Task 7 exists to fix: a check whose known-good state is a
+# non-zero exit cannot be part of a suite.
+#
+# The five checks are imported and called, not reimplemented. They are the
+# audit's own detectors for the two failure modes XFOIL has here (an omitted
+# alpha, and a converged-but-wrong separated branch), and re-deriving them in
+# the test would mean maintaining two versions of the same physics.
+#
+# Four of the fifteen (cache x check) combinations are known residuals with
+# documented physical causes. They are xfail with the reason attached, per the
+# work order: "a known residual is an xfail with a reason, not a non-zero
+# exit". xfail rather than skip, deliberately -- if one of them starts passing
+# pytest reports XPASS, which is the notification that something changed.
+
+_POLAR_CHECKS = {
+    1: validate_polars.check_1_alpha_coverage,
+    2: validate_polars.check_2_lift_slope,
+    3: validate_polars.check_3_prestall_monotonicity,
+    4: validate_polars.check_4_drag_sanity,
+    5: validate_polars.check_5_reynolds_trends,
+}
+
+#: (cache, check) -> why it is expected to fail. Every entry is a physical
+#: explanation traced to the data, not a tolerance that was not met.
+_KNOWN_RESIDUALS = {
+    ("s809", 5): (
+        "Documented Re-trend residual, known good since the Ncrit=5 rebuild "
+        "(2026-07-26). Recorded in config/polars_s809.yaml's validation block; "
+        "the cache is the basis of all three cross-tool comparisons at this "
+        "state."
+    ),
+    ("sg6043", 2): (
+        "Laminar separation bubble bursting at low Re. At Re=40,000 the cache "
+        "steps Cl 1.1137 -> 1.4287 across half a degree, a slope of 0.63/deg "
+        "against the thin-airfoil bound of 0.11/deg -- and every point on both "
+        "sides is source=xfoil, independently converged, not a fill. Textbook "
+        "behaviour for a thin section at low Re. Per ground rule 5 nothing was "
+        "retuned to make this pass; see data/polars/sg6043/README.md."
+    ),
+    ("sg6043", 5): (
+        "The same bubble effect at the aggregate level: Cl_max is "
+        "non-monotonic in Re (1.673 at 100k, 1.646 at 300k, 1.843 at 1.0M). "
+        "The 300k dip sits within 0.008 of the free-transition sanity value "
+        "the n_crit study already validated against UIUC at that Reynolds "
+        "number, so it is the calibrated behaviour resurfacing, not a new "
+        "discrepancy from the full build."
+    ),
+    ("naca4412", 2): (
+        "Legacy cache, retained as a methodology precedent and read by nothing "
+        "in Phase 1. Never rebuilt at Ncrit=5 and never extended to +/-180 deg "
+        "(work order, out of scope). Recorded here so its state is visible "
+        "rather than assumed."
+    ),
+    ("naca4412", 5): (
+        "Same legacy cache, same reason as check 2 above."
+    ),
+}
+
+_ALL_CACHES = ["s809", "sg6043", "naca4412"]
+
+
+@pytest.mark.parametrize("check", sorted(_POLAR_CHECKS))
+@pytest.mark.parametrize("cache", _ALL_CACHES)
+def test_validate_polars_check(cache, check, capsys, request):
+    """
+    One of validate_polars' five checks against one cache.
+
+    Parametrised as a 3x5 grid rather than "run the script and count" so a
+    regression names the cache and the check that broke, instead of moving a
+    score from 4/5 to 3/5 and leaving the reader to find out which.
+
+    The checks print a report; `capsys` keeps that out of the test output
+    unless the assertion fails, in which case pytest shows it -- which is the
+    diagnostic the script was written to produce in the first place.
+    """
+
+    reason = _KNOWN_RESIDUALS.get((cache, check))
+    if reason is not None:
+        request.node.add_marker(pytest.mark.xfail(strict=True, reason=reason))
+
+    curves = validate_polars.load_cache(os.path.join(POLAR_DIR, cache))
+    assert _POLAR_CHECKS[check](curves), (
+        f"{cache}: validate_polars check {check} failed. Run "
+        f"`python -m validation.validate_polars {cache}` from src/ for the "
+        f"full report."
+    )
