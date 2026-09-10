@@ -339,6 +339,13 @@ def solve_rotor(geometry: RotorGeometry, tsr, v_inf=7.0, *,
             "F": result["F"],
             "reynolds": reynolds,
             "w": w,
+            # Solver status, carried per station since Task 5. A station that
+            # did not converge is reported, not raised -- see solve_station.
+            "converged": result["converged"],
+            "residual": result["residual"],
+            "residual_initial": result["residual_initial"],
+            "iterations": result["iterations"],
+            "failure": result["failure"],
         })
 
     r_arr = [s["r"] for s in stations]
@@ -358,7 +365,20 @@ def solve_rotor(geometry: RotorGeometry, tsr, v_inf=7.0, *,
     ct_rotor = thrust / (0.5 * air_density * v_inf ** 2 * math.pi * geometry.R ** 2)
     cp_rotor = power / (0.5 * air_density * v_inf ** 3 * math.pi * geometry.R ** 2)
 
-    return {"stations": stations, "Ct": ct_rotor, "Cp": cp_rotor}
+    # Rotor-level status. Ct and Cp are still returned when a station failed,
+    # deliberately: the Step 8 smoothness gate has to be able to plot the point
+    # to see where the objective breaks down, and a None there would make it
+    # blind exactly where it most needs to see. The flag sits alongside the
+    # number rather than replacing it, and `failed_stations` names which.
+    failed = [i for i, s in enumerate(stations) if not s["converged"]]
+
+    return {
+        "stations": stations,
+        "Ct": ct_rotor,
+        "Cp": cp_rotor,
+        "converged": not failed,
+        "failed_stations": failed,
+    }
 
 
 def _trapz(y, x):
