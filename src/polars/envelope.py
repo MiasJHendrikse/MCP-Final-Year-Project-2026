@@ -64,11 +64,12 @@ import numpy as np
 
 from config import load_design_rotor, load_site
 
-#: Radial band the stations are placed over, as a fraction of R. The design
-#: rotor has no hub radius in config yet; 0.15 is a conventional root cut-out
-#: for a rotor this size and the choice barely matters here -- the extremes of
-#: the envelope are set at the tip, where chord is smallest and speed highest.
-_ROOT_FRACTION = 0.15
+#: Radial band the stations are placed over, as a fraction of R -- now read
+#: from `config/rotor_design.yaml` rather than declared here. It used to be a
+#: local `0.15`; plan step 1.6's parameterisation needs the same span, and two
+#: copies of a number that must agree is how they stop agreeing. The value is
+#: unchanged, so the envelope this module computes is unchanged.
+_ROOT_FRACTION = load_design_rotor().root_fraction
 
 #: Chord perturbation band (see the module docstring). Reported alongside the
 #: envelope so the assumption travels with the number.

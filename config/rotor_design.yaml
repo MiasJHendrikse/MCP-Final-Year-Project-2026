@@ -20,6 +20,18 @@ geometry:
                          # section 1.5.
   n_blades: 3
 
+  # Inboard end of the bladed span, as a fraction of R. A conventional root
+  # cut-out for a rotor this size, and a MODELLING CHOICE rather than a
+  # measured or derived quantity -- flagged in docs/OUTSTANDING-INPUTS.md for
+  # confirmation.
+  #
+  # It is recorded here because it is already load-bearing and was previously
+  # duplicated: `polars/envelope.py` carried its own `_ROOT_FRACTION = 0.15`
+  # when it sized the SG6043 cache's Reynolds bounds (work order Task 2), and
+  # plan step 1.6's parameterisation needs the same span. Two copies of a
+  # number that must agree is how they stop agreeing, so there is now one.
+  root_fraction: 0.15
+
 operating:
   design_tsr: 6.5
   rated_wind_speed_ms: 11.0     # ~1.9 * V_bar, standard for low-wind machines
