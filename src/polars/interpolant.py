@@ -33,24 +33,44 @@ This is not two independent 1D interpolations bolted together (that does not
 compose into a valid 2D C1 surface). Instead:
 
   1. For each Reynolds row, fit a not-a-knot cubic spline over the (shared)
-     alpha grid. `CubicSpline.c` gives that row's exact piecewise-cubic
-     coefficients: 4 numbers per alpha interval.
-  2. Those coefficients are themselves smooth functions of Reynolds number --
-     one scalar per (interval, coefficient-slot) pair, evaluated at each of
-     the ~10-14 Reynolds knots. Blend each such "coefficient channel" across
-     log(Re) with a PCHIP fit. `scipy.interpolate.PchipInterpolator` accepts
-     multi-dimensional `y` with an `axis` argument, so all
-     (n_alpha_intervals x 4) channels are fit in a single vectorised call.
+     alpha grid, and take from it that row's alpha-DERIVATIVE at every alpha
+     node. The values at the nodes are the cached data itself.
+  2. Blend two channels per alpha node across log(Re) with PCHIP: the value,
+     and that alpha-derivative. `PchipInterpolator` accepts multi-dimensional
+     `y` with an `axis` argument, so all nodes are fit in one vectorised call.
+  3. At query time, evaluate both channels at the query Reynolds number for
+     the two alpha nodes bracketing the query alpha, and build the **cubic
+     Hermite** on that interval.
 
-  The result: for any query Reynolds number, evaluating the log(Re)-PCHIP at
-  that point (a closed-form polynomial evaluation, since PCHIP's own
-  shape-preserving slope computation happened once, at construction, on real
-  data) reproduces the *exact* set of alpha-cubic coefficients a fresh
-  `CubicSpline` fit would have produced from data smoothly varying with Re.
-  Evaluating that alpha-cubic then gives the surface value; differentiating
-  the same two polynomials in closed form (trivial for a cubic) gives
-  d/dalpha and d/d(log Re) analytically, with no finite differencing anywhere
-  in the evaluation path.
+  Adjacent alpha intervals share the value AND the slope at their common node,
+  so C1 in alpha holds identically, at every Reynolds number, by construction.
+  PCHIP keeps it C1 in log(Re). Differentiating the Hermite basis and the
+  channel polynomials in closed form gives d/dalpha and d/d(log Re)
+  analytically, with no finite differencing anywhere in the evaluation path.
+  On a cache row at a cache node the scheme returns the cached number bitwise,
+  because it interpolates the data rather than reconstructing it.
+
+Why not blend the spline coefficients (the scheme this replaced)
+-----------------------------------------------------------------
+The original construction fitted a cubic spline in alpha per Reynolds row and
+PCHIP-blended the resulting *coefficients* across log(Re). That is subtly but
+definitely wrong, and plan step 1.7 caught it: continuity at an alpha knot is
+a **linear** constraint relating the coefficient channels of the two adjacent
+intervals, and PCHIP is **nonlinear** in its data -- its slope limiter is a
+harmonic mean. Blending channel-by-channel therefore does not preserve the
+constraint, and the surface acquired a jump at every alpha knot for any
+Reynolds number *between* rows.
+
+It hid because on a cache row the blended coefficients are the originals, so
+continuity was exactly restored there -- and because complex-step verification
+evaluates a single polynomial piece and is blind by construction to a mismatch
+between adjacent pieces. Measured on SG6043 before the fix: Cl jumped 5.4e-3
+across alpha = 6.0 deg at Re = 70,995, while dCl/dalpha stayed continuous. A
+BEM station at that Reynolds number failed to converge, which is how it
+surfaced -- the residual really was discontinuous.
+
+`tests/test_polar_interpolant.py` now checks continuity across every alpha
+knot at the geometric midpoint of every Reynolds interval, on both caches.
 
 Complex-step safety
 --------------------
@@ -193,22 +213,26 @@ class _CubicPchipSurface:
         re_values = np.asarray(re_values, dtype=float)
         field_grid = np.asarray(field_grid, dtype=float)
 
-        row_coeffs = [
-            CubicSpline(alpha_values, field_grid[m], bc_type="not-a-knot").c
-            for m in range(len(re_values))
-        ]
-        coeffs_alpha = np.stack(row_coeffs, axis=0)  # (M, 4, N-1)
+        # Per Reynolds row: a not-a-knot cubic spline in alpha, used only to
+        # obtain that row's alpha-DERIVATIVE at each node. The values are the
+        # cached data itself, so nothing is smoothed on the way in.
+        rows = [CubicSpline(alpha_values, field_grid[m], bc_type="not-a-knot")
+                for m in range(len(re_values))]
+        node_values = field_grid
+        node_slopes = np.stack([row(alpha_values, 1) for row in rows], axis=0)
 
         logre = np.log(re_values)
-        re_blend = PchipInterpolator(logre, coeffs_alpha, axis=0)
-        # re_blend.c has shape (4, M-1, 4, N-1): [poly degree, Re interval,
-        # alpha-coefficient slot, alpha interval]. Converted to nested plain
-        # lists once here so the hot per-query path (`evaluate`) never pays
-        # NumPy's per-element dispatch overhead -- see the module docstring.
+        value_blend = PchipInterpolator(logre, node_values, axis=0)
+        slope_blend = PchipInterpolator(logre, node_slopes, axis=0)
+
+        # `.c` has shape (4, M-1, N): [poly degree, Re interval, alpha node].
+        # Converted to nested plain lists once, so the hot per-query path never
+        # pays NumPy's per-element dispatch overhead (module docstring).
         self._alpha = alpha_values.tolist()
         self._re = re_values.tolist()
-        self._re_breaks = re_blend.x.tolist()  # == logre, sorted ascending
-        self._re_coeffs = re_blend.c.tolist()
+        self._re_breaks = value_blend.x.tolist()  # == logre, ascending
+        self._value_coeffs = value_blend.c.tolist()
+        self._slope_coeffs = slope_blend.c.tolist()
 
     def evaluate(self, alpha, reynolds):
         """
@@ -230,23 +254,53 @@ class _CubicPchipSurface:
         logre = _log(reynolds)
         u = logre - self._re_breaks[m0]
 
-        # The four alpha-cubic coefficients [c0, c1, c2, c3] at this exact
-        # Reynolds number, and their d/d(log Re) -- both obtained by
-        # evaluating the (already-fit, real-coefficient) log(Re)-PCHIP
-        # polynomial for this Re interval, one coefficient slot at a time.
-        block = self._re_coeffs  # [p][Re interval][alpha-coef][alpha interval]
-        coeffs_at_re = [
-            _horner([block[p][m0][j][k0] for p in range(4)], u) for j in range(4)
-        ]
-        dcoeffs_dlogre = [
-            _horner(_deriv_coeffs([block[p][m0][j][k0] for p in range(4)]), u)
-            for j in range(4)
-        ]
+        # Blend the two bracketing alpha nodes' value and alpha-slope across
+        # log(Re). Four scalar channels, each a cubic in u.
+        values = self._value_coeffs
+        slopes = self._slope_coeffs
 
-        v = alpha - self._alpha[k0]
-        value = _horner(coeffs_at_re, v)
-        dvalue_dalpha = _horner(_deriv_coeffs(coeffs_at_re), v)
-        dvalue_dlogre = _horner(dcoeffs_dlogre, v)
+        v0_col = [values[p][m0][k0] for p in range(4)]
+        v1_col = [values[p][m0][k0 + 1] for p in range(4)]
+        s0_col = [slopes[p][m0][k0] for p in range(4)]
+        s1_col = [slopes[p][m0][k0 + 1] for p in range(4)]
+
+        v0 = _horner(v0_col, u)
+        v1 = _horner(v1_col, u)
+        s0 = _horner(s0_col, u)
+        s1 = _horner(s1_col, u)
+
+        dv0 = _horner(_deriv_coeffs(v0_col), u)
+        dv1 = _horner(_deriv_coeffs(v1_col), u)
+        ds0 = _horner(_deriv_coeffs(s0_col), u)
+        ds1 = _horner(_deriv_coeffs(s1_col), u)
+
+        # Cubic Hermite across the alpha interval, in the normalised
+        # coordinate t = (alpha - a_k) / h.
+        a_lo = self._alpha[k0]
+        h = self._alpha[k0 + 1] - a_lo
+        t = (alpha - a_lo) / h
+        t2 = t * t
+        t3 = t2 * t
+
+        # Basis and its t-derivative.
+        h00 = 2.0 * t3 - 3.0 * t2 + 1.0
+        h10 = t3 - 2.0 * t2 + t
+        h01 = -2.0 * t3 + 3.0 * t2
+        h11 = t3 - t2
+
+        g00 = 6.0 * t2 - 6.0 * t
+        g10 = 3.0 * t2 - 4.0 * t + 1.0
+        g01 = -6.0 * t2 + 6.0 * t
+        g11 = 3.0 * t2 - 2.0 * t
+
+        m0_scaled = s0 * h
+        m1_scaled = s1 * h
+
+        value = h00 * v0 + h10 * m0_scaled + h01 * v1 + h11 * m1_scaled
+        dvalue_dalpha = (g00 * v0 + g10 * m0_scaled
+                         + g01 * v1 + g11 * m1_scaled) / h
+        dvalue_dlogre = (h00 * dv0 + h10 * ds0 * h
+                         + h01 * dv1 + h11 * ds1 * h)
         dvalue_dre = dvalue_dlogre / reynolds
 
         return value, dvalue_dalpha, dvalue_dre
