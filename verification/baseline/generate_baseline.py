@@ -173,6 +173,12 @@ def main():
     print(f"  fit error         chord {x0['construction']['chord_rms_fit_error_m'] * 1000:.3f} mm, "
           f"twist {x0['construction']['twist_rms_fit_error_deg']:.4f} deg")
     print(f"  feasibility       checked = {x0['feasibility']['checked']}")
+
+    band = performance["aep_sanity_band_mwh_per_year"]
+    verdict = ("in band" if performance["aep_in_sanity_band"]
+               else "OUTSIDE BAND -- see the 2026-09-13 journal entry")
+    print(f"  AEP               {performance['aep_mwh_per_year']:.3f} MWh/yr "
+          f"(band {band[0]:.1f}-{band[1]:.1f}, {verdict})")
     for key, value in performance["outstanding"].items():
         print(f"  OUTSTANDING       {key}: {value}")
 

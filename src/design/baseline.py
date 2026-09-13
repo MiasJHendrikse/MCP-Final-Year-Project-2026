@@ -26,10 +26,23 @@ Step 3 is currently a no-op that reports itself as such: the bounds are still
 as a quiet pass. The distinction matters -- a baseline that was never checked
 must not read as a baseline that passed.
 
-AEP is likewise absent rather than approximated: it needs the Weibull
-parameters, which are `TODO`. `evaluate_baseline` returns everything that does
-not depend on the wind resource -- Cp-lambda, spanwise loading, root bending
-moment, peak thrust -- and names AEP as outstanding.
+AEP was likewise absent rather than approximated while the Weibull parameters
+were `TODO`. They resolved on 2026-09-13, so `evaluate_baseline` now reports a
+real `aep_mwh_per_year` alongside the wind-resource-independent numbers
+(Cp-lambda, spanwise loading, root bending moment, peak thrust), together with
+whether it falls in plan 1.4's sanity band (revised to 8-12 MWh/yr on
+2026-09-13; it does, at 10.27).
+
+A NOTE ON HOW THAT WAS WIRED, because it is the kind of thing that should not
+recur. Until 2026-09-13 this module did not import the objective at all: the
+`outstanding` entry for AEP was a hard-coded string, and
+`test_aep_is_reported_as_outstanding_not_estimated` asserted against that
+string. The resumption checklist expected that test to go red when the
+resource landed. It did not, and could not have -- the test and the code were
+both describing a blockage rather than being blocked by one. Nothing in the
+suite would ever have said "the data is here now". The reminder has to be
+attached to the thing that actually changes, and here that is
+`WeibullResource.from_config()` raising; see `tests/test_baseline.py`.
 
 Author: MJ Hendrikse
 Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
@@ -257,6 +270,26 @@ def evaluate_baseline(baseline, wind_speeds=None, tsr_values=None,
     moment = root_bending_moment(stations, chords, site.air_density,
                                  geometry.n_blades, geometry.r_hub)
 
+    # Imported here, not at module scope: `objective.objective` imports
+    # `design.parameterisation`, so a top-level import closes a cycle
+    # through `design/__init__`. Local to the one function that needs it.
+    from objective.objective import annual_energy_mwh, sanity_band
+
+    # AEP against the site's own resource. No `resource=` override: the whole
+    # point of this artefact is the site's numbers, and a caller that wants a
+    # sensitivity case should call `annual_energy_mwh` directly rather than
+    # producing a baseline reference that quietly is not the baseline.
+    #
+    # Deliberately NOT wrapped in a try/except that degrades to "outstanding".
+    # If the resource ever becomes unresolved again, this must fail loudly
+    # here, not emit a reference artefact with a hole where a headline number
+    # belongs -- which is the failure mode that let the old hard-coded
+    # "BLOCKED" string survive the data actually arriving.
+    aep = annual_energy_mwh(baseline.design_vector,
+                            parameterisation=baseline.parameterisation,
+                            polar_cache=polar_cache)
+    band = sanity_band()
+
     return {
         "operating_line": operating_line,
         "cp_lambda": cp_lambda,
@@ -286,11 +319,10 @@ def evaluate_baseline(baseline, wind_speeds=None, tsr_values=None,
         "root_bending_moment_nm": moment,
         "peak_thrust_n": peak_thrust,
         "peak_thrust_wind_speed_ms": peak_thrust_speed,
+        "aep_mwh_per_year": aep,
+        "aep_sanity_band_mwh_per_year": list(band),
+        "aep_in_sanity_band": band[0] <= aep <= band[1],
         "outstanding": {
-            "aep_mwh_per_year": (
-                "BLOCKED: needs site.weibull_k and site.weibull_c_ms, still "
-                "TODO. See docs/OUTSTANDING-INPUTS.md section 1."
-            ),
             "above_rated_operating_line": (
                 "Not swept: power limiting above the rated wind speed is part "
                 "of the AEP model (plan step 1.5) and is not yet specified."

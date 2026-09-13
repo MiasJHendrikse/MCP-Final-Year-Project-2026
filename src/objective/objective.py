@@ -31,7 +31,7 @@ the per-bin powers are weighted before being summed, and a positive fixed
 weighting cannot create or remove a discontinuity.
 
 What the surrogate is NOT is an estimate of AEP. It is not scaled to energy
-units, it is not comparable to the 4-6 MWh/yr sanity band, and it must never be
+units, it is not comparable to the 8-12 MWh/yr sanity band, and it must never be
 quoted as a performance figure. `annual_energy_mwh` is the only thing that may
 be, and it raises until the data lands.
 

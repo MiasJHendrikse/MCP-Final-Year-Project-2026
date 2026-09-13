@@ -10,16 +10,19 @@ enter the code, and `grep` over `src/` for the old literals is the test.
 Two things this module refuses to do:
 
   * substitute a value for an unresolved `TODO` field (see `unresolved.py`);
-  * accept an internally inconsistent atmosphere. `rho`, `p` and `nu` in
-    site.yaml are derived quantities, so they are recomputed from the recorded
-    inputs and the file is rejected if the recorded values disagree. Editing
-    the mean site temperature and forgetting to update the density is
-    otherwise a silent few-percent error in every AEP figure.
+  * accept an internally inconsistent atmosphere or wind resource. `rho`, `p`
+    and `nu`, and likewise `mean_wind_speed_ms`, are derived quantities in
+    site.yaml, so they are recomputed from the recorded inputs and the file is
+    rejected if the recorded values disagree. Editing the mean site
+    temperature and forgetting to update the density -- or editing Weibull `k`
+    and forgetting the mean -- is otherwise a silent few-percent error in
+    every AEP figure.
 
 Author: MJ Hendrikse
 Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
 """
 
+import math
 import os
 from functools import lru_cache
 
@@ -51,6 +54,14 @@ CONFIG_DIR = os.environ.get("BLADE_CONFIG_DIR",
 #: atmosphere. Tight enough to catch an edit that was not propagated, loose
 #: enough to allow the recorded values to be rounded for reporting.
 ATMOSPHERE_TOLERANCE = 5e-3
+
+#: Recorded-vs-recomputed agreement required of `mean_wind_speed_ms` against
+#: `c * Gamma(1 + 1/k)`. Tighter than the atmosphere's, because there is no
+#: reason to record a rounded mean: the resource is written by
+#: `verification/wind_resource/run_extrapolation.py` at full precision, and a
+#: mean that disagrees at the fourth decimal means k or c was edited without
+#: the mean being recomputed.
+WIND_RESOURCE_TOLERANCE = 1e-4
 
 
 class ConfigError(RuntimeError):
@@ -136,12 +147,67 @@ def _check_atmosphere(site_yaml, filename):
             )
 
 
+def _check_wind_resource(site_yaml, filename):
+    """
+    Recompute the mean wind speed from `k` and `c` and reject a disagreement.
+
+        V_bar = c * Gamma(1 + 1/k)
+
+    The three wind-resource fields are not independent, and the mean is the
+    derived one. It is recorded anyway, per the plan's working convention that
+    a number feeding a later step is written down -- but recording a derived
+    number creates the opportunity for it to drift from its definition, so the
+    definition is enforced here.
+
+    Skipped entirely while any of the three is still `TODO`: an unresolved
+    resource is a legitimate state, and `WeibullResource.from_config()` is what
+    reports it. Only a *partially* filled triple is an error, and that is
+    caught below -- filling k and c but leaving the mean as TODO would
+    otherwise sail through and hand a sentinel to whatever reads it.
+    """
+
+    wind = site_yaml["wind_resource"]
+    fields = ("weibull_k", "weibull_c_ms", "mean_wind_speed_ms")
+    resolved = {
+        name: wind[name] for name in fields
+        if not (isinstance(wind[name], str)
+                and wind[name].strip().startswith("TODO"))
+    }
+
+    if not resolved:
+        return
+    if len(resolved) != len(fields):
+        missing = [name for name in fields if name not in resolved]
+        raise ConfigError(
+            f"{filename}: wind_resource is partially resolved -- "
+            f"{', '.join(sorted(resolved))} have values but "
+            f"{', '.join(missing)} still TODO. The three are one quantity; "
+            f"resolve them together or leave all three TODO."
+        )
+
+    k = float(resolved["weibull_k"])
+    c = float(resolved["weibull_c_ms"])
+    recorded = float(resolved["mean_wind_speed_ms"])
+    computed = c * math.gamma(1.0 + 1.0 / k)
+
+    if abs(recorded - computed) > WIND_RESOURCE_TOLERANCE * abs(computed):
+        raise ConfigError(
+            f"{filename}: wind_resource.mean_wind_speed_ms = {recorded!r} "
+            f"disagrees with {computed!r}, recomputed as "
+            f"c * Gamma(1 + 1/k) from weibull_c_ms = {c!r} and weibull_k = "
+            f"{k!r} (tolerance {WIND_RESOURCE_TOLERANCE:.1e}). The mean is "
+            f"derived, not independent -- recompute it rather than editing k "
+            f"or c in isolation."
+        )
+
+
 @lru_cache(maxsize=None)
 def load_site(filename="site.yaml"):
     """The site basis (plan sections 1.1-1.3). Cached; the file is read once."""
 
     data = _read_yaml(filename)
     _check_atmosphere(data, filename)
+    _check_wind_resource(data, filename)
 
     def field(path):
         return _get(data, path, filename)

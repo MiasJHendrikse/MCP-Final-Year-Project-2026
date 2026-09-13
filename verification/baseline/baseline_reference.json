@@ -691,8 +691,13 @@
  "root_bending_moment_nm": 206.69624003590948,
  "peak_thrust_n": 597.1692470249374,
  "peak_thrust_wind_speed_ms": 11.0,
+ "aep_mwh_per_year": 10.2701574120755,
+ "aep_sanity_band_mwh_per_year": [
+  8.0,
+  12.0
+ ],
+ "aep_in_sanity_band": true,
  "outstanding": {
-  "aep_mwh_per_year": "BLOCKED: needs site.weibull_k and site.weibull_c_ms, still TODO. See docs/OUTSTANDING-INPUTS.md section 1.",
   "above_rated_operating_line": "Not swept: power limiting above the rated wind speed is part of the AEP model (plan step 1.5) and is not yet specified."
  }
 }

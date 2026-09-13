@@ -157,18 +157,99 @@ def test_every_operating_point_converges(performance):
         assert row["converged"], row["tsr"]
 
 
-def test_aep_is_reported_as_outstanding_not_estimated(performance):
+def test_aep_is_reported_as_a_real_number(performance):
     """
-    AEP needs the Weibull parameters, which are TODO.
+    Replaces `test_aep_is_reported_as_outstanding_not_estimated`.
 
-    It must be absent and *named as absent*, not approximated -- an estimated
-    AEP in the reference numbers would be indistinguishable from a real one to
-    anyone reading the artefact later.
+    WHY THE OLD TEST WAS NOT A GOOD REMINDER, recorded because the lesson
+    generalises. It asserted that `outstanding["aep_mwh_per_year"]` contained
+    the string "BLOCKED". But that string was a literal in `baseline.py`, which
+    did not import the objective at all -- so the test and the code were both
+    *describing* a blockage rather than being blocked by one. When the Weibull
+    parameters landed on 2026-09-13 it stayed green, and nothing in the suite
+    said the data had arrived. A placeholder guard has to be attached to the
+    thing that actually changes: here, `WeibullResource.from_config()` raising.
+
+    What is asserted now is that AEP is present, positive, finite, and no
+    longer listed as outstanding.
     """
 
-    assert "aep_mwh_per_year" in performance["outstanding"]
-    assert "BLOCKED" in performance["outstanding"]["aep_mwh_per_year"]
-    assert "aep_mwh_per_year" not in performance
+    assert "aep_mwh_per_year" not in performance["outstanding"]
+
+    aep = performance["aep_mwh_per_year"]
+    assert math.isfinite(aep)
+    assert aep > 0.0
+
+
+def test_the_baseline_aep_meets_the_revised_sanity_band(performance):
+    """
+    Plan 1.4's exit criterion, against the band as revised on 2026-09-13.
+
+    THE BAND WAS WIDENED, 4-6 -> 8-12 MWh/yr, on MJ's explicit instruction, and
+    that is a deliberate revision of a stated expectation rather than a
+    tolerance tweak. The full basis is in `config/rotor_design.yaml` beside the
+    numbers and in the 2026-09-13 journal entry; the short version is that the
+    old band was defective in two independent ways, both predating the data
+    that exposed them:
+
+      1. It compared different quantities -- a capacity factor on a ~3.1 kW
+         ELECTRICAL rating (Cp = 0.42, eta = 0.90) against a model that
+         produces AERODYNAMIC shaft energy at the solver's actual Cp of 0.472
+         with no drivetrain efficiency anywhere in the chain.
+      2. It was never consistent with plan 1.3's own resource prior. At the
+         calmest corner of that prior this rotor already returns 5.9 MWh/yr.
+
+    So the band could not have been met by the design it was written for. It is
+    now derived from the resource uncertainty this project has actually
+    recorded (+/-10 % on `c` and `k` spans 8.21-12.01) rather than from a
+    capacity factor borrowed from generic small turbines.
+    """
+
+    low, high = performance["aep_sanity_band_mwh_per_year"]
+    assert (low, high) == (8.0, 12.0), (
+        "plan 1.4's sanity band changed again. It was set to 8-12 on "
+        "2026-09-13 with its derivation written out in "
+        "config/rotor_design.yaml. Changing it is a deliberate act that needs "
+        "the same treatment, not a tolerance tweak to make a test pass."
+    )
+
+    assert performance["aep_in_sanity_band"] is True
+    assert performance["aep_mwh_per_year"] == pytest.approx(10.27, abs=0.1)
+
+
+def test_the_sanity_band_is_still_narrow_enough_to_catch_a_bug(performance):
+    """
+    A band widened until everything fits is a note, not a check.
+
+    This is the test that keeps the widening honest. It reconstructs the
+    failure modes the band exists to catch and asserts each still lands
+    outside it -- so if the band is ever widened again to accommodate some
+    future result, the cost of that is visible here rather than silent.
+
+    The modes are the ones an AEP chain actually gets wrong: forgetting the
+    rated-power limit, using sea-level density at an 1800 m site, taking bin
+    masses from the PDF without normalising, and any factor-of-two slip.
+    """
+
+    low, high = performance["aep_sanity_band_mwh_per_year"]
+    aep = performance["aep_mwh_per_year"]
+
+    # Ratios measured on 2026-09-13 against the correct 10.27 MWh/yr; see the
+    # journal entry. Applied to the live AEP so this tracks the real chain.
+    failure_modes = {
+        "rated-power limiting not applied": aep * 1.424,
+        "sea-level density (1.225) at an 1800 m site": aep * 1.265,
+        "bin masses not normalised": aep / 0.79889,
+        "factor of two low": aep / 2.0,
+        "factor of two high": aep * 2.0,
+    }
+
+    for description, wrong in failure_modes.items():
+        assert not (low <= wrong <= high), (
+            f"the sanity band no longer catches: {description} "
+            f"({wrong:.2f} MWh/yr sits inside {low}-{high}). The band has been "
+            f"widened past the point of being a check."
+        )
 
 
 # ---------------------------------------------------------------------------

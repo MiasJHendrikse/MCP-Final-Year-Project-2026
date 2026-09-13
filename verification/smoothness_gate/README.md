@@ -22,11 +22,11 @@ Each `J` is 17 wind-speed bins, so ~51,000 rotor solves.
 That this is feasible at all is the Task 5 cost gate: the audit costed this
 sweep at **~5.5 days per pass** at 9.0 s per operating point.
 
-The objective swept is `objective.energy_surrogate` — per-bin power with **unit
-weights** rather than Weibull weights, because the wind resource is still
-`TODO`. The Weibull weights are a fixed convex combination over the bins and do
-not depend on `d`, so the surrogate exercises the identical d-dependent chain
-and cannot create or remove a discontinuity. Sweep ranges are provisional
+The objective swept is `objective.annual_energy_mwh` — the real,
+Weibull-weighted AEP in MWh/yr, since **2026-09-13**. Before that it was
+`objective.energy_surrogate`, the same per-bin powers with **unit weights**,
+because the wind resource was `TODO`. Both runs and their agreement are below.
+Sweep ranges are provisional
 (chord ±40 % of its `x₀` value, twist ±8°) pending the manufacturability
 bounds. See [`docs/OUTSTANDING-INPUTS.md`](../../docs/OUTSTANDING-INPUTS.md).
 
@@ -135,9 +135,50 @@ kind this gate exists to find, and it is fixed (see
 `tests/golden/README.md`, 2026-09-10). The clean `distinct = 1.000` column
 above is the post-fix state.
 
-## Re-running against the real objective
+## Re-run against the real objective — 2026-09-13
 
-Once the Weibull parameters land, swap `energy_surrogate` for
-`annual_energy_mwh` and re-run. Roughly 13 minutes. The conclusions above
-should be unchanged — the weights do not depend on `d` — and if they are not,
-that is itself a finding worth chasing.
+The Weibull parameters landed (`verification/wind_resource/`), so the gate was
+re-run against `annual_energy_mwh` instead of the surrogate. **11.4 minutes,
+3000/3000 converged.** The table above is the surrogate run; this is the real
+objective, in MWh/yr rather than watts:
+
+| variable | converged | distinct | flat steps | max Δ/med | max Δ²/med |
+|---|---|---|---|---|---|
+| chord CP 0 | ✓ | 1.000 | 0 | 3.48 | 2.92 |
+| chord CP 1 | ✓ | 1.000 | 0 | 2.39 | 1.37 |
+| chord CP 2 | ✓ | 1.000 | 0 | 2.01 | 1.08 |
+| chord CP 3 | ✓ | 1.000 | 0 | 1.76 | 1.18 |
+| chord CP 4 | ✓ | 1.000 | 0 | 1.60 | 4.85 |
+| twist CP 0 | ✓ | 1.000 | 0 | 2.35 | 1.28 |
+| twist CP 1 | ✓ | 1.000 | 0 | 1.88 | 1.07 |
+| twist CP 2 | ✓ | 1.000 | 0 | 1.78 | 1.12 |
+| twist CP 3 | ✓ | 1.000 | 0 | 1.86 | 1.26 |
+| twist CP 4 | ✓ | 1.000 | 0 | 2.84 | 2.60 |
+
+**The verdict is unchanged, sweep for sweep.** `distinct = 1.000` everywhere,
+zero flat first-difference steps anywhere, every sweep fully converged, and the
+difference ratios tracking within a few percent with the same variables
+elevated — `chord CP 4` highest on Δ² (5.42 → 4.85) and `chord CP 0` highest
+on Δ (3.47 → 3.48). `J` is still C¹ but not C².
+
+This was a **real check rather than a formality**, and it is worth being clear
+about why. The argument for sweeping the surrogate in the first place was that
+the Weibull weights are a fixed convex combination over the bins, independent
+of `d`, and so can neither create nor remove a discontinuity in the
+`d`-dependent chain. That argument is sound, but it had never been tested — and
+it would have failed if the weighting were coupled to `d` anywhere it should
+not be. A changed verdict here would have been a genuine defect, found before
+any gradient work rather than after, when it would surface as unexplained
+disagreement between two methods with no way to tell which was wrong.
+
+In `run_gate.py` the weights are now computed **once, outside the sweep loop**,
+which makes their independence from `d` structural rather than a claim in a
+docstring. The same single `bin_powers` call still feeds both the objective
+value and the convergence flag, so the rotor is not solved twice.
+
+The absolute values are a separate matter, and were one: the baseline AEP of
+10.27 MWh/yr fell outside what was then plan §1.4's 4–6 MWh/yr sanity band.
+That band was found to be defective and revised to **8–12 MWh/yr** the same
+day — see `config/rotor_design.yaml` for the derivation. None of it affects
+this gate either way: smoothness is a property of the surface's shape, not its
+level.
