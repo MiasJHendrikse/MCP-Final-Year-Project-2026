@@ -7,6 +7,7 @@ What an optimiser is handed
     objective   fun(u) = J(u) / |J(u0)|,  J = -AEP [MWh/yr]
     constraint  the polar-cache Reynolds envelope, linear in u (below)
     gradient    jac_fd(u, h): central differences of `fun`
+                jac_adjoint(u): the discrete adjoint (Phase 3), same units
 
 The objective is normalised by |J| at the first point evaluated (recorded as
 `J0`) because SLSQP's `ftol` is an *absolute* tolerance on the objective:
@@ -122,7 +123,9 @@ class ScaledProblem:
 
         self.J0 = None
         self.n_fun_evals = 0
+        self.n_adjoint_evals = 0
         self.domain_errors = []
+        self._adjoint = None
 
     # -- variables ----------------------------------------------------------
 
@@ -203,6 +206,43 @@ class ScaledProblem:
 
         grad, _n_evals = central_difference(self.fun, u, h)
         return grad
+
+    def adjoint_system(self):
+        """
+        The `adjoint.BEMSystem` over this problem's parameterisation, bounds,
+        resource and polar cache, built on first use. Imported lazily so
+        `gradients/` does not depend on `adjoint/` at import time (the
+        dependency runs the other way for the FD path).
+        """
+
+        if self._adjoint is None:
+            from adjoint.system import BEMSystem
+
+            self._adjoint = BEMSystem(self.parameterisation, self.bounds,
+                                      self.resource, self.polar_cache)
+        return self._adjoint
+
+    def jac_adjoint(self, u):
+        """
+        Discrete-adjoint gradient of `fun` at `u`:
+        `gradient(d) * span / |J0|` (Phase 3, B3).
+
+        One forward solve plus the partials -- the cost of about two
+        objective evaluations, against `2n` for `jac_fd`. `J0` must be set
+        (by `fun(u0)` or `set_reference`), as for `unscale`. A
+        `PolarDomainError` is logged and re-raised exactly as in `J`.
+        """
+
+        if self.J0 is None:
+            raise RuntimeError("J0 not set: evaluate fun(u0) or set_reference(u0) first")
+        d = self.physical(u)
+        try:
+            result = self.adjoint_system().gradient(d)
+        except PolarDomainError:
+            self.domain_errors.append([float(x) for x in np.asarray(u)])
+            raise
+        self.n_adjoint_evals += 1
+        return result.dJ_dd * self.bounds.span() / abs(self.J0)
 
     # -- the polar-cache envelope (linear, mandatory) ------------------------
 
