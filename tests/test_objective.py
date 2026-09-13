@@ -1,10 +1,15 @@
 """
-Plan step 1.5 acceptance, for the parts that do not need the wind resource.
+Plan step 1.5 acceptance.
 
-The Weibull parameters are still `TODO`, so `annual_energy_mwh` raises and the
-"baseline returns 4-6 MWh/yr" exit criterion cannot be met yet. Everything
-below it -- the bin scheme, the operating strategy, the rated-power limit, the
-distribution itself, and determinism -- is testable now and is tested here.
+The Weibull parameters resolved on 2026-09-13, so `annual_energy_mwh` now
+returns a number and the whole of step 1.5 is testable: the bin scheme, the
+operating strategy, the rated-power limit, the distribution itself,
+determinism, and the config-backed resource.
+
+The "baseline returns 4-6 MWh/yr" exit criterion is NOT met, and that is
+asserted here as a recorded discrepancy rather than quietly dropped -- see
+`test_baseline.py` and the 2026-09-13 journal entry. The band is a prior, and
+this test file does not adjust it.
 
 Author: MJ Hendrikse
 Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
@@ -32,8 +37,15 @@ from objective import (
 )
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
+WIND_RESOURCE_PATH = os.path.abspath(os.path.join(
+    _HERE, "..", "verification", "wind_resource", "wind_resource_20m.json"))
 X0_PATH = os.path.abspath(os.path.join(
     _HERE, "..", "verification", "baseline", "x0.json"))
+
+
+def _wind_resource_artefact():
+    with open(WIND_RESOURCE_PATH, encoding="utf-8") as handle:
+        return json.load(handle)
 
 
 @pytest.fixture(scope="module")
@@ -143,14 +155,66 @@ def test_every_bin_converges(powers):
 # The Weibull distribution
 # ---------------------------------------------------------------------------
 
-def test_weibull_from_config_still_raises():
+def test_weibull_from_config_returns_the_site_resource():
     """
-    Passing is the correct state today. When the GWA extraction lands this
-    fails deliberately, which is the reminder to replace it.
+    Replaces `test_weibull_from_config_still_raises`, which was the placeholder
+    guarding the TODO and whose job ended when the resource landed.
+
+    The values are pinned against `verification/wind_resource/`, not restated:
+    a test that repeated the literals would agree with a typo in site.yaml.
+
+    Tolerance is 1e-6 rather than exact because site.yaml records six decimal
+    places while the artefact carries full double precision. That rounding is
+    deliberate -- the config file is read by people -- and 1e-6 is tight enough
+    that only the rounding fits inside it. A transposed digit would not.
     """
 
-    with pytest.raises(UnresolvedConfigError, match="still TODO"):
-        WeibullResource.from_config()
+    resource = WeibullResource.from_config()
+    artefact = _wind_resource_artefact()["extrapolation"]
+
+    assert resource.k == pytest.approx(artefact["k"], rel=1e-6)
+    assert resource.c == pytest.approx(artefact["scale_ms"], rel=1e-6)
+
+
+def test_weibull_from_config_mean_matches_the_closed_form():
+    """
+    `site.mean_wind_speed_ms` is derived, and must equal c * Gamma(1 + 1/k).
+
+    The loader enforces this at 1e-4; this asserts the much tighter agreement
+    that the recorded value actually has, so a future edit that merely squeaks
+    past the loader's tolerance is still caught here.
+    """
+
+    from config import load_site
+
+    resource = WeibullResource.from_config()
+    recorded = float(load_site().mean_wind_speed_ms)
+
+    assert resource.mean_speed == pytest.approx(recorded, rel=1e-6)
+    assert resource.mean_speed == pytest.approx(
+        resource.c * math.gamma(1.0 + 1.0 / resource.k), rel=1e-12)
+
+
+def test_the_site_resource_is_an_extrapolation_not_an_extraction():
+    """
+    The one property of this resource most likely to be forgotten later.
+
+    `k` and `c` are NOT the numbers on the screenshot -- those are at 50 m.
+    This asserts the 20 m pair differs from the 50 m pair in the directions
+    downward extrapolation requires: lower scale (less wind nearer the ground)
+    and lower shape (a broader distribution). A future edit that pasted the
+    50 m pair straight into site.yaml would fail here.
+    """
+
+    artefact = _wind_resource_artefact()
+    reference = artefact["reference_level"]
+    target = artefact["extrapolation"]
+    resource = WeibullResource.from_config()
+
+    assert target["target_height_m"] == 20.0
+    assert reference["height_m"] == 50.0
+    assert resource.c < reference["scale_ms"]
+    assert resource.k < reference["k"]
 
 
 def test_weibull_mean_matches_the_closed_form():
@@ -196,9 +260,22 @@ def test_weibull_rejects_invalid_parameters():
 # AEP, and the surrogate that stands in for it
 # ---------------------------------------------------------------------------
 
-def test_aep_raises_while_the_resource_is_unresolved(x0, parameterisation):
-    with pytest.raises(UnresolvedConfigError):
-        annual_energy_mwh(x0, parameterisation=parameterisation)
+def test_aep_defaults_to_the_config_resource(x0, parameterisation):
+    """
+    Replaces `test_aep_raises_while_the_resource_is_unresolved`.
+
+    With no `resource=`, `annual_energy_mwh` must use the site's resource --
+    and must give the identical value to passing that same resource
+    explicitly. Those two paths going out of step would mean some caller is
+    silently integrating against a different distribution than it thinks.
+    """
+
+    implicit = annual_energy_mwh(x0, parameterisation=parameterisation)
+    explicit = annual_energy_mwh(x0, resource=WeibullResource.from_config(),
+                                 parameterisation=parameterisation)
+
+    assert implicit == explicit
+    assert implicit > 0.0
 
 
 def test_aep_works_with_an_explicit_resource(x0, parameterisation):

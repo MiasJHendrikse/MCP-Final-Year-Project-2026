@@ -1,0 +1,68 @@
+{
+  "what": "Weibull k and A for the Khomas Hochland site at the 20 m hub height, extrapolated from a 50 m extraction. This artefact is the source of config/site.yaml:wind_resource.",
+  "source": {
+    "tool": "GASP -- Point Data",
+    "screenshot": "verification/wind_resource/gasp-point-data-50m.png",
+    "screenshot_as_supplied": "misc/Screenshot 2026-09-13 114138.png",
+    "supplied_by": "MJ Hendrikse",
+    "supplied_on": "2026-09-13",
+    "extraction_kind": "single point, not an area average",
+    "sector": "Total (omni-directional)",
+    "displayed_coordinates": "S22.428, W16.558"
+  },
+  "reference_level": {
+    "height_m": 50.0,
+    "k": 1.87,
+    "scale_ms": 8.8,
+    "displayed_mean_speed_ms": 7.8,
+    "mean_speed_implied_by_k_and_A_ms": 7.813061270853439,
+    "mean_speed_residual_ms": 0.013061270853438778,
+    "self_consistent": true
+  },
+  "extrapolation": {
+    "method": "Justus & Mikhail (1976)",
+    "reference_height_m": 50.0,
+    "reference_k": 1.87,
+    "reference_scale_ms": 8.8,
+    "reference_mean_speed_ms": 7.813061270853439,
+    "target_height_m": 20.0,
+    "shear_exponent": 0.2078799839402755,
+    "k": 1.7092259817328979,
+    "scale_ms": 7.273759033048761,
+    "mean_speed_ms": 6.487612026977593
+  },
+  "cross_check_log_law": {
+    "what": "A(20 m) under the logarithmic profile across plausible roughness lengths. Bounds the central case; supplies no number of its own.",
+    "roughness_lengths_m": [
+      0.05,
+      0.1,
+      0.2,
+      0.3,
+      0.5
+    ],
+    "scale_ms": {
+      "z0=0.05m": 7.632709307895357,
+      "z0=0.1m": 7.502515377833762,
+      "z0=0.2m": 7.339633158607151,
+      "z0=0.3m": 7.223892680850309,
+      "z0=0.5m": 7.049063961843035
+    },
+    "band_ms": [
+      7.049063961843035,
+      7.632709307895357
+    ],
+    "central_case_inside_band": true
+  },
+  "against_plan_prior_expectation": {
+    "k_range": [
+      1.8,
+      2.4
+    ],
+    "c_range_ms": [
+      6.0,
+      7.0
+    ],
+    "k_inside": false,
+    "c_inside": false
+  }
+}

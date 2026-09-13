@@ -25,10 +25,14 @@ Author: MJ Hendrikse
 Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
 """
 
+import contextlib
 import os
 import re
+import shutil
+import tempfile
 
 import pytest
+import yaml
 
 import config
 from bem.powercurve import cp_lambda_curve, operating_point, power_curve
@@ -151,29 +155,156 @@ def test_site_atmosphere_is_internally_consistent():
     assert site.air_density < 1.0
 
 
-def test_unresolved_wind_resource_raises_rather_than_substituting():
-    """
-    The Global Wind Atlas fields are TODO and behave like it.
+# ---------------------------------------------------------------------------
+# Driving the loader's rejection paths
+# ---------------------------------------------------------------------------
+# The loader rejects an internally inconsistent site.yaml. Testing that means
+# handing it a deliberately inconsistent one, which means a throwaway config
+# directory -- the real `config/` is versioned input data and is never written
+# to by a test.
+#
+# `CONFIG_DIR` is read into a module constant at import, so the env var alone
+# is too late; `load_site` is `lru_cache`d, so the cache has to be cleared on
+# the way in AND on the way out, or a poisoned entry leaks into later tests.
 
-    Ground rule 3, and plan 1.3: a fabricated wind resource propagates silently
-    into every AEP figure downstream. So these must not be numbers, must not be
-    `None` (which fails late, far from the config, complaining about
-    `NoneType`), and must not be quietly falsy.
+
+def _load_raw(filename):
+    """The config file as plain nested dicts, for mutating."""
+
+    with open(os.path.join(config.CONFIG_DIR, filename), encoding="utf-8") as f:
+        return yaml.safe_load(f)
+
+
+@contextlib.contextmanager
+def _temporary_config(overrides):
+    """Point the loader at a copy of `config/` with `overrides` applied."""
+
+    from config import loader
+
+    original = loader.CONFIG_DIR
+    scratch = tempfile.mkdtemp(prefix="blade-config-")
+    try:
+        shutil.copytree(original, scratch, dirs_exist_ok=True)
+        for filename, data in overrides.items():
+            with open(os.path.join(scratch, filename), "w",
+                      encoding="utf-8") as f:
+                yaml.safe_dump(data, f)
+
+        loader.CONFIG_DIR = scratch
+        loader.load_site.cache_clear()
+        yield
+    finally:
+        loader.CONFIG_DIR = original
+        loader.load_site.cache_clear()
+        shutil.rmtree(scratch, ignore_errors=True)
+
+
+def test_an_inconsistent_atmosphere_is_rejected():
+    """
+    The atmosphere check has guarded site.yaml since Task 1 but its rejection
+    path was never actually exercised. Driving it here, alongside the new wind
+    resource check, so both are known to fire rather than assumed to.
+    """
+
+    site_yaml = _load_raw("site.yaml")
+    site_yaml["atmosphere"]["air_density"] *= 1.05
+
+    with _temporary_config({"site.yaml": site_yaml}):
+        with pytest.raises(config.ConfigError, match="air_density"):
+            config.load_site()
+
+
+def test_resolved_wind_resource_is_a_usable_number():
+    """
+    Replaces `test_unresolved_wind_resource_raises_rather_than_substituting`,
+    whose job ended when the resource landed on 2026-09-13.
+
+    Ground rule 3 has not gone away -- it has been satisfied. What is checked
+    now is that the three fields are genuinely resolved, positive, and physical,
+    so a `TODO` reintroduced by a bad merge fails here rather than three modules
+    downstream.
     """
 
     site = config.load_site()
 
     for name in ("weibull_k", "weibull_c_ms", "mean_wind_speed_ms"):
         value = getattr(site, name)
-        assert not config.is_resolved(value), f"{name} should still be TODO"
+        assert config.is_resolved(value), f"{name} should be resolved"
+        assert float(value) > 0.0
 
-        with pytest.raises(config.UnresolvedConfigError, match=name):
-            float(value)
-        with pytest.raises(config.UnresolvedConfigError, match=name):
-            2.0 * value
-        with pytest.raises(config.UnresolvedConfigError, match=name):
-            # `if cfg.weibull_k:` is a silent fallback waiting to happen.
-            bool(value)
+
+def test_gwa_area_is_still_unresolved_and_behaves_like_it():
+    """
+    `gwa_area` is deliberately still TODO, and this is the guard on that.
+
+    The 2026-09-13 extraction was a GASP *point*, not a Global Wind Atlas
+    *area*, so there is no area selection to record. Writing the point's
+    coordinates there would assert an extraction that was never performed. This
+    keeps the sentinel's behaviour honest in the meantime: not a number, not
+    `None`, and not quietly falsy.
+    """
+
+    value = config.load_site().gwa_area
+    assert not config.is_resolved(value)
+
+    with pytest.raises(config.UnresolvedConfigError, match="gwa_area"):
+        float(value)
+    with pytest.raises(config.UnresolvedConfigError, match="gwa_area"):
+        # `if site.gwa_area:` is a silent fallback waiting to happen.
+        bool(value)
+
+
+def test_coordinates_are_the_khomas_hochland_site():
+    """
+    Latitude and longitude landed with the same extraction.
+
+    The longitude SIGN is the assertion that matters. GASP labelled the point
+    "W16.558"; west 16.558 is open ocean several hundred km off Namibia, where
+    the panel's terrain-derived statistics could not have come from. East is
+    what the pinned satellite views show and east is what is recorded.
+    """
+
+    site = config.load_site()
+
+    assert site.latitude_deg == pytest.approx(-22.427972, abs=1e-5)
+    assert site.longitude_deg == pytest.approx(16.557833, abs=1e-5)
+    assert site.longitude_deg > 0.0, "the site is in EASTERN Namibia-longitude"
+
+
+def test_mean_wind_speed_must_agree_with_k_and_c():
+    """
+    The loader rejects a wind resource whose derived mean has drifted.
+
+    This is the check the 2026-09-10 resumption checklist assumed already
+    existed. It did not -- only the atmosphere was checked -- so it was added
+    with the resource. Editing `k` and forgetting the mean is otherwise a
+    silent few-percent error in every AEP figure, which is exactly the failure
+    mode the atmosphere check exists to prevent.
+    """
+
+    site_yaml = _load_raw("site.yaml")
+    site_yaml["wind_resource"]["weibull_k"] *= 1.10
+
+    with _temporary_config({"site.yaml": site_yaml}):
+        with pytest.raises(config.ConfigError, match="mean_wind_speed_ms"):
+            config.load_site()
+
+
+def test_a_partially_resolved_wind_resource_is_rejected():
+    """
+    All three fields, or none. Two out of three is an error.
+
+    Filling `k` and `c` but leaving the mean as TODO would otherwise load
+    cleanly and hand a sentinel to whatever read the mean -- a failure far from
+    its cause.
+    """
+
+    site_yaml = _load_raw("site.yaml")
+    site_yaml["wind_resource"]["mean_wind_speed_ms"] = "TODO: forgotten"
+
+    with _temporary_config({"site.yaml": site_yaml}):
+        with pytest.raises(config.ConfigError, match="partially resolved"):
+            config.load_site()
 
 
 def test_unresolved_design_bounds_raise():

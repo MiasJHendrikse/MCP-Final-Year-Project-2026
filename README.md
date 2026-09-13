@@ -76,7 +76,8 @@ src/
     baseline.py          the Schmitz baseline blade and its x0
   objective/    What the optimiser will minimise. Phase 1.5.
     power.py         wind-speed bins, aerodynamic power, rated limiting
-    weibull.py       WeibullResource; bin masses from the CDF (k, c are TODO)
+    weibull.py       WeibullResource; bin masses from the CDF
+    height_extrapolation.py  Weibull k, c between heights (Justus & Mikhail)
     objective.py     AEP, the unit-weighted surrogate, J, the sanity band
   xfoil/        Polar generation and lookup.
     xfoil_runner.py       XFOIL subprocess wrapper
@@ -139,8 +140,13 @@ needs, with the one non-smoothness traced to stations crossing the Buhl
 `a = 0.4` threshold.
 
 **Waiting on external input.** Several exit criteria are blocked on data that
-cannot be inferred or defaulted: the Global Wind Atlas wind resource (Weibull
-`k`, `c`), the manufacturability bounds, and two papers needed for provenance.
+cannot be inferred or defaulted: the manufacturability bounds, and three papers
+needed for provenance. The wind resource **landed on 2026-09-13** — as a GASP
+point extraction at 50 m, extrapolated to the 20 m hub height and recorded in
+[`verification/wind_resource/`](verification/wind_resource/) — which in turn
+raised a new blocking item: the baseline AEP is 10.27 MWh/yr against a 4–6
+MWh/yr sanity band that turns out never to have been consistent with the plan's
+own resource prior.
 [`docs/OUTSTANDING-INPUTS.md`](docs/OUTSTANDING-INPUTS.md) is the single list,
 with what each blocks and what happens in the meantime. Code that needs an
 unresolved value raises `UnresolvedConfigError` naming the field, rather than
@@ -203,17 +209,21 @@ reason (the `validate_polars` checks a cache is known to fail — see
 `tests/test_polar_cache.py`, where each carries its explanation); nothing
 errors, and there is no known-failing test.
 
-**Five tests are designed to fail later, on purpose.** Where an external input
+**Three tests are designed to fail later, on purpose.** Where an external input
 is still missing, the mechanism around it is built and tested, and a test
 asserts that it *still raises*:
 
 | test | file | fails when |
 |---|---|---|
-| `test_weibull_from_config_still_raises` | `test_objective.py` | the GWA Weibull `k`, `c` land |
-| `test_aep_raises_while_the_resource_is_unresolved` | `test_objective.py` | ″ |
-| `test_aep_is_reported_as_outstanding_not_estimated` | `test_baseline.py` | ″ |
 | `test_bounds_from_config_still_raise` | `test_parameterisation.py` | the manufacturability bounds land |
 | `test_feasibility_reports_that_it_was_not_checked` | `test_baseline.py` | ″ |
+| `test_gwa_area_is_still_unresolved_and_behaves_like_it` | `test_config.py` | a Global Wind Atlas *area* extraction is done |
+
+Three more of these were retired on 2026-09-13 when the wind resource landed.
+**One of them did not fire, and could not have** — it asserted against a
+hard-coded string in `baseline.py` rather than against the thing that actually
+changes state. A guard has to be attached to the mechanism, not to a
+description of it; see the 2026-09-13 journal entry.
 
 If one of these fails, nothing is broken — it means a value in
 `docs/OUTSTANDING-INPUTS.md` arrived and the placeholder needs removing.
@@ -369,12 +379,14 @@ rather than code:
 
 | exit criterion | state |
 |---|---|
-| AEP of the baseline blade in 4–6 MWh/yr | **blocked** — needs Weibull `k`, `c` |
+| AEP of the baseline blade in 4–6 MWh/yr | **not met** — computes to 10.27 MWh/yr. Not a bug; the band itself is under review (OUTSTANDING-INPUTS §7) |
 | Feasibility of `x0` against the bounds | **blocked** — needs the bounds |
 | Everything else in Phase 1 | done |
 
-The mechanism around each hole is complete and tested; only the numbers are
-missing, and nothing anywhere substitutes a default for them. See
+The mechanism around each hole is complete and tested; nothing anywhere
+substitutes a default for a missing number, and where a computed result
+disagrees with a stated expectation the disagreement is recorded rather than
+tuned away. See
 [`docs/OUTSTANDING-INPUTS.md`](docs/OUTSTANDING-INPUTS.md) for what is needed,
 and the *"When the data lands"* section of
 `docs/journal/Session Notes/2026-09-10.md` for what to do when it arrives.

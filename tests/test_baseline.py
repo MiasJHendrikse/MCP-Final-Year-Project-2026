@@ -157,18 +157,59 @@ def test_every_operating_point_converges(performance):
         assert row["converged"], row["tsr"]
 
 
-def test_aep_is_reported_as_outstanding_not_estimated(performance):
+def test_aep_is_reported_as_a_real_number(performance):
     """
-    AEP needs the Weibull parameters, which are TODO.
+    Replaces `test_aep_is_reported_as_outstanding_not_estimated`.
 
-    It must be absent and *named as absent*, not approximated -- an estimated
-    AEP in the reference numbers would be indistinguishable from a real one to
-    anyone reading the artefact later.
+    WHY THE OLD TEST WAS NOT A GOOD REMINDER, recorded because the lesson
+    generalises. It asserted that `outstanding["aep_mwh_per_year"]` contained
+    the string "BLOCKED". But that string was a literal in `baseline.py`, which
+    did not import the objective at all -- so the test and the code were both
+    *describing* a blockage rather than being blocked by one. When the Weibull
+    parameters landed on 2026-09-13 it stayed green, and nothing in the suite
+    said the data had arrived. A placeholder guard has to be attached to the
+    thing that actually changes: here, `WeibullResource.from_config()` raising.
+
+    What is asserted now is that AEP is present, positive, finite, and no
+    longer listed as outstanding.
     """
 
-    assert "aep_mwh_per_year" in performance["outstanding"]
-    assert "BLOCKED" in performance["outstanding"]["aep_mwh_per_year"]
-    assert "aep_mwh_per_year" not in performance
+    assert "aep_mwh_per_year" not in performance["outstanding"]
+
+    aep = performance["aep_mwh_per_year"]
+    assert math.isfinite(aep)
+    assert aep > 0.0
+
+
+def test_the_aep_sanity_band_discrepancy_is_recorded_not_tuned_away(performance):
+    """
+    The baseline AEP does NOT meet plan 1.4's 4-6 MWh/yr exit criterion.
+
+    It comes out near 10.3 MWh/yr. Ground rule 5 says a discrepancy gets
+    documented, not tuned away, so this test pins the failure rather than the
+    band being widened to admit it. If someone later edits
+    `config/rotor_design.yaml` to make the band fit, this test fails and asks
+    them to justify it.
+
+    The diagnosis, in short (full version in the 2026-09-13 journal entry): the
+    band came from a 0.15-0.22 capacity factor on a ~3.1 kW *electrical*
+    rating, while the AEP model produces *aerodynamic* shaft energy with no
+    drivetrain efficiency applied and a solver Cp near 0.47 rather than the
+    0.42 assumed. And the band was never reachable anyway -- at the CALMEST
+    corner of plan 1.3's own prior resource range (k = 2.4, c = 6.0 m/s) this
+    rotor already returns 5.9 MWh/yr. The inconsistency is between plan 1.3 and
+    plan 1.4 and predates the 2026-09-13 data.
+    """
+
+    low, high = performance["aep_sanity_band_mwh_per_year"]
+    assert (low, high) == (4.0, 6.0), (
+        "plan 1.4's sanity band changed. That may be right -- see the "
+        "2026-09-13 journal entry -- but it is a deliberate act, not a "
+        "tolerance tweak, and this test is where it gets justified."
+    )
+
+    assert performance["aep_in_sanity_band"] is False
+    assert performance["aep_mwh_per_year"] == pytest.approx(10.27, abs=0.1)
 
 
 # ---------------------------------------------------------------------------
