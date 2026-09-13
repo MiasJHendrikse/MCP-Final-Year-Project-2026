@@ -1,0 +1,164 @@
+{
+ "description": "FD-driven SLSQP on fun(u) = J(u)/|J(u0)| with the polar-cache envelope constraint, from x0.",
+ "provisional_bounds": "under provisional bounds (chord_max_m = 0.45 m provisional; chord_min_m, twist_min, twist_max grounded)",
+ "bounds": {
+  "chord_min_m": 0.045,
+  "chord_max_m": 0.45,
+  "twist_min_rad": -0.03490658503988659,
+  "twist_max_rad": 0.6108652381980153
+ },
+ "command": "python verification/fd_optimisation/run_fd_slsqp.py",
+ "generated": "2026-09-13T17:20:49",
+ "variables": [
+  "chord_0",
+  "chord_1",
+  "chord_2",
+  "chord_3",
+  "chord_4",
+  "twist_0",
+  "twist_1",
+  "twist_2",
+  "twist_3",
+  "twist_4"
+ ],
+ "fd_step": 3.162277660168379e-06,
+ "envelope_margin": 0.05,
+ "envelope_margin_raised": false,
+ "domain_errors": [],
+ "slsqp_options": {
+  "ftol": 1e-08,
+  "maxiter": 200
+ },
+ "success": true,
+ "status": 0,
+ "message": "Optimization terminated successfully",
+ "nit": 34,
+ "nfev": 37,
+ "njev": 34,
+ "objective_evaluations_total": 1419,
+ "callback_extra_evaluations": 34,
+ "wall_time_s": 360.9483794000007,
+ "J0_mwh_per_yr": -10.2701574120755,
+ "aep_x0_mwh_per_yr": 10.2701574120755,
+ "aep_optimum_mwh_per_yr": 10.292481589407988,
+ "delta_aep_pct_vs_x0": 0.21736937845021884,
+ "expected_gain_pct": [
+  2.0,
+  6.0
+ ],
+ "suspected_defect": null,
+ "u_star": [
+  0.6722945992633128,
+  0.30099899496295024,
+  0.18789521590881467,
+  0.07834320211476424,
+  0.008214174788895516,
+  0.7445828345811398,
+  0.3203687935167263,
+  0.18817173004842128,
+  0.11287625814058813,
+  0.015516604277260971
+ ],
+ "x_star": [
+  0.31727931270164167,
+  0.16690459295999485,
+  0.12109756244306995,
+  0.07672899685647952,
+  0.048326740789502685,
+  0.4459240295992212,
+  0.1719785548579367,
+  0.0866094161553127,
+  0.03798572197983308,
+  -0.024886399205298747
+ ],
+ "x0": [
+  0.27579071642734754,
+  0.18161320987881632,
+  0.09713355431852173,
+  0.07864351363070732,
+  0.06700234064946949,
+  0.4281306164915448,
+  0.16975885372514066,
+  0.0705030380285644,
+  0.01746444725446997,
+  0.010223752012068798
+ ],
+ "u0": [
+  0.5698536208082655,
+  0.33731656760201556,
+  0.12872482547783143,
+  0.08307040402643782,
+  0.05432676703572713,
+  0.7170291190621502,
+  0.31693150955214194,
+  0.16323044653748878,
+  0.08109835457324237,
+  0.06988588759675475
+ ],
+ "fun_star": -1.0021736937845023,
+ "gradient_star_scaled": [
+  4.979169350139535e-06,
+  3.0236842598108724e-05,
+  0.00010641325710755576,
+  0.00015501386524640178,
+  2.7285320009410976e-05,
+  -1.0737919271976526e-05,
+  -3.8511139808515606e-05,
+  -5.915406822038352e-05,
+  -6.369255775354731e-05,
+  1.2100052441114915e-05
+ ],
+ "gradient_star_mwh_per_u": [
+  5.113685300731469e-05,
+  0.00031053713312672655,
+  0.0010928809012262597,
+  0.001592016797134806,
+  0.00028022453153550407,
+  -0.00011028012120135808,
+  -0.0003955154679519024,
+  -0.0006075215921879917,
+  -0.0006541325941066408,
+  0.0001242694432646186
+ ],
+ "active_bounds": {
+  "lower": [],
+  "upper": []
+ },
+ "active_envelope_rows": [],
+ "envelope_min_row_value_m": 0.017026401000135888,
+ "envelope_min_row": "floor r=1.9660",
+ "post_check_x0": {
+  "alpha_min_deg": 0.5679738766141665,
+  "alpha_max_deg": 6.03731188853077,
+  "alpha_limits_deg": [
+   -8.0,
+   18.0
+  ],
+  "alpha_margin_deg": 8.567973876614166,
+  "within": true,
+  "reynolds_min": 73169.88098098728,
+  "reynolds_max": 464780.7719181758,
+  "reynolds_limits": [
+   40000.0,
+   1000000.0
+  ],
+  "all_converged": true
+ },
+ "post_check_optimum": {
+  "alpha_min_deg": -0.4365965347942766,
+  "alpha_max_deg": 6.130127461541143,
+  "alpha_limits_deg": [
+   -8.0,
+   18.0
+  ],
+  "alpha_margin_deg": 7.563403465205724,
+  "within": true,
+  "reynolds_min": 62620.69329616904,
+  "reynolds_max": 496063.6166420099,
+  "reynolds_limits": [
+   40000.0,
+   1000000.0
+  ],
+  "all_converged": true
+ }
+}
