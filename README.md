@@ -144,9 +144,12 @@ cannot be inferred or defaulted: the manufacturability bounds, and three papers
 needed for provenance. The wind resource **landed on 2026-09-13** — as a GASP
 point extraction at 50 m, extrapolated to the 20 m hub height and recorded in
 [`verification/wind_resource/`](verification/wind_resource/) — which in turn
-raised a new blocking item: the baseline AEP is 10.27 MWh/yr against a 4–6
-MWh/yr sanity band that turns out never to have been consistent with the plan's
-own resource prior.
+exposed a defective exit criterion: plan §1.4's 4–6 MWh/yr AEP sanity band
+compared an electrical capacity-factor estimate against a model that computes
+aerodynamic shaft energy, and was never consistent with the plan's own resource
+prior in the first place. Revised to 8–12 MWh/yr on 2026-09-13, with the
+derivation recorded beside the numbers and a test asserting the band is still
+narrow enough to catch a bug.
 [`docs/OUTSTANDING-INPUTS.md`](docs/OUTSTANDING-INPUTS.md) is the single list,
 with what each blocks and what happens in the meantime. Code that needs an
 unresolved value raises `UnresolvedConfigError` naming the field, rather than
@@ -379,7 +382,7 @@ rather than code:
 
 | exit criterion | state |
 |---|---|
-| AEP of the baseline blade in 4–6 MWh/yr | **not met** — computes to 10.27 MWh/yr. Not a bug; the band itself is under review (OUTSTANDING-INPUTS §7) |
+| AEP of the baseline blade in the sanity band | **done** — 10.27 MWh/yr, inside the 8–12 MWh/yr band. The band was revised from 4–6 on 2026-09-13; see `config/rotor_design.yaml` |
 | Feasibility of `x0` against the bounds | **blocked** — needs the bounds |
 | Everything else in Phase 1 | done |
 

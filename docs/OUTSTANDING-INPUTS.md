@@ -29,8 +29,8 @@ Last reviewed: **2026-09-13**.
 ## 1. Wind resource — Weibull `k` and `c` ✅ **RESOLVED 2026-09-13**
 
 Kept in place rather than deleted, because what landed is not quite what this
-entry asked for and the differences are load-bearing. The next entry down
-inherits the 🔴 blocking status.
+entry asked for and the differences are load-bearing. Nothing inherits the 🔴 — the one
+follow-on it raised (section 7) was decided the same day.
 
 **What landed:** a **GASP point-data** extraction supplied by MJ
 (`misc/Screenshot 2026-09-13 114138.png`), omni-directional, at **50 m**:
@@ -67,7 +67,12 @@ resource range the rotor already returns 5.9 MWh/yr — and is an inconsistency
 between plan §1.3, plan §1.4 and the fact that the AEP model produces
 aerodynamic shaft energy with no drivetrain efficiency applied.
 
-**This needs MJ's decision** and is the successor to this entry. See section 7.
+MJ decided the same day: widen the band. Done, to **8–12 MWh/yr**, with the
+derivation recorded rather than the numbers merely stretched to fit. See
+section 7, which is closed.
+
+So section 1 leaves nothing blocking behind it. **The 🟠 bounds entry
+(section 2) is now the most blocking item on the list.**
 
 ---
 
@@ -183,67 +188,46 @@ measurement. The infrastructure to plot measurements as a fourth series exists
 
 ---
 
-## 7. The AEP sanity band 🔴 blocking — **MJ's decision**
+## 7. The AEP sanity band ✅ **RESOLVED 2026-09-13 — MJ's decision**
 
-**Raised 2026-09-13**, when the wind resource landed and the band could be
-evaluated for the first time. This is the successor to section 1 and is now the
-item on the critical path.
+Raised and closed the same day. Kept in place rather than deleted because it
+records a deliberate revision of a stated expectation, which this repo's ground
+rule 5 otherwise forbids, and the basis for that needs to stay findable.
 
-**The discrepancy:** baseline AEP is **10.27 MWh/yr**. Plan §1.4's band is
-**4–6 MWh/yr**. The band is unchanged and `evaluate_baseline` reports
-`aep_in_sanity_band: false`; `tests/test_baseline.py` pins the failure so it
-cannot be quietly tuned into agreement.
+**The problem:** when the wind resource landed, plan §1.4's 4–6 MWh/yr AEP
+sanity band could be evaluated for the first time. The baseline returns
+**10.27 MWh/yr**.
 
-**It is mostly not the new data's fault.** Sweeping the plan's own prior
-resource range from §1.3:
+**MJ's decision, as given:** widen the band — if the blade already makes
+substantially more power than the original band, the original band was simply
+too narrow.
 
-| resource | `V̄` [m/s] | AEP [MWh/yr] |
-|---|---|---|
-| plan prior, calmest (`k=2.4, c=6.0`) | 5.32 | 5.88 |
-| plan prior, mid (`k=2.1, c=6.5`) | 5.76 | 7.74 |
-| plan prior, windiest (`k=1.8, c=7.0`) | 6.23 | 9.53 |
-| **site, 20 m (actual)** | **6.49** | **10.27** |
+**Acted on.** `config/rotor_design.yaml` now carries **8–12 MWh/yr**, with the
+full derivation written out beside the numbers. Summary:
 
-Only the *calmest corner* of the plan's own prior expectation lands inside the
-band at all. Plan §1.3 and plan §1.4 were never consistent with each other for
-this rotor, and the 2026-09-13 extraction merely made that visible.
+- **Why 4–6 was wrong, on two counts, both predating the data.** It compared
+  an *electrical* capacity-factor estimate (~3.1 kW at `Cp = 0.42`,
+  `η = 0.90`) against a model that produces *aerodynamic* shaft energy at the
+  solver's actual `Cp = 0.472` with no drivetrain efficiency in the chain —
+  3.82 kW rated, not 3.1 kW. And it was never consistent with plan §1.3's own
+  resource prior: at the calmest corner of that prior the rotor already returns
+  5.9 MWh/yr, at the middle 7.7.
+- **How 8–12 was derived** — from the resource uncertainty this project has
+  recorded, not by fitting to 10.27. ±10 % on `c` and `k` spans 8.21–12.01; the
+  log-law roughness band on the height extrapolation spans 9.73–11.10 and sits
+  inside. Rounded outward. Capacity factor 0.24–0.36 on the aerodynamic rating.
+- **It is still a check.** Verified to fail on unlimited power (14.6),
+  sea-level density (13.0), unnormalised bin masses (12.9) and any factor of
+  two. `test_the_sanity_band_is_still_narrow_enough_to_catch_a_bug` asserts
+  exactly this, so a future widening cannot quietly turn the band into a note.
 
-**Two identified contributors, neither of which may be fixed unilaterally:**
-
-1. **Aerodynamic vs electrical energy.** The band comes from a 0.15–0.22
-   capacity factor on the ~3.1 kW rating in plan §1.4, which was computed with
-   `Cp = 0.42` and `η = 0.90`. The AEP model applies **no drivetrain
-   efficiency** — `src/objective/power.py` says so explicitly and always has —
-   and the solver's actual design-point `Cp` is **0.472**, not 0.42. Rated
-   aerodynamic power is therefore 3.82 kW, not 3.1 kW.
-2. **The rotor is deliberately oversized for its rating.** 2.0 m radius with
-   cut-in at 3.0 m/s is a low-wind machine by design (plan §1.5 fixes `R` on
-   polar-validation grounds, explicitly *not* to hit a power target). A
-   capacity factor typical of a generic small turbine is the wrong prior for
-   it.
-
-**What MJ has to decide** — this is a plan question, not a code question, and
-nothing should be changed until it is answered:
-
-- Is the exit criterion about **aerodynamic** or **delivered electrical**
-  energy? If electrical, the AEP chain needs an `η` and the config needs a
-  field for it; `10.27 × 0.90 = 9.24 MWh/yr`, still outside the band.
-- Should the §1.4 band be **recomputed** from the rotor as actually specified
-  and the resource as actually measured, rather than from the round numbers it
-  was estimated with? A band derived from `Cp = 0.472`, `η` as decided, and
-  `V̄ = 6.49 m/s` would be a real check; the present one is not.
-- Or is the **rotor** wrong for the site — is a 3.1 kW rating simply under-set
-  for a 2.0 m rotor at `V̄ = 6.49 m/s`?
-
-**What must not happen:** the band widened to 4–11 so the test goes green.
-That converts a genuine finding into a silent assumption, which is ground
-rule 5's whole subject.
-
-**Interim position:** the number is computed, reported, and flagged as
-out-of-band everywhere it appears — `baseline_reference.json`, the generator's
-stdout, and a test. Phase 2 is *not* blocked on the answer, because gradients
-do not care about the band's absolute value; the report's Phase 1 exit
-criterion is.
+**One sub-question is deliberately left open**, because it is a report
+decision rather than a blocker: whether the Phase 1 exit criterion should be
+stated in **aerodynamic** or **delivered electrical** energy. The band as
+written is aerodynamic, matching what the model computes and labelling itself
+as such. Stating it electrically means an `η` entering the AEP chain and a
+config field to hold it; `10.27 × 0.90 = 9.24 MWh/yr`, which is inside the new
+band either way. Nothing is blocked on this.
 
 ---
 

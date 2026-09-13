@@ -65,9 +65,63 @@ parameterisation:
     twist_min_deg: "TODO: physically realistic range (plan 7.1)"
     twist_max_deg: "TODO: physically realistic range (plan 7.1)"
 
-# Sanity band for the AEP module (plan section 1.4): roughly 4-6 MWh/yr,
-# capacity factor 0.15-0.22. A result far outside this indicates a bug, not a
-# discovery. Recorded so the check reads it rather than restating it.
+# Sanity band for the AEP module (plan section 1.4). A result far outside this
+# indicates a bug, not a discovery. Recorded so the check reads it rather than
+# restating it.
+#
+# WIDENED 4-6 -> 8-12 MWh/yr on 2026-09-13, ON MJ'S EXPLICIT INSTRUCTION, after
+# the wind resource landed and the band could be evaluated for the first time.
+# The baseline returns 10.27 MWh/yr. MJ's reasoning, recorded as given: if the
+# blade already makes substantially more power than the original band, the
+# original band was simply too narrow.
+#
+# This is a deliberate revision of a stated expectation, which the repo's
+# ground rule 5 otherwise forbids -- so the basis is written out here rather
+# than left as a pair of round numbers.
+#
+# WHY 4-6 WAS WRONG. Two independent defects, both predating the 2026-09-13
+# data:
+#
+#   1. It compared different quantities. 4-6 came from a capacity factor of
+#      0.15-0.22 on plan 1.4's ~3.1 kW rating, and that rating carries
+#      `eta = 0.90` and assumes `Cp = 0.42`. The AEP model produces
+#      AERODYNAMIC shaft energy -- src/objective/power.py applies no generator,
+#      gearbox or electrical efficiency and says so -- at the solver's actual
+#      design-point `Cp` of 0.472. Rated aerodynamic power is 3.82 kW, not
+#      3.1 kW.
+#   2. It was never consistent with plan 1.3's own resource prior. At the
+#      CALMEST corner of `k ~ 1.8-2.4, c ~ 6-7 m/s` this rotor already returns
+#      5.9 MWh/yr, and at the middle of that range 7.7. The band could not have
+#      been met by the design it was written for, under the resource the same
+#      plan expected. Nobody noticed because the resource was TODO, so the band
+#      was never once evaluated.
+#
+# HOW 8-12 WAS DERIVED -- not chosen to admit 10.27:
+#
+#   Lower/upper from the resource uncertainty this project has actually
+#   recorded. Varying the site pair by +/-10 % on both `c` and `k` spans
+#   8.21-12.01 MWh/yr; the log-law roughness band on the height extrapolation
+#   (c = 7.049-7.633 m/s at 20 m, verification/wind_resource/) spans
+#   9.73-11.10 and sits comfortably inside. Rounded outward to 8-12.
+#
+#   Equivalent capacity factor 0.24-0.36 on the 3.82 kW aerodynamic rating.
+#
+# IT IS STILL A CHECK, WHICH IS THE POINT OF WIDENING IT CAREFULLY. Verified
+# against plausible failure modes -- each of these lands OUTSIDE 8-12:
+#
+#     rated-power limiting not applied      14.63
+#     sea-level density used (1.225)        ~12.99
+#     bin masses not from the CDF           12.86
+#     any factor-of-two error                5.14 or 20.54
+#
+# A band wide enough to admit anything would be a note, not a check. This one
+# still fails on every bug the old one would have caught.
+#
+# WHAT IT DOES NOT SETTLE: whether the Phase 1 exit criterion should be stated
+# in aerodynamic or delivered electrical energy. This band is aerodynamic,
+# matching what the model computes. If the report wants electrical, an `eta`
+# has to enter the chain and this band moves with it. See
+# docs/OUTSTANDING-INPUTS.md and the 2026-09-13 journal entry.
 sanity:
-  aep_mwh_per_year_min: 4.0
-  aep_mwh_per_year_max: 6.0
+  aep_mwh_per_year_min: 8.0
+  aep_mwh_per_year_max: 12.0

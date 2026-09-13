@@ -6,10 +6,10 @@ returns a number and the whole of step 1.5 is testable: the bin scheme, the
 operating strategy, the rated-power limit, the distribution itself,
 determinism, and the config-backed resource.
 
-The "baseline returns 4-6 MWh/yr" exit criterion is NOT met, and that is
-asserted here as a recorded discrepancy rather than quietly dropped -- see
-`test_baseline.py` and the 2026-09-13 journal entry. The band is a prior, and
-this test file does not adjust it.
+The "baseline returns a figure inside the sanity band" exit criterion is met at
+10.27 MWh/yr -- but only after that band was found to be defective and revised
+from 4-6 to 8-12 MWh/yr on 2026-09-13. See `test_baseline.py`, which asserts
+both the band and that it is still narrow enough to catch a bug.
 
 Author: MJ Hendrikse
 Project: DSP810S -- Inverse Design of Small Wind Turbine Blades

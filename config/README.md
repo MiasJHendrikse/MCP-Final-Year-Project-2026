@@ -38,7 +38,11 @@ returning nothing is the check. Before this directory existed, `air_density =
 1.225` was a *default argument* on four solver signatures and a sea-level
 kinematic viscosity was a module constant in two more — so an AEP call that
 forgot the density argument came back 25 % high and still landed inside the
-4–6 MWh/yr plausibility band. `solve_rotor` and every `powercurve` entry point
+then-current 4–6 MWh/yr plausibility band. (That band has since been revised to
+8–12 MWh/yr, and the revision was checked against this exact failure mode: a
+sea-level density now puts AEP at ~13.0 and **is** caught. A band centred on
+the right value is a stronger check than a narrower one centred on the wrong
+one.) `solve_rotor` and every `powercurve` entry point
 now take ρ and ν as **required keyword arguments**; omitting one is a
 `TypeError`, not a wrong number.
 

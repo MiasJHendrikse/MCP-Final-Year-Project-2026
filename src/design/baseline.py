@@ -30,7 +30,8 @@ AEP was likewise absent rather than approximated while the Weibull parameters
 were `TODO`. They resolved on 2026-09-13, so `evaluate_baseline` now reports a
 real `aep_mwh_per_year` alongside the wind-resource-independent numbers
 (Cp-lambda, spanwise loading, root bending moment, peak thrust), together with
-whether it falls in plan 1.4's 4-6 MWh/yr sanity band.
+whether it falls in plan 1.4's sanity band (revised to 8-12 MWh/yr on
+2026-09-13; it does, at 10.27).
 
 A NOTE ON HOW THAT WAS WIRED, because it is the kind of thing that should not
 recur. Until 2026-09-13 this module did not import the objective at all: the

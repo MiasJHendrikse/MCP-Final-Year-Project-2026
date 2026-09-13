@@ -176,8 +176,9 @@ which makes their independence from `d` structural rather than a claim in a
 docstring. The same single `bin_powers` call still feeds both the objective
 value and the convergence flag, so the rotor is not solved twice.
 
-The absolute values are a separate matter: the baseline AEP of 10.27 MWh/yr is
-outside plan §1.4's 4–6 MWh/yr sanity band. That does not affect this gate —
-smoothness is a property of the surface's shape, not its level — but it is a
-blocking item in its own right. See
-[`docs/OUTSTANDING-INPUTS.md`](../../docs/OUTSTANDING-INPUTS.md) section 7.
+The absolute values are a separate matter, and were one: the baseline AEP of
+10.27 MWh/yr fell outside what was then plan §1.4's 4–6 MWh/yr sanity band.
+That band was found to be defective and revised to **8–12 MWh/yr** the same
+day — see `config/rotor_design.yaml` for the derivation. None of it affects
+this gate either way: smoothness is a property of the surface's shape, not its
+level.

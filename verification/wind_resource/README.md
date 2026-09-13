@@ -158,7 +158,10 @@ Khomas Hochland is complex terrain and a single point carries real uncertainty
 the optimisation re-run across it. This artefact is the central case. The band
 is not yet chosen.
 
-**That the resource is the reason the AEP sanity band fails.** It is not, or
-not mostly — see the 2026-09-13 journal entry. At the *calmest* corner of the
-plan's own prior range this rotor still returns 5.9 MWh/yr against a 4–6 band.
-The inconsistency is between plan §1.3 and plan §1.4 and predates this data.
+**That the resource explains the AEP sanity band's failure.** It did not, or
+not mostly. The baseline returns 10.27 MWh/yr against what was a 4–6 MWh/yr
+band — but at the *calmest* corner of the plan's own prior resource range this
+rotor already returns 5.9, and at the middle 7.7. The inconsistency was between
+plan §1.3 and plan §1.4 and predated this data. The band was revised to
+**8–12 MWh/yr** on 2026-09-13 on MJ's decision; the derivation is in
+`config/rotor_design.yaml` and the reasoning in the journal entry.
