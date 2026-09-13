@@ -104,11 +104,17 @@ formality.
 **What unblocks:** `DesignBounds.from_config()`, which currently raises; step
 1.7's "clip and record if violated"; and the sweep ranges in step 1.8.
 
-**Interim position:** `DesignBounds(...)` accepts explicit values, so studies
-can state their own provisional range locally without it entering `config/` and
-silently constraining every later result. `tests/test_parameterisation.py` has
-a `PROVISIONAL_BOUNDS` constant used for exactly this, deliberately kept out of
-the configuration.
+**Interim position — updated 2026-09-13, MJ's decision:**
+`tests/test_parameterisation.py::PROVISIONAL_BOUNDS` now carries a *grounded*
+set for three of the four values — `chord_min_m = 0.045` (SG6043 10 % t/c at
+32.1 % chord → ~4.5 mm laminate minimum), `twist −2° … 35°` (Schmitz baseline
+0.57° / 23.07° with margin) — and a *provisional* `chord_max_m = 0.45`, which
+depends on the hub radius and root-attachment concept, neither yet decided.
+`x0` is feasible against this set (control points 0.067–0.276 m,
+0.59°–24.5°; zero violations). Bounds-dependent work (plan steps 1.6–1.8,
+Phase 2 SLSQP bounds) proceeds by constructing `DesignBounds(**PROVISIONAL_BOUNDS)`
+explicitly. **Nothing goes into `config/` and `from_config()` keeps raising**
+until `chord_max_m` has a basis — see `PROJECT_DIRECTION_v2.md` §16.
 
 ---
 

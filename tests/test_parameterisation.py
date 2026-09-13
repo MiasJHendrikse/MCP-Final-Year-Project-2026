@@ -30,14 +30,29 @@ def _design_vector(parameterisation):
     ])
 
 
-#: Provisional bounds for tests that need *a* range. Deliberately local to the
-#: test module and never written to config: the real ones come from a
-#: manufacturability study (plan 7.1) that has not happened, and a provisional
-#: number in `config/` would silently constrain every optimisation result.
-#: See docs/OUTSTANDING-INPUTS.md.
+#: Provisional design-variable bounds -- MJ's decision, 2026-09-13.
+#:
+#: Three of the four are grounded and are not expected to move:
+#:   chord_min_m  0.045 m  structural: SG6043 is 10 % t/c at 32.1 % chord, so
+#:                         45 mm chord is a ~4.5 mm section -- the laminate
+#:                         minimum.
+#:   twist_min    -2 deg   Schmitz baseline tip twist (0.57 deg) with margin.
+#:   twist_max    35 deg   Schmitz baseline root twist (23.07 deg) with margin.
+#: The fourth is provisional:
+#:   chord_max_m  0.45 m   depends on the hub radius and the root-attachment
+#:                         concept, neither of which is decided. Treat as a
+#:                         placeholder that happens to be wide enough for x0
+#:                         (root control point 0.276 m), not as a limit.
+#:
+#: Still local to the test module and deliberately NOT in
+#: `config/rotor_design.yaml`: that stays TODO, and `DesignBounds.from_config()`
+#: keeps raising, until chord_max_m has a real basis. Studies that need a
+#: range construct `DesignBounds(n_chord=..., n_twist=..., **PROVISIONAL_BOUNDS)`
+#: explicitly, which is what unblocks plan steps 1.6-1.8 (bounds, x0
+#: feasibility, the `d_i` sweep ranges). See docs/OUTSTANDING-INPUTS.md §2.
 PROVISIONAL_BOUNDS = {
-    "chord_min_m": 0.02, "chord_max_m": 0.40,
-    "twist_min_rad": math.radians(-10.0), "twist_max_rad": math.radians(40.0),
+    "chord_min_m": 0.045, "chord_max_m": 0.45,
+    "twist_min_rad": math.radians(-2.0), "twist_max_rad": math.radians(35.0),
 }
 
 
