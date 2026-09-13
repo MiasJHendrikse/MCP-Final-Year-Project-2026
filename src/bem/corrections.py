@@ -129,6 +129,13 @@ def tip_loss_factor(r, R, B, phi):
     if r >= R:
         return 0.0
 
+    if isinstance(phi, complex):
+        # Complex-step path (Phase 3, B0). Every branch decision is taken on
+        # the real part so an infinitesimal imaginary perturbation cannot
+        # flip it; `abs` would drop the imaginary part, so the sign is
+        # applied by hand. The real path below is untouched.
+        return _prandtl_factor_complex((B / 2.0) * (R - r) / r, phi)
+
     sin_phi = abs(math.sin(phi))
     if sin_phi < 1e-8:
         # phi -> 0 limit: f -> +inf, F_tip -> 1 (no correction) for any r < R.
@@ -136,6 +143,31 @@ def tip_loss_factor(r, R, B, phi):
 
     f = (B / 2.0) * (R - r) / (r * sin_phi)
     return (2.0 / math.pi) * math.acos(min(1.0, math.exp(-f)))
+
+
+def _prandtl_factor_complex(numerator, phi):
+    """
+    `(2/pi) acos(exp(-numerator / |sin phi|))` for complex-typed `phi`.
+
+    The complex-step twin of the real path in `tip_loss_factor` and
+    `hub_loss_factor`, with `numerator = (B/2)(R - r)/r` (tip) or
+    `(B/2)(r - r_hub)/r_hub` (hub). Branch decisions on `.real`; the
+    `min(1, exp(-f))` clamp is inert for any station strictly inside
+    (r_hub, R) since `f > 0` there, and is kept on `.real` for the same
+    reason the guards are.
+    """
+
+    sin_phi = cmath.sin(phi)
+    if sin_phi.real < 0.0:
+        sin_phi = -sin_phi
+    if sin_phi.real < 1e-8:
+        return 1.0
+
+    f = numerator / sin_phi
+    exp_minus_f = cmath.exp(-f)
+    if exp_minus_f.real > 1.0:
+        return 0.0
+    return (2.0 / math.pi) * cmath.acos(exp_minus_f)
 
 
 def hub_loss_factor(r, r_hub, B, phi):
@@ -167,6 +199,10 @@ def hub_loss_factor(r, r_hub, B, phi):
         return 1.0
     if r <= r_hub:
         return 0.0
+
+    if isinstance(phi, complex):
+        # Complex-step path (Phase 3, B0); see `_prandtl_factor_complex`.
+        return _prandtl_factor_complex((B / 2.0) * (r - r_hub) / r_hub, phi)
 
     sin_phi = abs(math.sin(phi))
     if sin_phi < 1e-8:
