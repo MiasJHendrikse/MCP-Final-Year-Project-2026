@@ -250,7 +250,8 @@ class BEMSystem:
         chord, twist = self.chord_twist(d)
         fields = ("residual", "q", "a", "F", "dF_dphi", "alpha", "cl", "cd", "cn", "ct", "buhl")
         if derivatives:
-            fields += ("dR_dphi", "dR_dc", "dR_dtheta", "dq_dphi", "dq_dc", "dq_dtheta")
+            fields += ("dR_dphi", "dR_dc", "dR_dtheta", "dq_dphi", "dq_dc", "dq_dtheta",
+                       "da_dphi", "da_dc", "da_dtheta")
         columns = {name: [] for name in fields}
         for b in range(self.n_points):
             row = {name: [] for name in fields}
@@ -348,6 +349,17 @@ class BEMSystem:
         if limited is not None:
             return limited
         return self.limited_mask(self.powers_from_q(parts["q"]))
+
+    def state_sensitivity(self, parts, j):
+        """
+        `dphi_{b,i}/dd_j` from the linearised system, shape (n_points, n_stations):
+        `-(dR/dd_j) / (dR/dphi)`. The per-station alpha, Reynolds and
+        induction sensitivities Tier 4 needs follow from it.
+        """
+
+        e = np.zeros(self.n_design)
+        e[j] = 1.0
+        return -self.apply_dR_dd(parts, e) / parts["dR_dphi"]
 
     # -- matrix-free operators (Tier 2) -----------------------------------------
 

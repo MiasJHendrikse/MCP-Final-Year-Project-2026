@@ -210,6 +210,9 @@ class StationPartials:
     dq_dc: object
     dq_dtheta: object
     a: object
+    da_dphi: object
+    da_dc: object
+    da_dtheta: object
     F: object
     dF_dphi: object
     alpha: object
@@ -290,7 +293,8 @@ def station_partials(phi, chord, twist, reynolds, r, lam_r, R, B, r_hub, polar,
         return StationPartials(
             residual=residual, dR_dphi=None, dR_dc=None, dR_dtheta=None,
             q=q, dq_dphi=None, dq_dc=None, dq_dtheta=None,
-            a=a, F=F, dF_dphi=F_phi, alpha=alpha, cl=cl, cd=cd, cn=cn, ct=ct, buhl=buhl,
+            a=a, da_dphi=None, da_dc=None, da_dtheta=None,
+            F=F, dF_dphi=F_phi, alpha=alpha, cl=cl, cd=cd, cn=cn, ct=ct, buhl=buhl,
         )
 
     cl_alpha = polar.dcl_dalpha(alpha)
@@ -338,5 +342,6 @@ def station_partials(phi, chord, twist, reynolds, r, lam_r, R, B, r_hub, polar,
     return StationPartials(
         residual=residual, dR_dphi=dR_dphi, dR_dc=dR_dc, dR_dtheta=dR_dtheta,
         q=q, dq_dphi=dq_dphi, dq_dc=dq_dc, dq_dtheta=dq_dtheta,
-        a=a, F=F, dF_dphi=F_phi, alpha=alpha, cl=cl, cd=cd, cn=cn, ct=ct, buhl=buhl,
+        a=a, da_dphi=a_phi, da_dc=a_c, da_dtheta=a_theta,
+        F=F, dF_dphi=F_phi, alpha=alpha, cl=cl, cd=cd, cn=cn, ct=ct, buhl=buhl,
     )
