@@ -2,18 +2,24 @@
 
 Final-year Mechanical Engineering project (DSP810S, NUST). An adjoint-BEM
 aerodynamic optimisation framework for small wind turbine blades targeting
-Namibian low-wind conditions (~5–6 m/s mean, Windhoek reference site).
+Namibian low-wind conditions (Khomas Hochland site, **V̄ = 6.49 m/s** at the
+20 m hub height — measured, see `verification/wind_resource/`).
 
-**Registered title:** *Gradient-Based Aerodynamic Optimisation of a Small Wind
-Turbine Blade for Low-Wind-Speed Conditions Using an Adjoint-BEM Framework and
-CFD Validation*
+**Title:** *Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine
+Blade for Low-Wind-Speed Conditions Using an Adjoint-BEM Framework*
 
 **Scope note.** CFD validation is **out of scope** — see `PROJECT_PLAN.md`,
 "Priority hierarchy": with ~11 weeks to 6 November and the WCE placement load,
-CFD was cut to protect the core adjoint work. The registered title above still
-carries it. Supervisor sign-off on that scope boundary is an open item
-(`PROJECT_PLAN.md`, sign-off table), so the title is quoted here as registered
-rather than silently shortened; it changes once the boundary is agreed.
+CFD was cut to protect the core adjoint work. **Prof. van der Walt has signed
+off on that scope boundary** (confirmed by MJ, 2026-09-13), so the title above
+is shortened accordingly — it previously had to be quoted in its longer
+registered form, *"…Adjoint-BEM Framework and CFD Validation"*, because
+asserting an approval that had not happened would have been worse than a
+self-contradictory title.
+
+> If the title as *formally registered* with the department still carries "and
+> CFD Validation", amending that registration is a separate administrative step
+> from the scope sign-off. Worth checking which was agreed.
 
 - **Author:** MJ Hendrikse
 - **Supervisor:** Prof. Hannes van der Walt
