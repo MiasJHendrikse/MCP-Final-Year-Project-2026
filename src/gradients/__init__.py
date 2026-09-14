@@ -17,8 +17,9 @@ optimiser (scaling, the polar-cache envelope constraint, post-checks).
                        mandatory Reynolds-envelope linear constraint, and the
                        angle-of-attack post-check.
 
-The discrete adjoint (Phase 3) is a separate package, `adjoint/`, not yet
-created; its plan is `docs/adjoint_derivation.md`.
+The discrete adjoint (Phase 3) is a separate package, `adjoint/`;
+`ScaledProblem.jac_adjoint` here hands its gradient to SLSQP. Derivation and
+the four verification tiers: `docs/adjoint_derivation.md`.
 
 Bounds are provisional: `chord_max_m = 0.45 m` is a placeholder pending the
 hub-radius / root-attachment decision, and every optimisation result produced

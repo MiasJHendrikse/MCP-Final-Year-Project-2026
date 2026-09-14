@@ -41,11 +41,11 @@ Phase numbering follows the plan rewrite of 2026-08-23:
 | Phase | | Status |
 |---|---|---|
 | **0** | Tooling, solver, cross-validation | complete |
-| **1** | Objective function (AEP, parameterisation, baseline, smoothness gate) | complete except where blocked on external data |
-| **2** | Finite-difference gradient path | next |
-| **3** | Discrete adjoint | highest-risk phase |
-| **4** | Structural constraint and cost scaling | |
-| **5** | Production runs and results | |
+| **1** | Objective function (AEP, parameterisation, baseline, smoothness gate) | complete (2026-09-13), bounds provisional |
+| **2** | Finite-difference gradient path | complete (2026-09-13) — `verification/fd_*` |
+| **3** | Discrete adjoint | complete (2026-09-13) — Tiers 1–4 verified, `verification/gradient_verification/`, `docs/adjoint_derivation.md` |
+| **4** | Structural constraint and cost scaling | **next** |
+| **5** | Production runs and results | gated on three machine facts — `docs/AEP_GAIN_AUDIT.md` §5 |
 | **6** | Report | |
 
 The forward BEM solver is Phase **0**, not Phase 1, and the adjoint is Phase
@@ -383,13 +383,12 @@ match momentum theory in value and slope and nothing further, not an
 implementation defect. Evidence and the full argument:
 [`verification/smoothness_gate/README.md`](verification/smoothness_gate/README.md).
 
-What is **not** finished, and why, in every case for want of external data
-rather than code:
+Status of the exit criteria:
 
 | exit criterion | state |
 |---|---|
 | AEP of the baseline blade in the sanity band | **done** — 10.27 MWh/yr, inside the 8–12 MWh/yr band. The band was revised from 4–6 on 2026-09-13; see `config/rotor_design.yaml` |
-| Feasibility of `x0` against the bounds | **blocked** — needs the bounds |
+| Feasibility of `x0` against the bounds | **checked against provisional bounds** — zero violations; `chord_max_m = 0.45 m` is a placeholder until the hub radius and root attachment are decided |
 | Everything else in Phase 1 | done |
 
 The mechanism around each hole is complete and tested; nothing anywhere
