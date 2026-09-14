@@ -22,7 +22,11 @@ from here in the same commit that fills it.
 > them with, what evidence to regenerate, and how to tell whether the result is
 > actually right rather than merely green.
 
-Last reviewed: **2026-09-13**.
+Last reviewed: **2026-09-14**. Phases 1–3 are complete; the list below is
+what gates Phases 4 and 5. **The three machine facts in section 9 are now the
+most consequential entries** — they decide the structure of the production
+objective, and with it whether the headline result is "+0.2 %, the
+optimiser confirms Schmitz" or a multi-% gain over it.
 
 ---
 
@@ -71,8 +75,9 @@ MJ decided the same day: widen the band. Done, to **8–12 MWh/yr**, with the
 derivation recorded rather than the numbers merely stretched to fit. See
 section 7, which is closed.
 
-So section 1 leaves nothing blocking behind it. **The 🟠 bounds entry
-(section 2) is now the most blocking item on the list.**
+So section 1 leaves nothing blocking behind it. The 🟠 bounds entry
+(section 2) was the most blocking item until 2026-09-13's provisional set
+unblocked Phases 2–3; section 9 now carries the items that gate Phase 5.
 
 ---
 
@@ -265,3 +270,46 @@ what this item is for.
 implementations whose behaviour is separately pinned by 247 stations and a
 golden regression. This one sets two numbers that multiply straight through
 every AEP figure in the report.
+
+---
+
+## 9. The machine — three facts that decide the Phase 5 objective 🔴 blocking Phase 5
+
+**Raised 2026-09-13** by `docs/AEP_GAIN_AUDIT.md` §5, after the FD-driven
+and adjoint-driven optimisations both stopped at **+0.217 %** over Schmitz
+against the plan's 2–6 % expectation. The audit's finding: under plan §6.2's
+strategy — fixed λ = 6.5 at every wind speed, ideal power hold above rated —
+AEP is proportional to a single number, `Cp(λ = 6.5)`, up to Reynolds
+effects, and the polar-consistent Schmitz `x0` is the analytic maximiser of
+exactly that. The optimiser is right; the problem as posed has almost nothing
+in it to optimise. A larger honest number requires the machine model to
+contain a feature the real machine has. Which features it has is hardware,
+not a modelling choice.
+
+**Needed for:** Phase 5's production run and every AEP-gain figure in the
+results chapter. Not needed for Phase 4.
+
+**Where it goes:** `config/rotor_design.yaml` (operating strategy fields) and
+`src/objective/power.py::power_per_bin`; then A3/A4/B3/B5 re-run.
+
+| # | fact | why it matters | measured sensitivity (audit §3, provisional bounds, fixed rating) |
+|---|---|---|---|
+| **B1** | **Maximum rotor speed** — generator rated rpm, or a tip-speed limit with its reason (noise, structural) — or an explicit "none below rated" | Decides whether the objective has a TSR dimension at all; at λ = 6.5 the rotor already runs 71.5 m/s tip speed at rated | ceiling ≥ 70 m/s: 0; 60 m/s: +0.34 %; **55 m/s: +2.33 %**; 50 m/s: +7.84 % |
+| **B2** | **Generator nameplate rating**, or confirmation that 3822 W aerodynamic at 11 m/s is to be frozen as the rating | 42 % of the site's energy is in the capped region; with the cap floating with the design, half the current gain is the generator getting bigger, not the blade getting better | floating: +0.217 %; **fixed: +0.121 %** |
+| **B3** | **Above-rated limiting mechanism** for the actual machine: ideal hold (current model), constant-rpm passive stall, torque-controlled soft stall, or furling | Decides whether 42 % of the objective is blade-independent (current) or the most blade-sensitive region; also whether §6.2's smooth-objective argument still holds, and whether the adjoint needs a trim equation | not measured — the SG6043 blade does not stall-regulate itself at 341 rpm (`P_aero ≈ 7.7 kW` at 15 m/s); a controller has to drive it there |
+
+**Interaction with section 2:** the ceiling-designed blades are wider (root
+control point 376–441 mm against Schmitz's 276 mm), so **`chord_max_m`
+becomes blocking the moment B1 is answered with a ceiling.** Settle both
+together.
+
+**What is NOT acceptable as a way of resolving this** (audit §3.5): choosing
+a ceiling because it makes the number bigger; swapping the baseline for a
+linear-taper blade (that measures the textbook's gap, not the optimiser's —
+report it as context only); keeping the floating rating; building Schmitz at
+a datasheet α; lowering `n_crit`. If none of B1–B3 departs from the ideal
+machine, the honest headline is "a polar-consistent Schmitz design is within
+0.12 % of the numerical AEP optimum; the optimiser confirms the textbook
+design", supported by three independent lines of evidence — and the load
+axis (`Ct` −2.1 % at equal power, audit §1.5) becomes the more interesting
+result.

@@ -99,10 +99,15 @@ class CachedPolar:
     def __init__(self, interpolant, reynolds):
         re_lo = float(interpolant.re_values[0])
         re_hi = float(interpolant.re_values[-1])
-        reynolds = float(reynolds)
-        if not (re_lo <= reynolds <= re_hi):
+        # Range-checked on the real part and stored as given (Phase 3, B0):
+        # a complex-step perturbation to the chord arrives here as a complex
+        # Reynolds number, and `float()` would have dropped its imaginary
+        # part -- the `Re(c)` path of the gradient, silently zeroed. For a
+        # real `reynolds` this is the same check on the same number.
+        reynolds_real = float(reynolds.real) if isinstance(reynolds, complex) else float(reynolds)
+        if not (re_lo <= reynolds_real <= re_hi):
             raise PolarDomainError(
-                f"Reynolds={reynolds:,.0f} is outside the cached range "
+                f"Reynolds={reynolds_real:,.0f} is outside the cached range "
                 f"[{re_lo:,.0f}, {re_hi:,.0f}]. The cache does not cover this "
                 "station's operating point; extend the cache's Reynolds "
                 "bounds rather than clamping to the edge (work order Task 2 "
@@ -110,7 +115,7 @@ class CachedPolar:
             )
 
         self._interpolant = interpolant
-        self.reynolds = reynolds
+        self.reynolds = reynolds if isinstance(reynolds, complex) else reynolds_real
 
     def cl(self, alpha):
         """Lift coefficient at angle of attack `alpha` (radians)."""
@@ -155,6 +160,8 @@ class CachedPolar:
         return self.cl(alpha), self.cd(alpha)
 
     def __repr__(self):
+        if isinstance(self.reynolds, complex):
+            return f"CachedPolar(reynolds={self.reynolds.real:,.0f}{self.reynolds.imag:+.3g}j)"
         return f"CachedPolar(reynolds={self.reynolds:,.0f})"
 
 

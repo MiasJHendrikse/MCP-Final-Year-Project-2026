@@ -21,7 +21,7 @@ SRC = os.path.abspath(os.path.join(_HERE, "..", "src"))
 #: Packages that must never reach the XFOIL side. `objective/` and `design/`
 #: do not exist yet (Phase 1.5/1.6); they are named now so the invariant
 #: applies from their first commit rather than being remembered later.
-SOLVE_PATH_PACKAGES = ["bem", "polars", "objective", "design"]
+SOLVE_PATH_PACKAGES = ["bem", "polars", "objective", "design", "gradients", "adjoint"]
 
 
 def _imported_modules(path):

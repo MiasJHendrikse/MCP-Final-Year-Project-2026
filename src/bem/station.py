@@ -81,6 +81,7 @@ Author: MJ Hendrikse
 Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
 """
 
+import cmath
 import math
 from dataclasses import dataclass
 
@@ -182,6 +183,22 @@ RESIDUAL_RTOL = 1e-9
 RESIDUAL_ATOL = 1e-14
 
 
+def _sin(x):
+    """`math.sin`, or `cmath.sin` if `x` is complex-typed (complex-step)."""
+
+    if isinstance(x, complex):
+        return cmath.sin(x)
+    return math.sin(x)
+
+
+def _cos(x):
+    """`math.cos`, or `cmath.cos` if `x` is complex-typed (complex-step)."""
+
+    if isinstance(x, complex):
+        return cmath.cos(x)
+    return math.cos(x)
+
+
 def _blade_element(phi, station: StationParams):
     """
     Blade-element force coefficients at one trial phi, plus the loss factor.
@@ -195,8 +212,12 @@ def _blade_element(phi, station: StationParams):
     cl = station.airfoil.cl(alpha)
     cd = station.airfoil.cd(alpha)
 
-    sin_phi = math.sin(phi)
-    cos_phi = math.cos(phi)
+    # Complex-safe (Phase 3, B0): a complex-step perturbation to phi must
+    # pass through here with its imaginary part intact. `math.sin` rejects
+    # complex input; the helpers dispatch on type and leave the real path
+    # bit-identical (`_sin(float)` is `math.sin(float)`).
+    sin_phi = _sin(phi)
+    cos_phi = _cos(phi)
 
     cn = cl * cos_phi + cd * sin_phi
     ct = cl * sin_phi - cd * cos_phi
