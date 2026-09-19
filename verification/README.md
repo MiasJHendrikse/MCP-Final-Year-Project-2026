@@ -22,6 +22,7 @@ it was produced, and what would make it wrong.
 | `fd_optimisation/` | **re-run 2026-09-19** | A4: FD-driven SLSQP from `x0`, end to end |
 | `adjoint_optimisation/` | **re-run 2026-09-19** | B5: adjoint-driven SLSQP, and its agreement with A4 |
 | `load_constraint/` | **new 2026-09-19** | Phase 4: the root-moment KS constraint -- Tiers 1-3, the `eps = 0` constrained optimum (the Phase 5 production optimum for now), and the 0/2/5/10 % Pareto |
+| `cost_scaling/` | **new 2026-09-19** | Phase 4 Step 3: wall time of `J`, the FD, tangent, adjoint and moment-adjoint gradients against `n = 10 ... 160`, with the `t = a n^p` fits and the forward-solve counts |
 | `gradient_verification/` | **re-run 2026-09-19** | Tier 3 (adjoint vs the FD noise floor) and Tier 4 (attribution of what is left); **one red variable, reported and accepted** |
 | `fd_optimisation_multistart/` | **re-run 2026-09-19** | that A4's gain is not an artefact of the starting point |
 | `aep_gain_audit/` | **history — one file re-run** | the measurements behind `docs/AEP_GAIN_AUDIT.md`, under the retired provisional bounds; `cross_evaluate_xstar.json` is the exception, re-run 2026-09-19 with the current `x*` |
@@ -49,6 +50,8 @@ alphabetical list:
     load_constraint       checks.json, result_eps*.json,      → consumes adjoint_optimisation/result.json's u* and the
                           pareto.json                            baseline; runs AFTER adjoint_optimisation
     cross_evaluate_xstar   cross_evaluate_xstar.json          → consumes the adjoint x* and evaluates it under 5 ceilings
+    cost_scaling           scaling.json, scaling.png          → reads only h* (fd_step_size) and AEP(x0) (baseline);
+                                                                 independent of every optimisation artefact
     aep_optimisation_experiment  (port only)
 
 `cross_evaluate_xstar.py` is the one script inside the frozen `aep_gain_audit/`

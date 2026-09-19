@@ -433,7 +433,18 @@ class BEMSystem:
         the adjoint is tested against (Tier 2).
         """
 
-        parts = self.partials(phi, d)
+        return self.tangent_from_parts(self.partials(phi, d), phi, d, v, limited)
+
+    def tangent_from_parts(self, parts, phi, d, v, limited=None):
+        """
+        `tangent` on partials already computed at `(phi, d)`.
+
+        The partials do not depend on `v`, so a full forward-mode gradient is
+        one `partials` and `n` of these; the cost-scaling study times it that
+        way (`verification/cost_scaling/`). `tangent` itself is unchanged in
+        what it computes.
+        """
+
         dphi = -self.apply_dR_dd(parts, v) / parts["dR_dphi"]
         return (float(np.sum(self.dJ_dx(phi, d, limited, parts) * dphi))
                 + float(self.dJ_dd(phi, d, limited, parts) @ np.asarray(v)))

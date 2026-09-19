@@ -1,0 +1,252 @@
+{
+ "description": "Phase 4 Step 3 cost-scaling study: wall time of one objective evaluation and of one gradient by central FD, tangent (direct) mode, the discrete adjoint and the root-moment adjoint, against the number of design variables n = 2k, at the least-squares projection of the analytic Schmitz blade onto each block count.",
+ "bounds_label": "under the configured bounds (chord_max_m = 0.30 m, resolved 2026-09-19; chord_min_m, twist_min, twist_max grounded 2026-09-13)",
+ "law_label": "lambda(V) = min(6.5, Omega_max R / V), Omega_max = 300 rpm (V_c = 9.67 m/s), fixed rating 3822.189755449124 W",
+ "command": "python verification/cost_scaling/run_scaling.py",
+ "generated": "2026-09-19T20:54:27",
+ "src_commit": "ceb7dd3b0a5ed281cf213b67d04ec389577aef43",
+ "machine": {
+  "platform": "Windows-11-10.0.26200-SP0",
+  "processor": "AMD64 Family 25 Model 33 Stepping 2, AuthenticAMD",
+  "python": "3.12.10",
+  "numpy": "2.2.5"
+ },
+ "repeats_best_of": 5,
+ "h_star_global_u": 3.162277660168379e-06,
+ "m_ref_nm": 177.3755406092969,
+ "aep_x0_mwh_per_yr": 10.247707391810723,
+ "same_blade_tolerance_pct": 0.02,
+ "note_minimum_norm": "For k > 25 the 25-station least-squares fit is underdetermined and lstsq returns the minimum-norm control points: the station chords and twists are reproduced to round-off, some control points fall outside the configured box, and neither matters for timing. The AEP column shows the same blade throughout.",
+ "note_honest_cost": "With a diagonal dR/dx and one scalar state per station the adjoint's advantage over central FD is the 2n factor and accuracy, not a linear-solve saving (derivation section 8). Its own cost is the partials over 17 x 25 stations, independent of n; the N_c^T assembly is 25 x n and negligible.",
+ "wall_time_s": 693.242129899998,
+ "rows": [
+  {
+   "k": 5,
+   "n": 10,
+   "spline_degree": 3,
+   "n_stations": 25,
+   "aep_mwh_per_yr": 10.247707391810723,
+   "aep_delta_pct_vs_x0": 0.0,
+   "fit_rms_error_chord_m": 0.0005146608481385687,
+   "fit_rms_error_twist_rad": 0.00185124620649348,
+   "control_points_outside_box": 0,
+   "wall_s": {
+    "J": 0.20564989999547834,
+    "fd": 4.248282400003518,
+    "tangent_total": 0.24220219999551773,
+    "tangent_products": 0.00035000000207219273,
+    "adjoint": 0.23125160000199685,
+    "moment_adjoint": 0.12768440000218106
+   },
+   "forward_solves_per_gradient": {
+    "fd": 20,
+    "tangent": 1,
+    "adjoint": 1,
+    "moment_adjoint": 1
+   },
+   "ratios": {
+    "fd_over_adjoint": 18.37082381253507,
+    "fd_over_J": 20.65783839475208,
+    "adjoint_over_J": 1.1244916725322085,
+    "moment_adjoint_over_adjoint": 0.5521449365153733
+   },
+   "agreement_max_abs_diff_relative": {
+    "tangent_vs_adjoint": 4.423544863740858e-17,
+    "fd_vs_adjoint": 8.608122374631488e-11
+   },
+   "KS_at_point": 1.0004357284444418
+  },
+  {
+   "k": 10,
+   "n": 20,
+   "spline_degree": 3,
+   "n_stations": 25,
+   "aep_mwh_per_yr": 10.249287341194698,
+   "aep_delta_pct_vs_x0": 0.015417588769542943,
+   "fit_rms_error_chord_m": 2.7383473224686093e-05,
+   "fit_rms_error_twist_rad": 2.7275493211093635e-05,
+   "control_points_outside_box": 0,
+   "wall_s": {
+    "J": 0.20846960000199033,
+    "fd": 8.467942299997958,
+    "tangent_total": 0.23096289999375585,
+    "tangent_products": 0.0006897999992361292,
+    "adjoint": 0.22948280000127852,
+    "moment_adjoint": 0.12600649999512825
+   },
+   "forward_solves_per_gradient": {
+    "fd": 40,
+    "tangent": 1,
+    "adjoint": 1,
+    "moment_adjoint": 1
+   },
+   "ratios": {
+    "fd_over_adjoint": 36.90011756850962,
+    "fd_over_J": 40.619554601328495,
+    "adjoint_over_J": 1.1007974304123362,
+    "moment_adjoint_over_adjoint": 0.5490890820332776
+   },
+   "agreement_max_abs_diff_relative": {
+    "tangent_vs_adjoint": 2.2551405187698492e-17,
+    "fd_vs_adjoint": 4.7904631650386165e-11
+   },
+   "KS_at_point": 1.000118916669232
+  },
+  {
+   "k": 20,
+   "n": 40,
+   "spline_degree": 3,
+   "n_stations": 25,
+   "aep_mwh_per_yr": 10.249287088700822,
+   "aep_delta_pct_vs_x0": 0.015415124863550901,
+   "fit_rms_error_chord_m": 1.2014082012330671e-07,
+   "fit_rms_error_twist_rad": 6.352912439754857e-08,
+   "control_points_outside_box": 0,
+   "wall_s": {
+    "J": 0.20925760000682203,
+    "fd": 17.15774600000441,
+    "tangent_total": 0.23340279999683844,
+    "tangent_products": 0.0014026999997440726,
+    "adjoint": 0.2296414000011282,
+    "moment_adjoint": 0.12995809999847552
+   },
+   "forward_solves_per_gradient": {
+    "fd": 80,
+    "tangent": 1,
+    "adjoint": 1,
+    "moment_adjoint": 1
+   },
+   "ratios": {
+    "fd_over_adjoint": 74.71538668515396,
+    "fd_over_J": 81.99341863542851,
+    "adjoint_over_J": 1.097410082088496,
+    "moment_adjoint_over_adjoint": 0.5659175566680792
+   },
+   "agreement_max_abs_diff_relative": {
+    "tangent_vs_adjoint": 1.214306433183765e-17,
+    "fd_vs_adjoint": 5.65916332892491e-11
+   },
+   "KS_at_point": 1.0001187617609972
+  },
+  {
+   "k": 40,
+   "n": 80,
+   "spline_degree": 3,
+   "n_stations": 25,
+   "aep_mwh_per_yr": 10.249287088877916,
+   "aep_delta_pct_vs_x0": 0.01541512659168275,
+   "fit_rms_error_chord_m": 1.5383701491068512e-16,
+   "fit_rms_error_twist_rad": 1.9823176332496891e-16,
+   "control_points_outside_box": 2,
+   "wall_s": {
+    "J": 0.2116978999983985,
+    "fd": 34.091474399996514,
+    "tangent_total": 0.2348721000016667,
+    "tangent_products": 0.0028267000016057864,
+    "adjoint": 0.23095199999806937,
+    "moment_adjoint": 0.1270857999988948
+   },
+   "forward_solves_per_gradient": {
+    "fd": 160,
+    "tangent": 1,
+    "adjoint": 1,
+    "moment_adjoint": 1
+   },
+   "ratios": {
+    "fd_over_adjoint": 147.61281305328163,
+    "fd_over_J": 161.03832111822751,
+    "adjoint_over_J": 1.0909508313489011,
+    "moment_adjoint_over_adjoint": 0.5502693200316826
+   },
+   "agreement_max_abs_diff_relative": {
+    "tangent_vs_adjoint": 5.204170427930421e-18,
+    "fd_vs_adjoint": 7.978627255948202e-11
+   },
+   "KS_at_point": 1.0001187619200798
+  },
+  {
+   "k": 80,
+   "n": 160,
+   "spline_degree": 3,
+   "n_stations": 25,
+   "aep_mwh_per_yr": 10.249287088877916,
+   "aep_delta_pct_vs_x0": 0.01541512659168275,
+   "fit_rms_error_chord_m": 9.49386756792629e-17,
+   "fit_rms_error_twist_rad": 8.350635213048217e-17,
+   "control_points_outside_box": 32,
+   "wall_s": {
+    "J": 0.2085884999978589,
+    "fd": 67.80093709999346,
+    "tangent_total": 0.23648959999991348,
+    "tangent_products": 0.005891400003747549,
+    "adjoint": 0.22800269999424927,
+    "moment_adjoint": 0.12777549999736948
+   },
+   "forward_solves_per_gradient": {
+    "fd": 320,
+    "tangent": 1,
+    "adjoint": 1,
+    "moment_adjoint": 1
+   },
+   "ratios": {
+    "fd_over_adjoint": 297.36900967270805,
+    "fd_over_J": 325.04638127552295,
+    "adjoint_over_J": 1.0930741627490952,
+    "moment_adjoint_over_adjoint": 0.5604122231911827
+   },
+   "agreement_max_abs_diff_relative": {
+    "tangent_vs_adjoint": 5.637851296924623e-18,
+    "fd_vs_adjoint": 9.02154965315427e-11
+   },
+   "KS_at_point": 1.0001187619200802
+  }
+ ],
+ "fits": {
+  "fd": {
+   "label": "central FD (2n evaluations)",
+   "power_law": {
+    "a": 0.4250897156118356,
+    "p": 1.0002034925821015
+   }
+  },
+  "tangent_total": {
+   "label": "tangent, total (1 solve + partials + n products)",
+   "power_law": {
+    "a": 0.23946837465673948,
+    "p": -0.004465623750005614
+   },
+   "affine": {
+    "c": 0.23569483332842847,
+    "b": -1.7566666272574053e-06
+   }
+  },
+  "tangent_products": {
+   "label": "tangent, the n products alone",
+   "power_law": {
+    "a": 3.30488043337429e-05,
+    "p": 1.01812360936731
+   }
+  },
+  "adjoint": {
+   "label": "adjoint (1 solve + partials + assembly)",
+   "power_law": {
+    "a": 0.23255984505252061,
+    "p": -0.0031617863749899486
+   }
+  },
+  "moment_adjoint": {
+   "label": "moment adjoint (9-point load set)",
+   "power_law": {
+    "a": 0.1270207799908696,
+    "p": 0.001436261048419725
+   }
+  },
+  "J": {
+   "label": "J (one objective evaluation)",
+   "power_law": {
+    "a": 0.20392080016769049,
+    "p": 0.0063108440421798945
+   }
+  }
+ }
+}
