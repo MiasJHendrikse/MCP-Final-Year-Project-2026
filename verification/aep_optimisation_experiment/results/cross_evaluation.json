@@ -1,0 +1,133 @@
+{
+ "description": "AEP [MWh/yr] of every blade under every schedule; rows are the schedule (ceiling), columns the blade",
+ "cases": {
+  "none": {
+   "x0": {
+    "aep_mwh": 10.270157412075502,
+    "all_converged": true,
+    "vs_x0_pct": 0.0
+   },
+   "x_star": {
+    "aep_mwh": 10.282564153751318,
+    "all_converged": true,
+    "vs_x0_pct": 0.12080381223007475
+   },
+   "x_aep_none": {
+    "aep_mwh": 10.282564153751318,
+    "all_converged": true,
+    "vs_x0_pct": 0.12080381223007475
+   },
+   "x_aep_60": {
+    "aep_mwh": 10.263115483577877,
+    "all_converged": true,
+    "vs_x0_pct": -0.06856689936752813
+   },
+   "x_aep_55": {
+    "aep_mwh": 10.225992753350347,
+    "all_converged": true,
+    "vs_x0_pct": -0.4300290341531343
+   },
+   "x_aep_50": {
+    "aep_mwh": 10.16901170073194,
+    "all_converged": true,
+    "vs_x0_pct": -0.9848506433274062
+   }
+  },
+  "60": {
+   "x0": {
+    "aep_mwh": 10.210635002812783,
+    "all_converged": true,
+    "vs_x0_pct": 0.0
+   },
+   "x_star": {
+    "aep_mwh": 10.213119003703293,
+    "all_converged": true,
+    "vs_x0_pct": 0.024327584815497794
+   },
+   "x_aep_none": {
+    "aep_mwh": 10.213119003703293,
+    "all_converged": true,
+    "vs_x0_pct": 0.024327584815497794
+   },
+   "x_aep_60": {
+    "aep_mwh": 10.245066132032381,
+    "all_converged": true,
+    "vs_x0_pct": 0.3372085008436221
+   },
+   "x_aep_55": {
+    "aep_mwh": 10.231566743707077,
+    "all_converged": true,
+    "vs_x0_pct": 0.20499940394038685
+   },
+   "x_aep_50": {
+    "aep_mwh": 10.193296264946731,
+    "all_converged": true,
+    "vs_x0_pct": -0.16981057359581886
+   }
+  },
+  "55": {
+   "x0": {
+    "aep_mwh": 9.976817787949578,
+    "all_converged": true,
+    "vs_x0_pct": 0.0
+   },
+   "x_star": {
+    "aep_mwh": 9.948789739783372,
+    "all_converged": true,
+    "vs_x0_pct": -0.2809317435872094
+   },
+   "x_aep_none": {
+    "aep_mwh": 9.94878973978337,
+    "all_converged": true,
+    "vs_x0_pct": -0.2809317435872316
+   },
+   "x_aep_60": {
+    "aep_mwh": 10.164716415232931,
+    "all_converged": true,
+    "vs_x0_pct": 1.8833523000721275
+   },
+   "x_aep_55": {
+    "aep_mwh": 10.208977865422153,
+    "all_converged": true,
+    "vs_x0_pct": 2.3269952644919156
+   },
+   "x_aep_50": {
+    "aep_mwh": 10.19131670048659,
+    "all_converged": true,
+    "vs_x0_pct": 2.1499732389228754
+   }
+  },
+  "50": {
+   "x0": {
+    "aep_mwh": 9.429005086436103,
+    "all_converged": true,
+    "vs_x0_pct": 0.0
+   },
+   "x_star": {
+    "aep_mwh": 9.306357115823824,
+    "all_converged": true,
+    "vs_x0_pct": -1.3007519827167302
+   },
+   "x_aep_none": {
+    "aep_mwh": 9.306357115823824,
+    "all_converged": true,
+    "vs_x0_pct": -1.3007519827167302
+   },
+   "x_aep_60": {
+    "aep_mwh": 9.874696694136187,
+    "all_converged": true,
+    "vs_x0_pct": 4.7268147976844865
+   },
+   "x_aep_55": {
+    "aep_mwh": 10.1430526785685,
+    "all_converged": true,
+    "vs_x0_pct": 7.572883730432767
+   },
+   "x_aep_50": {
+    "aep_mwh": 10.168631174811713,
+    "all_converged": true,
+    "vs_x0_pct": 7.844158334791684
+   }
+  }
+ }
+}
