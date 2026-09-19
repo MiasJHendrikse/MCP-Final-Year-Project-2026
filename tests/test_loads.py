@@ -23,8 +23,12 @@ that to ~6e-13 mixed -- the same w^2 structure that already places the
 objective `q`/`J` partials at TOL_J. Failure here is a bug: fix it, never
 loosen a tolerance.
 
-The RootMomentSystem and the KS functional arrive in Step 2b; the
-ScaledProblem constraint and the tier 3 / sanity tests in Step 2c.
+The RootMomentSystem and the KS functional arrived in Step 2b. Step 2c adds
+`ScaledProblem.moment_constraint` (the KS derivative with the adjoint
+Jacobian) and the Tier 3 / sanity tests for it, at the bottom of this file.
+The constraint is regrouped as `(KS0 - KS) - eps KS0`, algebraically the same
+as `(1 - eps) KS0 - KS`, so the `eps = 0` slack at `u0` and the `eps`-linear
+slack are exact to the bit.
 
 Author: MJ Hendrikse
 Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
@@ -39,6 +43,7 @@ import pytest
 
 from adjoint import BEMSystem, RootMomentSystem
 from design import BladeParameterisation, DesignBounds
+from gradients import ScaledProblem, central_difference
 from objective import WeibullResource
 from objective.loads import (
     ks,
@@ -60,6 +65,8 @@ ADJOINT_RESULT_PATH = os.path.abspath(
 H = 1e-30
 TOL_R = 1e-13
 TOL_J = 1e-12
+#: The committed global step of the A3 study (verification/fd_step_size).
+H_STAR_GLOBAL = 3.162277660168379e-06
 
 # The committed load operating set L (HANDOFF-2026-09-19 §3.1).
 EXPECTED_LOAD_POINTS = [
@@ -136,6 +143,26 @@ def state(system, design):
 @pytest.fixture(scope="module")
 def parts(system, state):
     return system.partials(state.phi, state.d)
+
+
+@pytest.fixture(scope="module")
+def problem():
+    parameterisation = BladeParameterisation()
+    bounds = DesignBounds.from_config(n_chord=parameterisation.n_chord,
+                                      n_twist=parameterisation.n_twist)
+    return ScaledProblem(parameterisation, bounds, WeibullResource.from_config())
+
+
+@pytest.fixture(scope="module")
+def u0(problem, x0):
+    return problem.scaled(x0)
+
+
+@pytest.fixture(scope="module")
+def u_star():
+    with open(ADJOINT_RESULT_PATH, encoding="utf-8") as handle:
+        artefact = json.load(handle)
+    return np.array(artefact["u_star"], dtype=float)
 
 
 @pytest.fixture(scope="module")
@@ -425,3 +452,144 @@ def test_ks_decreases_toward_max_as_rho_increases():
     at_300 = ks(values, 300.0)
     assert at_30 >= at_100 >= at_300
     assert at_300 >= float(np.max(values))
+
+
+# ---------------------------------------------------------------------------
+# Step 2c: the ScaledProblem moment constraint -- sanity
+# ---------------------------------------------------------------------------
+
+def test_moment_constraint_is_zero_slack_at_the_scaled_reference(problem, u0):
+    """`eps = 0` caps the KS at the baseline's own value, so `g(u0) = 0`
+    exactly -- the sanity gate the sign of the whole constraint rests on."""
+
+    assert float(problem.moment_constraint(0.0)["fun"](u0)[0]) == 0.0
+
+
+def test_moment_constraint_scales_exactly_with_eps_at_u0(problem, u0):
+    """`g_eps(u0) = -eps KS0` to the bit, the regrouped form's whole point."""
+
+    assert float(problem.moment_constraint(0.05)["fun"](u0)[0]) == -0.05 * problem.KS0
+
+
+def test_moment_constraint_makes_the_unconstrained_optimum_infeasible(problem, u_star):
+    """The unconstrained optimum carries +0.31 % moment, so the `eps = 0` cap
+    is violated there, by exactly `KS(u*) - KS(u0)`."""
+
+    g = float(problem.moment_constraint(0.0)["fun"](u_star)[0])
+    assert g < 0.0
+    assert abs(g) == problem.moment_ks(u_star) - problem.KS0
+
+
+def test_constraints_with_moment_appends_the_moment_row(problem, u0):
+    cons = problem.constraints_with_moment(0.0)
+    assert len(cons) == 3
+    assert all(c["type"] == "ineq" for c in cons)
+    assert cons[2]["fun"](u0).shape == (1,)
+    assert cons[2]["jac"](u0).shape == (1, problem.n)
+    active = problem.active_set(u0, moment_eps=0.0)
+    assert "moment" in active and active["moment"]["slack"] == 0.0
+
+
+def test_moment_state_is_cached_between_fun_and_jac(problem, u0):
+    """SLSQP calls `fun` and `jac` at the same `u`: one solve, not two."""
+
+    constraint = problem.moment_constraint(0.0)
+    constraint["fun"](u0)  # warm the reference into the cache
+    before = problem.n_moment_solves
+    constraint["fun"](u0)
+    constraint["jac"](u0)
+    assert problem.n_moment_solves == before
+
+    rng = np.random.default_rng(3)
+    u = u0 + 1e-6 * rng.normal(size=problem.n)
+    fresh = problem.moment_constraint(0.0)
+    before = problem.n_moment_solves
+    fresh["fun"](u)
+    fresh["jac"](u)
+    assert problem.n_moment_solves == before + 1
+
+
+def test_moment_report_quotes_the_rated_weight_and_conservatism(problem, u0):
+    report = problem.moment_report(u0)
+    assert report["softmax_weight_on_rated"] == pytest.approx(0.957, abs=5e-4)
+    assert report["KS_by_rho"]["100"] == pytest.approx(problem.KS0, rel=1e-12)
+    assert (report["KS_by_rho"]["30"] >= report["KS_by_rho"]["100"]
+            >= report["KS_by_rho"]["300"])
+    for key in ("30", "100", "300"):
+        assert report["conservatism_by_rho"][key] >= 0.0
+    assert report["m_ref_nm"] == pytest.approx(M_REFERENCE, rel=1e-14)
+
+
+def test_cut_out_post_check_reports_alpha_above_the_xfoil_band(problem, u0):
+    """The cut-out point is reported, labelled B3-dependent, never constrained."""
+
+    cut = problem.moment_report(u0)["cut_out"]
+    assert cut["B3_dependent"] is True
+    assert cut["v_ms"] == 20.0
+    assert cut["rpm"] == pytest.approx(300.0, rel=1e-9)
+    assert cut["alpha_max_deg"] > 18.0
+    assert cut["converged"]
+
+
+# ---------------------------------------------------------------------------
+# Step 2c: Tier 3 -- the constraint Jacobian against the FD noise floor
+# ---------------------------------------------------------------------------
+
+def test_moment_constraint_jacobian_matches_fd_at_x0(problem, u0):
+    """`moment_constraint(0)["jac"](u0)` vs central FD of its `fun` at the
+    committed global `h*` and `h* / sqrt(10)`, `h* sqrt(10)`, with `eps_j`
+    re-measured as run_tier3.py does. Acceptance `|adj - fd| <= 3 eps_j`; the
+    measured round-off floor (the hand-off's `delta_g / h*` at `h*/1000`) is
+    reported in any failure, for the §3.4 xfail route."""
+
+    constraint = problem.moment_constraint(0.0)
+    jac = constraint["jac"](u0)[0]
+    g = lambda u: float(constraint["fun"](u)[0])  # noqa: E731
+
+    def fd(h):
+        return central_difference(g, u0, h)[0]
+
+    g_mid = fd(H_STAR_GLOBAL)
+    g_lo = fd(H_STAR_GLOBAL / math.sqrt(10.0))
+    g_hi = fd(H_STAR_GLOBAL * math.sqrt(10.0))
+    eps = np.maximum(np.abs(g_mid - g_lo), np.abs(g_mid - g_hi))
+    abs_err = np.abs(jac - g_mid)
+
+    small = H_STAR_GLOBAL / 1000.0
+    e = np.eye(problem.n)
+    floor = np.array([abs(g(u0 + small * e[j]) - g(u0 - small * e[j])) / H_STAR_GLOBAL
+                      for j in range(problem.n)])
+
+    if not np.all(abs_err <= 3.0 * eps):
+        worst = int(np.argmax(abs_err / eps))
+        pytest.fail(
+            f"moment constraint Jacobian outside 3 eps at variable {worst}: "
+            f"|adj - fd| = {abs_err[worst]:.3e}, eps = {eps[worst]:.3e}, "
+            f"ratio = {abs_err[worst] / eps[worst]:.3f}, measured floor = "
+            f"{floor[worst]:.3e}, eps_below_floor = {bool(eps[worst] < floor[worst])}")
+
+
+def test_moment_constraint_taylor_remainder_is_second_order(problem, u0):
+    """Random unit `v`: the constraint's remainder falls ~100x per decade over
+    1e-2, 1e-3, 1e-4; assert >= 30, exactly as run_tier3.py does."""
+
+    constraint = problem.moment_constraint(0.0)
+    jac = constraint["jac"](u0)[0]
+    g = lambda u: float(constraint["fun"](u)[0])  # noqa: E731
+    steps = (1e-2, 1e-3, 1e-4)
+
+    rng = np.random.default_rng(11)
+    envelope = problem.envelope_constraint()["fun"]
+    for _attempt in range(50):
+        v = rng.normal(size=problem.n)
+        v /= np.linalg.norm(v)
+        if all(np.all(envelope(u0 + h * v) > 0.0) for h in steps):
+            break
+    else:
+        pytest.fail("no envelope-feasible direction found for the moment Taylor test")
+
+    g0 = g(u0)
+    slope = float(jac @ v)
+    remainders = [abs(g(u0 + h * v) - g0 - h * slope) for h in steps]
+    ratios = [remainders[0] / remainders[1], remainders[1] / remainders[2]]
+    assert min(ratios) >= 30.0, (remainders, ratios)

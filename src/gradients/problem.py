@@ -72,13 +72,17 @@ import numpy as np
 from config import load_design_rotor, load_site
 from gradients.finite_difference import central_difference
 from objective.objective import objective
-from objective.power import aerodynamic_power, operating_points
+from objective.power import aerodynamic_power, operating_points, tsr_schedule
 from polars.interpolant import PolarDomainError
 from polars.polar import interpolant_for
 
 #: Envelope margin, stated (see module docstring). Raised to 0.10 once, and
 #: recorded, if a run still trips `PolarDomainError` -- never tuned beyond.
 DEFAULT_ENVELOPE_MARGIN = 0.05
+
+#: KS stiffness for the root-moment aggregate (Phase 4). The default the load
+#: constraint is built at; `moment_report` also quotes 30 and 300.
+DEFAULT_KS_RHO = 100.0
 
 #: `|u|` or `|1 - u|` below this: the bound is active. `g(u)` below this: the
 #: constraint row is active. One tolerance for every reporting script.
@@ -141,6 +145,18 @@ class ScaledProblem:
         self.n_adjoint_evals = 0
         self.domain_errors = []
         self._adjoint = None
+
+        # Phase 4 load constraint (Step 2c): built on first use from the
+        # committed baseline. KS0 is `KS_rho(u0)` alongside J0; n_moment_solves
+        # counts the 9-point forward solves the constraint's fun/jac need.
+        self.KS0 = None
+        self.m_ref = None
+        self.u0 = None
+        self.n_moment_solves = 0
+        self._systems = {}
+        self._ks0 = {}
+        self._moment_cache = None
+        self._moment_cache_key = None
 
     # -- variables ----------------------------------------------------------
 
@@ -267,6 +283,231 @@ class ScaledProblem:
         self.n_adjoint_evals += 1
         return result.dJ_dd * self.bounds.span() / abs(self.J0)
 
+    # -- the root-moment functional (Phase 4, Step 2c) -----------------------
+
+    def _system_for(self, rho):
+        """
+        The `adjoint.loads.RootMomentSystem` at KS stiffness `rho`, built on
+        first use and cached. The default (`rho = 100`) is the one
+        `moment_constraint` uses; the others exist so `moment_report` can quote
+        the conservatism at 30 and 300 from one set of moments.
+
+        `M_ref = M(x0)` and the starting point are read once from the committed
+        Schmitz baseline (`design.baseline.build_schmitz_baseline`, which
+        reproduces `verification/baseline/x0.json` bit for bit), so the
+        normalisation is one number in one place. `KS0 = KS_rho(u0)` is measured
+        in the same pass and cached; that is what makes the `eps = 0`
+        constraint exactly zero-slack at `u0`.
+        """
+
+        if rho in self._systems:
+            return self._systems[rho]
+
+        from adjoint.loads import RootMomentSystem
+        from design.baseline import build_schmitz_baseline
+        from objective.loads import root_moment
+
+        if self.m_ref is None:
+            x0 = build_schmitz_baseline().design_vector
+            self.u0 = self.scaled(x0)
+            geometry = self.parameterisation.to_geometry(x0, polar_cache=self.polar_cache)
+            v_rated = float(self.design.rated_wind_speed_ms)
+            tsr_rated = tsr_schedule(v_rated, self.design.design_tsr,
+                                     self.design.max_tip_speed_ms)
+            self.m_ref = float(root_moment(
+                geometry, v_rated, tsr_rated, float(self.site.air_density),
+                float(self.site.kinematic_viscosity))[0])
+
+        system = RootMomentSystem(self.parameterisation, self.bounds, self.resource,
+                                  polar_cache=self.polar_cache, rho=rho,
+                                  m_ref_nm=self.m_ref)
+        self._systems[rho] = system
+
+        result = system.gradient(self.physical(self.u0))
+        self._ks0[rho] = float(result.KS)
+        self._moment_cache_key = (float(rho), np.asarray(self.u0, dtype=float).tobytes())
+        self._moment_cache = result
+        self.n_moment_solves += 1
+        if rho == DEFAULT_KS_RHO:
+            self.KS0 = float(result.KS)
+        return system
+
+    def load_system(self):
+        """The default (`rho = 100`) `RootMomentSystem` over the load set `L`."""
+
+        return self._system_for(DEFAULT_KS_RHO)
+
+    def _moment_at(self, u, rho):
+        """
+        The cached `RootMomentSystem.gradient(d(u))` at stiffness `rho`.
+
+        SLSQP evaluates a constraint's `fun` and `jac` separately at the same
+        `u` and `fun` again in the line search; one cache entry keyed on the
+        exact `u` bytes makes that cost one 9-point solve, not three.
+        """
+
+        u = np.asarray(u, dtype=float)
+        key = (float(rho), u.tobytes())
+        if key == self._moment_cache_key:
+            return self._moment_cache
+        result = self._system_for(rho).gradient(self.physical(u))
+        self._moment_cache_key = key
+        self._moment_cache = result
+        self.n_moment_solves += 1
+        return result
+
+    def moment_state(self, u):
+        """The cached moment-adjoint result at `u` (default stiffness)."""
+
+        return self._moment_at(u, DEFAULT_KS_RHO)
+
+    def moment_ks(self, u, rho=None):
+        """`KS_rho(u)`, as a float, at the default stiffness (or `rho`)."""
+
+        rho = DEFAULT_KS_RHO if rho is None else float(rho)
+        return float(self._moment_at(u, rho).KS)
+
+    def _moment_reference(self, rho):
+        """`KS0 = KS_rho(u0)` at the committed baseline, measured once."""
+
+        if rho not in self._ks0:
+            self._system_for(rho)
+        return self._ks0[rho]
+
+    def moment_constraint(self, eps, rho=None):
+        """
+        SciPy inequality for the Phase 4 load cap:
+
+            g_eps(u) = (1 - eps) KS0 - KS(u)  =  (KS0 - KS(u)) - eps KS0  >= 0
+
+        written in the regrouped form so the `eps = 0` slack at `u0` and the
+        `eps`-linear slack are exact to the bit (the two groupings differ in
+        the last bit). `jac` is the adjoint Jacobian `-dKS/dd * span`.
+        """
+
+        rho = DEFAULT_KS_RHO if rho is None else float(rho)
+        ks0 = self._moment_reference(rho)
+        eps = float(eps)
+        span = self.bounds.span()
+
+        def fun(u):
+            return np.array([(ks0 - self._moment_at(u, rho).KS) - eps * ks0])
+
+        def jac(u):
+            return (-self._moment_at(u, rho).dKS_dd * span)[None, :]
+
+        return {"type": "ineq", "fun": fun, "jac": jac}
+
+    def constraints_with_moment(self, eps):
+        """The full Phase 4 inequality set: envelope, solidity, moment."""
+
+        return self.constraints() + [self.moment_constraint(eps)]
+
+    def moment_active(self, u, eps, rho=None, tol=ACTIVE_TOL):
+        """The moment row's slack at `u` for reduction fraction `eps`."""
+
+        rho = DEFAULT_KS_RHO if rho is None else float(rho)
+        ks0 = self._moment_reference(rho)
+        ks = float(self._moment_at(u, rho).KS)
+        slack = (ks0 - ks) - float(eps) * ks0
+        return {"row": "moment", "eps": float(eps), "rho": float(rho),
+                "KS": ks, "KS0": ks0, "slack": float(slack),
+                "active": bool(slack < tol)}
+
+    def moment_report(self, u):
+        """
+        Everything the load-constraint artefacts record at `u`, forward path
+        only: the per-point moments and softmax weights, `KS` and its
+        conservatism `KS - max` over `rho in {30, 100, 300}`, the
+        design-condition thrust and `Ct`, and the **B3-dependent** cut-out
+        post-check at 20 m/s on the ceiling (reported, never constrained).
+        """
+
+        from objective.loads import ks, ks_weights, root_moment
+
+        u = np.asarray(u, dtype=float)
+        system = self.load_system()
+        d = self.physical(u)
+        state = system.solve(d)
+        parts = system.partials(state.phi, state.d)
+        moments = system.moments_from_m(parts["m"])
+        m_ref = float(system.m_ref)
+        normalised = moments / m_ref
+        weights = ks_weights(normalised, system.rho)
+        peak = float(np.max(normalised))
+
+        points = []
+        for b, (v, lam) in enumerate(system.points):
+            points.append({
+                "v_ms": float(v),
+                "tsr": float(lam),
+                "rpm": float(system.omega[b] * 60.0 / (2.0 * math.pi)),
+                "moment_nm": float(moments[b]),
+                "moment_normalised": float(normalised[b]),
+                "softmax_weight": float(weights[b]),
+            })
+
+        rhos = (30.0, 100.0, 300.0)
+        ks_by_rho = {f"{rho:g}": float(ks(normalised, rho)) for rho in rhos}
+        conservatism = {f"{rho:g}": float(ks(normalised, rho) - peak) for rho in rhos}
+
+        geometry = self.parameterisation.to_geometry(d, polar_cache=self.polar_cache)
+        rho_air = float(self.site.air_density)
+        nu = float(self.site.kinematic_viscosity)
+        area = math.pi * self.parameterisation.radius_m ** 2
+
+        v_rated, tsr_rated = system.points[-1]
+        rated_moment, rated_result = root_moment(geometry, v_rated, tsr_rated,
+                                                 rho_air, nu)
+        Ct_rated = float(rated_result["Ct"])
+
+        v_cut = float(self.design.cut_out_wind_speed_ms)
+        tsr_cut = tsr_schedule(v_cut, self.design.design_tsr,
+                               self.design.max_tip_speed_ms)
+        cut_moment, cut_result = root_moment(geometry, v_cut, tsr_cut, rho_air, nu)
+        cut_alpha = [math.degrees(s["alpha"]) for s in cut_result["stations"]]
+        Ct_cut = float(cut_result["Ct"])
+
+        return {
+            "u": [float(x) for x in u],
+            "x": [float(x) for x in d],
+            "m_ref_nm": m_ref,
+            "m_ref_label": ("M(x0) at 11 m/s, lambda = 5.711986642890533 "
+                            "(300 rpm), forward path"),
+            "KS0": None if self.KS0 is None else float(self.KS0),
+            "rho": float(system.rho),
+            "points": points,
+            "peak_normalised": peak,
+            "KS_by_rho": ks_by_rho,
+            "conservatism_by_rho": conservatism,
+            "softmax_weight_on_rated": float(weights[-1]),
+            "design_condition": {
+                "v_ms": float(v_rated),
+                "tsr": float(tsr_rated),
+                "rpm": float(system.omega[-1] * 60.0 / (2.0 * math.pi)),
+                "Ct": Ct_rated,
+                "thrust_n": float(Ct_rated * 0.5 * rho_air * float(v_rated) ** 2 * area),
+                "moment_nm": float(rated_moment),
+                "moment_over_ref": float(rated_moment / m_ref),
+            },
+            "cut_out": {
+                "label": ("B3-dependent: the model holds P = P_rated with no "
+                          "mechanism, so the state here is not the machine's; "
+                          "alpha up to ~28 deg on Viterna"),
+                "B3_dependent": True,
+                "v_ms": v_cut,
+                "tsr": float(tsr_cut),
+                "rpm": float(tsr_cut * v_cut / self.parameterisation.radius_m
+                             * 60.0 / (2.0 * math.pi)),
+                "Ct": Ct_cut,
+                "thrust_n": float(Ct_cut * 0.5 * rho_air * v_cut ** 2 * area),
+                "moment_nm": float(cut_moment),
+                "alpha_min_deg": float(min(cut_alpha)),
+                "alpha_max_deg": float(max(cut_alpha)),
+                "converged": bool(cut_result["converged"]),
+            },
+        }
+
     # -- the polar-cache envelope (linear, mandatory) ------------------------
 
     def _chord_affine(self):
@@ -357,12 +598,15 @@ class ScaledProblem:
 
         return [self.envelope_constraint(), self.solidity_constraint()]
 
-    def active_set(self, u, tol=ACTIVE_TOL):
+    def active_set(self, u, tol=ACTIVE_TOL, moment_eps=None):
         """
         Which bounds and constraint rows are active at `u`: a dict with
         `bounds_lower`, `bounds_upper` (variable indices), `envelope`,
         `solidity` (row labels), the tightest row of each constraint with
         its slack, and every station's solidity.
+
+        With `moment_eps` given, the Phase 4 moment row is attached too (its
+        slack is `(KS0 - KS(u)) - eps KS0`, from `moment_active`).
         """
 
         u = np.asarray(u, dtype=float)
@@ -372,7 +616,7 @@ class ScaledProblem:
         sol_labels = self.solidity_row_labels()
         chord = self.parameterisation.chord(self.physical(u))
         sigma = self.design.n_blades * chord / (2.0 * math.pi * self.parameterisation.radii)
-        return {
+        report = {
             "bounds_lower": [int(j) for j in range(self.n) if abs(u[j]) < tol],
             "bounds_upper": [int(j) for j in range(self.n) if abs(1.0 - u[j]) < tol],
             "envelope": [env_labels[k] for k in range(len(env)) if env[k] < tol],
@@ -384,6 +628,11 @@ class ScaledProblem:
             "sigma_max": float(sigma.max()),
             "sigma_cap": float(self.design.max_local_solidity),
         }
+        if moment_eps is not None:
+            moment = self.moment_active(u, moment_eps, tol=tol)
+            report["moment"] = moment
+            report["moment_tightest"] = {"row": "moment", "slack": moment["slack"]}
+        return report
 
     # -- solidity -------------------------------------------------------------
 
