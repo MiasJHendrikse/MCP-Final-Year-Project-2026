@@ -3,8 +3,8 @@
  "bounds_label": "under the configured bounds (chord_max_m = 0.30 m, resolved 2026-09-19; chord_min_m, twist_min, twist_max grounded 2026-09-13)",
  "law_label": "lambda(V) = min(6.5, Omega_max R / V), Omega_max = 300 rpm (V_c = 9.67 m/s), fixed rating 3822.189755449124 W",
  "command": "python verification/load_constraint/run_pareto.py",
- "generated": "2026-09-19T18:39:39",
- "src_commit": "a220e1b0d95ae6ed15d71c467b626c5bf19a0fb9",
+ "generated": "2026-09-19T19:18:35",
+ "src_commit": "7f209edfff5c276ad21dbbed26644ff12b378e0c",
  "multistart_u_spread_inf": 0.016563224478690297,
  "eps_steps": [
   {
@@ -50,7 +50,7 @@
     "nit": 34,
     "message": "Optimization terminated successfully",
     "moment_solves": 34,
-    "wall_time_s": 29.114228899998125
+    "wall_time_s": 33.851606500000344
    },
    "warm": {
     "label": "warm",
@@ -93,7 +93,7 @@
     "nit": 34,
     "message": "Optimization terminated successfully",
     "moment_solves": 34,
-    "wall_time_s": 28.417565200001263
+    "wall_time_s": 39.10183849999885
    },
    "du_inf": 0.0,
    "agrees_to_multistart_spread": true,
@@ -138,7 +138,7 @@
     "nit": 34,
     "message": "Optimization terminated successfully",
     "moment_solves": 34,
-    "wall_time_s": 29.114228899998125
+    "wall_time_s": 33.851606500000344
    },
    "chosen_label": "cold",
    "reason": null
@@ -186,7 +186,7 @@
     "nit": 39,
     "message": "Optimization terminated successfully",
     "moment_solves": 39,
-    "wall_time_s": 31.948087299999315
+    "wall_time_s": 35.77625989999797
    },
    "warm": {
     "label": "warm",
@@ -229,7 +229,7 @@
     "nit": 29,
     "message": "Optimization terminated successfully",
     "moment_solves": 31,
-    "wall_time_s": 23.58878779999941
+    "wall_time_s": 29.927863599994453
    },
    "du_inf": 0.00024281854150365323,
    "agrees_to_multistart_spread": true,
@@ -274,7 +274,7 @@
     "nit": 39,
     "message": "Optimization terminated successfully",
     "moment_solves": 39,
-    "wall_time_s": 31.948087299999315
+    "wall_time_s": 35.77625989999797
    },
    "chosen_label": "cold",
    "reason": null
@@ -322,7 +322,7 @@
     "nit": 37,
     "message": "Optimization terminated successfully",
     "moment_solves": 38,
-    "wall_time_s": 29.30298980000225
+    "wall_time_s": 38.025687800000014
    },
    "warm": {
     "label": "warm",
@@ -365,7 +365,7 @@
     "nit": 20,
     "message": "Optimization terminated successfully",
     "moment_solves": 23,
-    "wall_time_s": 16.4956033999988
+    "wall_time_s": 17.83529589999671
    },
    "du_inf": 0.0013969211737239196,
    "agrees_to_multistart_spread": true,
@@ -410,7 +410,7 @@
     "nit": 37,
     "message": "Optimization terminated successfully",
     "moment_solves": 38,
-    "wall_time_s": 29.30298980000225
+    "wall_time_s": 38.025687800000014
    },
    "chosen_label": "cold",
    "reason": null
@@ -458,7 +458,7 @@
     "nit": 29,
     "message": "Optimization terminated successfully",
     "moment_solves": 31,
-    "wall_time_s": 23.15923870000188
+    "wall_time_s": 31.55809610000142
    },
    "warm": {
     "label": "warm",
@@ -501,7 +501,7 @@
     "nit": 27,
     "message": "Optimization terminated successfully",
     "moment_solves": 30,
-    "wall_time_s": 21.718704400002025
+    "wall_time_s": 24.659067499997036
    },
    "du_inf": 0.0025770056039668976,
    "agrees_to_multistart_spread": true,
@@ -546,7 +546,7 @@
     "nit": 27,
     "message": "Optimization terminated successfully",
     "moment_solves": 30,
-    "wall_time_s": 21.718704400002025
+    "wall_time_s": 24.659067499997036
    },
    "chosen_label": "warm",
    "reason": null

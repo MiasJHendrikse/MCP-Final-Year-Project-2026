@@ -3,8 +3,8 @@
  "bounds_label": "under the configured bounds (chord_max_m = 0.30 m, resolved 2026-09-19; chord_min_m, twist_min, twist_max grounded 2026-09-13)",
  "law_label": "lambda(V) = min(6.5, Omega_max R / V), Omega_max = 300 rpm (V_c = 9.67 m/s), fixed rating 3822.189755449124 W",
  "command": "python verification/load_constraint/run_constrained_slsqp.py --eps 0.1",
- "generated": "2026-09-19T18:32:11",
- "src_commit": "a220e1b0d95ae6ed15d71c467b626c5bf19a0fb9",
+ "generated": "2026-09-19T19:14:08",
+ "src_commit": "7f209edfff5c276ad21dbbed26644ff12b378e0c",
  "bounds": {
   "chord_min_m": 0.045,
   "chord_max_m": 0.3,
@@ -37,7 +37,7 @@
  "adjoint_evaluations_total": 59,
  "moment_solves_total": 31,
  "callback_extra_evaluations": 58,
- "wall_time_s": 24.03664209999988,
+ "wall_time_s": 30.733859299994947,
  "J0_mwh_per_yr": -10.247707391810723,
  "aep_x0_mwh_per_yr": 10.247707391810723,
  "aep_optimum_mwh_per_yr": 10.20337000352111,
@@ -200,6 +200,14 @@
    "lower:chord_4"
   ],
   "n_active_rows": 3,
+  "multipliers_scaled": {
+   "moment": 0.1286231337723024,
+   "upper:chord_0": 0.00013068753435062017,
+   "lower:chord_4": 0.02652483952199859
+  },
+  "all_multipliers_nonnegative": true,
+  "moment_multiplier_scaled": 0.1286231337723024,
+  "moment_shadow_price_mwh_per_yr_per_unit_ks": 1.3180922387162826,
   "gradient_norm_scaled": 0.18771030430439084,
   "projection_norm_onto_active_normals": 0.18771029465183547,
   "residual_norm_after_projection": 6.019774143333735e-05,

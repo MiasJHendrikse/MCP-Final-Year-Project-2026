@@ -1,7 +1,10 @@
 # Phase 4: the flapwise root-moment constraint (KS aggregate, adjoint Jacobian)
 
-**New 2026-09-19 (Phase 4, Step 2d), `src/` commit `a220e1b`** — the commit the
-JSON files stamp as `src_commit`. Run under the 300 rpm operating law
+**New 2026-09-19 (Phase 4, Step 2d); regenerated the same evening after
+review at commit `7f209ed`** — the commit the JSON files stamp as `src_commit`
+(`src/` last changed at `80510d1`; every optimisation number is bit-identical
+to the first run, only the stamps, wall times and the new `kkt` fields moved).
+Run under the 300 rpm operating law
 (`lambda(V) = min(6.5, Omega_max R / V)`, `Omega_max = 300 rpm`, `V_c = 9.67 m/s`)
 and the project bounds in `config/rotor_design.yaml` (`chord_max_m = 0.30 m`,
 `chord_min_m = 0.045 m`, `twist_min_deg = -2`, `twist_max_deg = 35`, local
@@ -87,6 +90,9 @@ measured round-off floor (below).
 | `x0` | 3.19e-14 (`dm_dphi`) | 8.33e-16 (`dKS_dx`) | 8.9e-16 | 0.0 | **0.396** (`twist_0`) | 99.0 |
 | `u*` | 3.62e-14 (`dm_dphi`) | 1.17e-15 (`dKS_dx`) | 8.8e-16 | 0.0 | **22.64** (`chord_1`) — see below | 94.8 |
 
+(The Taylor column is the minimum over the script's three seeded draws;
+`tests/test_loads.py`'s single draw at `x0` gives 100.4.)
+
 Tier 3 at `x0`, all ten variables, at `h* = 3.162e-6` (`|diff|` and the floor in
 units of `KS` per unit `u`; the floor is Tier 4's `delta_g/h*` from nine samples
 of `g` along `u + t e_j`, `t = -4e-12 .. 4e-12`):
@@ -125,8 +131,9 @@ lands on a degenerate neighbour pair and comes out below the true round-off
 floor. The adjoint is not the suspect — the disagreement is *below* the measured
 floor, the absolute disagreement is among the smallest of the ten, and the
 whole-chain Taylor test passes at 94.8. No tolerance and no estimator was
-changed; `checks.json` records `passes: false`, `fragile_only: true`,
-`resolved: true` for this point. It is in the hand-off's BLOCKING list for MJ.
+changed; `checks.json` records `passes: false`, `floor_limited: true` for this
+point and names it under the top-level `tier3_failures` — a failed check stays
+failed in the JSON; the reading of it is MJ's, on the hand-off's BLOCKING list.
 It does **not** touch the constrained runs: they start at `x0`, where the same
 Jacobian passes with worst ratio 0.396.
 
@@ -154,10 +161,39 @@ load at the baseline's own level costs 0.0002 % of the +0.1467 % gain.
 
 `eps = 0` active set: `chord_0` at its upper bound; no envelope or solidity row
 active (tightest envelope row `floor r = 1.9660 m`, 16.6 mm slack; `sigma_max`
-0.409 against the 0.5 cap). KKT check (SLSQP exposes no multipliers): the
-component of `grad fun` in the span of the active normals has norm 2.46e-3 and
-the residual after removing it is 9.6e-6 (scaled), on the moment row and the
-`chord_0` bound.
+0.409 against the 0.5 cap).
+
+**KKT check and the shadow price.** SLSQP exposes no multipliers, so
+`kkt_report` estimates them: the least-squares coefficients of `grad fun` on
+the active constraint and bound normals (every row written so a minimiser's
+multiplier is `>= 0`). At `eps = 0` the projection has norm 2.46e-3 and the
+residual after it 9.6e-6 (scaled); the multipliers are `moment` **1.67e-03**,
+`upper:chord_0` 4.2e-05, both positive.
+`all_multipliers_nonnegative` is true at every `eps`, so the four optima are
+KKT points, not merely stationary. The moment row's multiplier is the shadow
+price of the cap, `|J0| lambda` in MWh/yr per unit KS:
+
+| `eps` | `lambda_moment` (scaled) | shadow price [MWh/yr per unit KS] | AEP per 1 % KS at the margin |
+|---|---|---|---|
+| 0 | 1.67e-03 | 0.0171 | 0.0017 % |
+| 0.02 | 1.99e-02 | 0.2035 | 0.0199 % |
+| 0.05 | 5.39e-02 | 0.5524 | 0.0539 % |
+| 0.10 | 1.29e-01 | 1.3181 | 0.1286 % |
+
+This is what makes "the extra +0.285 % KS bought essentially no energy" a
+measurement rather than a sentence: at `eps = 0` the marginal price of KS is
+0.0017 % AEP per 1 % KS, and it grows convexly — integrating the multiplier
+from `eps = 0` to `0.02` (trapezoid) predicts a cost of
+0.0215 % against the measured 0.0206 %.
+
+**Why the rated moment rises +0.020 % at `eps = 0`.** The cap is on `KS_rho`,
+not on the rated-point moment. `KS0` exceeds `Mhat_max(x0) = 1` by the
+0.00044 conservatism the 10.5 m/s point contributes, and the optimiser spends
+part of that budget: at `x_c(0)` the 10.5 m/s moment is lower relative to the
+rated one, the conservatism shrinks, and the rated moment can sit 0.020 %
+above `x0`'s while `KS = KS0` to `5e-8`. For the same reason the Pareto steps
+are `eps` in **KS**; the rated-point moment reductions they buy are
+1.997 / 5.037 / 10.089 % (the table's `M vs x0` column).
 
 ## The Pareto front
 
@@ -174,10 +210,12 @@ study's spread `0.0166` in `u`.
 
 All four agree, so no optimum is ambiguous. The cost relative to `u*` is
 monotone in `eps` (0.00017 -> 0.0206 -> 0.1282 -> 0.5785 %). The Pareto figure
-plots the AEP change against `x0` versus rated-point moment reduction, with `x0`
-at the origin and `u*` at **-0.306 % reduction / -0.147 % change** — the wrong
-side of the origin, paying a *smaller* moment to gain AEP; the constrained curve
-runs to +10.1 % reduction at +0.43 % AEP change.
+plots **AEP cost vs `x0`** (`-(AEP change)`, one convention for every marker:
+a gain is negative) against rated-point moment reduction, with `x0` at the
+origin and `u*` at **-0.306 % reduction / -0.147 % cost** — the wrong side of
+the origin, paying a *larger* moment to gain AEP; the constrained front runs
+from `eps = 0` at (-0.02 %, -0.1465 %), next to `u*`, up to `eps = 0.10` at
+(+10.09 %, +0.4327 %).
 
 ## What the KS actually did
 
@@ -262,6 +300,11 @@ change it.
   re-run.
 - **The `u*` Tier 3 fragility.** The one failing variable is an acceptance-scale
   artefact, reported above; it does not touch `x0` or any constrained run.
+- **The `eps = 0` cap is not a cap on the rated moment.** It is a cap on
+  `KS_rho`; the +0.020 % rated-moment rise above is the conservatism budget
+  being spent. A reader who wants the rated moment itself capped needs
+  `rho -> infinity` (non-smooth) or the limit at `Mhat_max(x0)` with the
+  conservatism added back explicitly.
 - **The objective's known degeneracy.** A +0.147 % unconstrained gain is the
   subject of `docs/AEP_GAIN_AUDIT.md`; this artefact does not re-open it.
 
@@ -278,7 +321,8 @@ change it.
   measured floors, the per-point moments and weights, timings, the bounds/law
   labels, `M_ref`, `KS0`, the load set, and the `src_commit`.
 - `moments_x0_xstar.png` — per-point moment and softmax weight at `x0` and `u*`.
-- `run_constrained_slsqp.py` — the eps-constrained SLSQP (recorder, KKT check).
+- `run_constrained_slsqp.py` — the eps-constrained SLSQP (recorder, KKT check
+  with multiplier estimates and the moment shadow price).
 - `result_eps{E}.json`, `iterates_eps{E}.json`, `constrained_blade_eps{E}.png`
   for `E = 0, 0.02, 0.05, 0.1`.
 - `run_pareto.py` — the cold/warm eps-sweep.

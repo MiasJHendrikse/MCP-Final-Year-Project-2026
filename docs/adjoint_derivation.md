@@ -683,9 +683,10 @@ failure is `chord_1`: `ε_j = 3.42e-13`, two decades below every other variable,
 while `|diff| = 7.74e-12` is **0.18 ×** the measured floor `4.41e-11` — the same
 fragility §9.5 records for the objective at `x0`, where the flatness estimate
 lands on a degenerate neighbour pair. The adjoint is not the suspect; the
-acceptance scale is. No tolerance and no estimator was changed, and
-`checks.json` records `passes: false`, `fragile_only: true`, `resolved: true`;
-it is MJ's for the BLOCKING list. The production runs start at `x0`, where the
+acceptance scale is. No tolerance and no estimator was changed; `checks.json`
+records `passes: false`, `floor_limited: true` and lists the point and variable
+under `tier3_failures` (a failed check stays failed in the JSON; the reading of
+it is MJ's, on the BLOCKING list). The production runs start at `x0`, where the
 Jacobian passes with worst ratio 0.396.
 
 The aggregate at `x0` is dominated by the rated point: softmax weight **0.957**
@@ -702,8 +703,23 @@ and `chord_0` on its 0.30 m upper bound at every `ε` (`chord_4` reaches its
 0.045 m lower bound from `ε = 0.02`). At `ε = 0` — the Phase 5 production
 optimum for now — `AEP = 10.262719 MWh/yr`, `+0.1465 %` over `x0` at a cost of
 only **0.00017 %** against the unconstrained optimum: the unconstrained `u*`'s
-extra +0.285 % KS bought essentially no energy. At `ε = 0.10` the cost is
-**0.5785 %** for a 10.000 % KS reduction, inside the 0.3–3 % band. The Pareto
-sweep is cold- and warm-started at every `ε` and the two agree to the
-multi-start spread 0.0166; cost is monotone in `ε`. The moment adjoint costs
-0.127 s against the objective's 0.205 s (9 points against 17).
+extra +0.285 % KS bought essentially no energy. That is not an assertion but the
+KKT multiplier: the moment row's least-squares multiplier (SLSQP exposes none;
+`result_eps{E}.json::kkt`) is `1.67e-3` at `ε = 0`, i.e. a shadow price of
+0.017 MWh/yr per unit KS — **0.0017 % AEP per 1 % KS** at the margin — rising
+to `1.99e-2` at `ε = 0.02` and `0.129` at `ε = 0.10` (0.129 % per 1 % KS). The
+multipliers are positive on every active row at every `ε`, so the points are
+KKT points, and integrating the multiplier from 0 to 0.02 predicts a 0.021 %
+cost against the measured 0.0206 %. At `ε = 0.10` the cost is **0.5785 %** for
+a 10.000 % KS reduction, inside the 0.3–3 % band. The Pareto sweep is cold- and
+warm-started at every `ε` and the two agree to the multi-start spread 0.0166;
+cost is monotone in `ε`. The moment adjoint costs 0.127 s against the
+objective's 0.205 s (9 points against 17).
+
+Two things the `ε = 0` result says that a reader should not have to infer.
+First, the cap is on `KS_ρ`, not on the rated-point moment: `KS_ρ(x0)` carries
+0.00044 of conservatism from the 10.5 m/s point, and the optimiser spends part
+of that budget — its rated moment is **+0.020 %** above `x0`'s while `KS`
+equals `KS0` to `5e-8`. Second, for the same reason the Pareto steps are
+`ε` in KS; the rated-point moment reductions they buy are 1.997 / 5.037 /
+10.089 %.

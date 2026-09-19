@@ -3,8 +3,8 @@
  "bounds_label": "under the configured bounds (chord_max_m = 0.30 m, resolved 2026-09-19; chord_min_m, twist_min, twist_max grounded 2026-09-13)",
  "law_label": "lambda(V) = min(6.5, Omega_max R / V), Omega_max = 300 rpm (V_c = 9.67 m/s), fixed rating 3822.189755449124 W",
  "command": "python verification/load_constraint/run_load_checks.py",
- "generated": "2026-09-19T18:13:28",
- "src_commit": "a220e1b0d95ae6ed15d71c467b626c5bf19a0fb9",
+ "generated": "2026-09-19T19:11:48",
+ "src_commit": "7f209edfff5c276ad21dbbed26644ff12b378e0c",
  "bounds": {
   "chord_min_m": 0.045,
   "chord_max_m": 0.3,
@@ -252,8 +252,7 @@
     "worst_variable": 5,
     "worst_abs_error_over_eps": 0.3958128022828077,
     "passes": true,
-    "fragile_only": false,
-    "resolved": true
+    "floor_limited": false
    },
    "taylor": [
     {
@@ -460,7 +459,7 @@
      "moment_over_ref": 1.0
     },
     "cut_out": {
-     "label": "B3-dependent: the model holds P = P_rated with no mechanism, so the state here is not the machine's; alpha up to ~28 deg on Viterna",
+     "label": "B3-dependent: the model holds P = P_rated with no mechanism, so the state here is not the machine's; alpha up to 30.1 deg on Viterna",
      "B3_dependent": true,
      "v_ms": 20.0,
      "tsr": 3.141592653589793,
@@ -474,9 +473,9 @@
     }
    },
    "timings_s": {
-    "objective": 0.20529989999704412,
-    "moment_evaluation": 0.1267493999985163,
-    "moment_constraint_gradient": 0.12642550000236952
+    "objective": 0.2074097999939113,
+    "moment_evaluation": 0.14288200000009965,
+    "moment_constraint_gradient": 0.1313252999971155
    }
   },
   {
@@ -658,8 +657,7 @@
     "worst_variable": 1,
     "worst_abs_error_over_eps": 22.639265697343838,
     "passes": false,
-    "fragile_only": true,
-    "resolved": true
+    "floor_limited": true
    },
    "taylor": [
     {
@@ -866,7 +864,7 @@
      "moment_over_ref": 1.0030640491215415
     },
     "cut_out": {
-     "label": "B3-dependent: the model holds P = P_rated with no mechanism, so the state here is not the machine's; alpha up to ~28 deg on Viterna",
+     "label": "B3-dependent: the model holds P = P_rated with no mechanism, so the state here is not the machine's; alpha up to 29.3 deg on Viterna",
      "B3_dependent": true,
      "v_ms": 20.0,
      "tsr": 3.141592653589793,
@@ -882,9 +880,15 @@
   }
  ],
  "all_tier3_pass": false,
- "all_tier3_resolved": true,
+ "tier3_failures": [
+  {
+   "point": "unconstrained optimum u*",
+   "variable": "chord_1",
+   "floor_limited": true
+  }
+ ],
  "all_taylor_pass": true,
- "wall_time_s": 56.28634809999858,
+ "wall_time_s": 59.64189679999981,
  "n_moment_solves": 368,
  "objective_evaluations_total": 4,
  "adjoint_evaluations_total": 0
