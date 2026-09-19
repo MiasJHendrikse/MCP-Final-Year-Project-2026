@@ -3,15 +3,16 @@
 partials, and the discrete-adjoint gradient (Phase 3, B1-B3).
 
     state    x = phi_{b,i}     one inflow angle per (operating point, station)
-                               18 x 25 = 450 scalars
+                               17 x 25 = 425 scalars
     design   d in R^10         chord and twist control points
-    R(x; d)  (18, 25)          bem.station.residual at every (b, i)
+    R(x; d)  (17, 25)          bem.station.residual at every (b, i)
     J(x; d)                    -AEP [MWh/yr] assembled from the power
-                               integrand q at the given state
+                               integrand q at the given state, plus the
+                               constant the capped bins contribute
 
 `dR/dx` is diagonal: each station's residual depends on its own `phi` only,
 and `a`, `a'` are explicit functions of `(phi, c, theta)` rather than states
-(`docs/adjoint_derivation.md` §1). The adjoint equation is therefore 450
+(`docs/adjoint_derivation.md` §1). The adjoint equation is therefore 425
 scalar divisions,
 
     psi_{b,i} = -(dJ/dphi_{b,i}) / (dR_{b,i}/dphi_{b,i})
@@ -24,11 +25,18 @@ here accepts per-station values as a design variable.
 Forward solve
 --------------
 `solve(d)` calls `objective.power.aerodynamic_power` once per operating point
-(17 bin midpoints, then the rated speed) and reads `phi` from the returned
-station records. It does not re-implement the root-find and does not solve
-twice. `limited = P_b > P_rated` exactly as `objective.power.power_per_bin`
-flags it; that mask is a fixed input to every derivative (§7 of the
-derivation).
+(the 17 bin midpoints) and reads `phi` from the returned station records. It
+does not re-implement the root-find and does not solve twice. `limited = P_b
+> P_rated` exactly as `objective.power.power_per_bin` flags it, with
+`P_rated` the configured generator rating (`operating.rated_power_w`); that
+mask is a fixed input to every derivative (§7 of the derivation).
+
+The rating is fixed, so a capped bin contributes the constant `-(T/1e6) m_b
+P_rated` to `J` and nothing to any derivative: its weight `omega_b` is zero
+and its 25 states never enter the adjoint. Until 2026-09-19 the cap floated
+with the design (`P_rated = P_aero(V_rated; d)`), the rated speed was an
+eighteenth operating point and the capped mass was carried by its weight;
+`docs/AEP_GAIN_AUDIT.md` §3.2 is why that changed.
 
 Complex safety
 ---------------
@@ -63,10 +71,9 @@ class ForwardState:
     """
     The converged state of one forward solve at design `d`.
 
-    `phi` is (n_points, n_stations) with the rated point in the last row;
-    `power_w` is the unlimited power at every operating point in the same
-    order (so `power_w[-1]` is the rated power); `limited` is the
-    `power_per_bin` mask over the 17 bins.
+    `phi` is (n_points, n_stations), one row per bin midpoint; `power_w` is
+    the unlimited power at every operating point in the same order;
+    `limited` is the `power_per_bin` mask over the 17 bins.
     """
 
     d: np.ndarray
@@ -76,10 +83,6 @@ class ForwardState:
     a: np.ndarray
     reynolds: np.ndarray
     converged: bool
-
-    @property
-    def rated_power_w(self):
-        return float(self.power_w[-1])
 
 
 @dataclass(frozen=True)
@@ -97,7 +100,7 @@ class GradientResult:
 
 class BEMSystem:
     """
-    The residual system and adjoint over the objective's 18 operating points.
+    The residual system and adjoint over the objective's 17 operating points.
 
     Parameters
     ----------
@@ -133,12 +136,13 @@ class BEMSystem:
         self.n_blades = int(self.design.n_blades)
         self.r_hub = float(parameterisation.root_fraction * parameterisation.radius_m)
 
-        # Operating points: the 17 bin midpoints, then the rated solve.
+        # Operating points: the 17 bin midpoints. The rating is a number from
+        # config, so nothing is solved at the rated wind speed.
         edges, midpoints, _width = wind_speed_bins()
-        self.speeds = [float(v) for v in midpoints] + [float(self.design.rated_wind_speed_ms)]
+        self.speeds = [float(v) for v in midpoints]
         self.n_bins = len(midpoints)
         self.n_points = len(self.speeds)
-        self.rated = self.n_points - 1
+        self.p_rated = float(self.design.rated_power_w)
         self.mass = np.asarray(resource.probability_between(edges[:-1], edges[1:]), dtype=float)
 
         # Station constants: radii as `to_geometry` hands them to the solver
@@ -210,7 +214,7 @@ class BEMSystem:
             raise RuntimeError(f"forward solve did not converge at d = {d.tolist()}")
 
         power = np.array(power)
-        limited = power[:self.n_bins] > power[self.rated]
+        limited = power > self.p_rated
         return ForwardState(d=d, phi=np.array(phi), power_w=power, limited=limited,
                             a=np.array(a), reynolds=np.array(reynolds), converged=True)
 
@@ -294,24 +298,28 @@ class BEMSystem:
     def limited_mask(self, power):
         """`P_b > P_rated` over the bins, decided on the real part."""
 
-        power = np.asarray(power)
-        return np.real(power[:self.n_bins]) > np.real(power[self.rated])
+        return np.real(np.asarray(power)) > self.p_rated
 
     def weights(self, limited):
         """
         `omega_b`: the weight each operating point's power carries in `J`.
 
-            omega_b     = -(T/1e6) m_b        unlimited bin
-            omega_b     = 0                   limited bin (its own solve does not enter J)
-            omega_rated = -(T/1e6) sum_{limited} m_b
+            omega_b = -(T/1e6) m_b        unlimited bin
+            omega_b = 0                   limited bin (its own solve does not enter J)
+
+        The limited bins' energy is the constant `J_capped(limited)`; it is
+        not a weight on any state.
         """
 
         limited = np.asarray(limited, dtype=bool)
         factor = -HOURS_PER_YEAR / 1e6
-        omega = np.zeros(self.n_points)
-        omega[:self.n_bins] = np.where(limited, 0.0, factor * self.mass)
-        omega[self.rated] = factor * float(self.mass[limited].sum())
-        return omega
+        return np.where(limited, 0.0, factor * self.mass)
+
+    def J_capped(self, limited):
+        """`-(T/1e6) P_rated sum_{limited} m_b`: what the capped bins add to `J`."""
+
+        limited = np.asarray(limited, dtype=bool)
+        return -HOURS_PER_YEAR / 1e6 * self.p_rated * float(self.mass[limited].sum())
 
     def J(self, phi, d, limited=None):
         """
@@ -325,7 +333,8 @@ class BEMSystem:
         if limited is None:
             limited = self.limited_mask(power)
         omega = self.weights(limited)
-        return sum(omega[b] * power[b] for b in range(self.n_points))
+        return (sum(omega[b] * power[b] for b in range(self.n_points))
+                + self.J_capped(limited))
 
     def dJ_dx(self, phi, d, limited=None, parts=None):
         """`dJ/dphi_{b,i} = omega_b Omega_b t_i dq_{b,i}/dphi`, shape (n_points, n_stations)."""
@@ -398,7 +407,7 @@ class BEMSystem:
         `dJ/dd` by the discrete adjoint at design `d`.
 
         One forward solve (or the one passed in as `state`), the partials at
-        every station, 450 divisions for `psi`, one assembly.
+        every station, 425 divisions for `psi`, one assembly.
         """
 
         state = self.solve(d) if state is None else state
@@ -412,7 +421,7 @@ class BEMSystem:
         total = explicit + self.apply_dR_dd_T(parts, psi)
 
         power = self.powers_from_q(parts["q"])
-        J = float(np.sum(self.weights(limited) * power))
+        J = float(np.sum(self.weights(limited) * power)) + self.J_capped(limited)
         return GradientResult(dJ_dd=total, dJ_dd_explicit=explicit, psi=psi,
                               dR_dx=dR_dx, dJ_dx=dJ_dx, state=state, J=J)
 

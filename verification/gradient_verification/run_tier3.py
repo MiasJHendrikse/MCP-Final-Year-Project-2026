@@ -88,7 +88,7 @@ REL_TRIPWIRE = 1e-3        # gross-error tripwire on |adj - FD| / |FD|
 TAYLOR_STEPS = (1e-2, 1e-3, 1e-4)
 TAYLOR_MIN_RATIO = 30.0
 TAYLOR_DRAWS = 3
-MID_ITERATE = 17
+MID_ITERATE = 13  # nit / 2 of the fixed-rating A4 run (27 iterations); was 17 of 34
 
 
 def load_x0():

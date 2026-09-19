@@ -38,6 +38,26 @@ operating:
   cut_in_wind_speed_ms: 3.0     # deliberately low for a low-wind site
   cut_out_wind_speed_ms: 20.0
 
+  # Generator rating, W (aerodynamic shaft power -- no drivetrain efficiency
+  # is applied anywhere in the objective). Above rated the objective holds
+  # power at THIS number, not at whatever the current blade happens to make at
+  # 11 m/s. A nameplate does not get bigger because the blade got better;
+  # letting it float credited the optimiser with a larger generator, and that
+  # was worth 0.096 of the +0.217 % floating-cap gain (docs/AEP_GAIN_AUDIT.md
+  # section 1.2, section 3.2).
+  #
+  # PROVISIONAL BASIS, recorded so it can be checked, not chosen: this is
+  # P_aero(11 m/s; x0), the Schmitz baseline's own aerodynamic power at the
+  # rated wind speed under the design TSR and the site atmosphere
+  # (verification/baseline/x0.json), at full precision so the baseline's AEP
+  # is unchanged by the switch. tests/test_baseline.py asserts the agreement
+  # and is retired when a nameplate lands. It stands in for the generator's
+  # nameplate rating, which is outstanding input B2 (docs/OUTSTANDING-INPUTS.md
+  # section 9). When B2 is answered this value is replaced and every
+  # optimisation artefact re-runs; nothing here should be read as "the
+  # machine is a 3.8 kW machine".
+  rated_power_w: 3822.189755449124
+
 # ---------------------------------------------------------------------------
 # Parameterisation -- plan section 4
 # ---------------------------------------------------------------------------

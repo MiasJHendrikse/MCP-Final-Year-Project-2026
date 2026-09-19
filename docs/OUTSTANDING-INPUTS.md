@@ -22,8 +22,11 @@ from here in the same commit that fills it.
 > them with, what evidence to regenerate, and how to tell whether the result is
 > actually right rather than merely green.
 
-Last reviewed: **2026-09-14**. Phases 1–3 are complete; the list below is
-what gates Phases 4 and 5. **The three machine facts in section 9 are now the
+Last reviewed: **2026-09-19**. Phases 1–3 are complete; the list below is
+what gates Phases 4 and 5. Since the 14th: the generator rating is **frozen
+in code** (audit recommendation 2, section 9 below) at a provisional,
+baseline-derived value, so B2 now asks for a number to *replace* a
+placeholder rather than for a modelling decision. **The three machine facts in section 9 are now the
 most consequential entries** — they decide the structure of the production
 objective, and with it whether the headline result is "+0.2 %, the
 optimiser confirms Schmitz" or a multi-% gain over it.
@@ -291,6 +294,19 @@ results chapter. Not needed for Phase 4.
 
 **Where it goes:** `config/rotor_design.yaml` (operating strategy fields) and
 `src/objective/power.py::power_per_bin`; then A3/A4/B3/B5 re-run.
+
+**B2 is half-done as of 2026-09-19.** The cap no longer floats: `power_per_bin`
+holds power above rated at `operating.rated_power_w` from the config, and the
+adjoint carries the capped bins as a constant (`adjoint.system.BEMSystem.
+J_capped`). The value in the file is **provisional** — `P_aero(11 m/s; x0) =
+3822.189755449124 W`, the Schmitz baseline's own aerodynamic power at the
+rated wind speed, recorded at full precision so the baseline's AEP did not
+move — and `tests/test_baseline.py::
+test_configured_rating_is_the_baselines_aerodynamic_rated_power` pins it to
+that basis. What B2 still needs is the nameplate, which replaces the number
+(and retires that test); A3/A4/B3/B5 and the multi-start then re-run once
+more. A3/A4/B3/B4/B5 have already been re-run under the frozen provisional
+rating; the current-model gain is **+0.121 %** and every artefact says so.
 
 | # | fact | why it matters | measured sensitivity (audit §3, provisional bounds, fixed rating) |
 |---|---|---|---|

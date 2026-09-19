@@ -1,10 +1,10 @@
 """
 Wind-speed bins and the operating strategy: P(V; d) (plan step 1.5).
 
-Everything here is independent of the wind resource. The Weibull parameters
-are still `TODO` (see `docs/OUTSTANDING-INPUTS.md`), but the bin scheme, the
-operating strategy and the per-bin power are not blocked by that, and step
-1.8's smoothness gate needs them.
+Everything here is independent of the wind resource: the bin scheme, the
+operating strategy and the per-bin power are the same whatever `k` and `c`
+are, which is what let step 1.8's smoothness gate run before the resource
+landed (it did, 2026-09-13).
 
 Bin scheme, fixed and documented
 ---------------------------------
@@ -27,18 +27,30 @@ Operating strategy (plan step 1.5)
 Below rated: fixed tip-speed ratio at the design value, lambda = 6.5. Rotor
 speed tracks the wind.
 
-Above rated: **simple power limiting**. Power is held at the value the rotor
-produces at the rated wind speed, i.e.
+Above rated: **simple power limiting at the generator rating**,
 
-    P(V; d) = min( P_aero(V; d), P_aero(V_rated; d) )
+    P(V; d) = min( P_aero(V; d), P_rated )
 
-Two things about this are worth stating because they matter to the smoothness
-gate. It puts a kink in P against *V* -- deliberately, that is what limiting
-is. It does **not** put a kink in P against *d* for the bins above rated,
-because every one of them takes the value P_aero(V_rated; d), which is smooth
-in d. A kink in d appears only if a *below*-rated bin crosses the limit as d
-moves, and that is a real feature of the objective the gate should reveal
-rather than something to be smoothed away in advance.
+with `P_rated` a fixed number from `config/rotor_design.yaml`
+(`operating.rated_power_w`), not a function of the blade.
+
+Until 2026-09-19 the cap floated with the design, `P_rated = P_aero(V_rated;
+d)`, so a blade that made more power at 11 m/s was credited with a larger
+generator at every wind speed above it. The AEP-gain audit
+(`docs/AEP_GAIN_AUDIT.md` sections 1.2 and 3.2) measured that at 0.096 of the
++0.217 % floating-cap gain -- 42 % of this site's energy is in the capped
+region -- and found the floating rating the less defensible model: a
+nameplate does not grow because the blade got better. The rating is now
+frozen; its current value is provisional (the baseline's own `P_aero(11 m/s;
+x0)`, pending the nameplate, outstanding input B2) and the config says so.
+
+Two things about this matter to the smoothness gate and the adjoint. It puts
+a kink in P against *V* -- deliberately, that is what limiting is. Against
+*d*, a capped bin is a **constant**: its own solve does not enter J at all,
+and dJ/dx for that bin is exactly zero (`adjoint.system.BEMSystem.weights`).
+A kink in d appears only if a bin crosses the fixed cap as d moves, and that
+is a real feature of the objective the gate should reveal rather than
+something to be smoothed away in advance.
 
 No generator, gearbox or electrical efficiency is applied. This is aerodynamic
 rotor power, as `bem.powercurve` documents; a drivetrain model would multiply
@@ -100,16 +112,19 @@ def power_per_bin(geometry, tip_speed_ratio=None):
     Returns
     -------
     dict
-        `midpoints`, `power_w` (limited), `power_unlimited_w`, `rated_power_w`,
+        `midpoints`, `power_w` (limited), `power_unlimited_w`, `rated_power_w`
+        (the configured rating, the same number for every design),
         `limited` (bool per bin), `converged` (bool per bin), and
         `all_converged`.
 
     Notes
     -----
-    The rated power is computed by solving at the rated wind speed rather than
-    by taking the largest below-rated bin: the limit is a property of the
-    machine at its rated point, and reading it off the bin grid would make the
-    objective depend on where the bins happen to fall.
+    The rating is read from config and nothing here solves at the rated wind
+    speed: the limit is a property of the machine, not of the blade under
+    evaluation, and not of where the bins happen to fall. Whether the blade
+    actually reaches the rating at `V_rated` is a reporting question
+    (`aerodynamic_power(geometry, design.rated_wind_speed_ms, ...)`), not
+    part of the objective.
     """
 
     design = load_design_rotor()
@@ -117,12 +132,11 @@ def power_per_bin(geometry, tip_speed_ratio=None):
     tip_speed_ratio = design.design_tsr if tip_speed_ratio is None else tip_speed_ratio
     air = (site.air_density, site.kinematic_viscosity)
 
-    rated_power, rated_result = aerodynamic_power(
-        geometry, design.rated_wind_speed_ms, tip_speed_ratio, *air)
+    rated_power = float(design.rated_power_w)
 
     _edges, midpoints, _width = wind_speed_bins()
 
-    unlimited, converged = [], [rated_result["converged"]]
+    unlimited, converged = [], []
     for v_inf in midpoints:
         power, result = aerodynamic_power(geometry, float(v_inf),
                                           tip_speed_ratio, *air)

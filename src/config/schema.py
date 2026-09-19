@@ -86,6 +86,13 @@ class DesignRotorConfig:
     """
     The optimisation subject (plan sections 1.4, 2.2). Deliberately carries no
     air properties -- those are the site's, from `SiteConfig`.
+
+    `rated_power_w` is the generator rating the objective holds power at
+    above rated. It is a property of the machine, not of the blade: the
+    objective must never recompute it from the design being evaluated. Its
+    current value is provisional (the baseline's own aerodynamic power at the
+    rated wind speed, pending the nameplate -- outstanding input B2) and the
+    YAML says so.
     """
 
     name: str
@@ -95,6 +102,7 @@ class DesignRotorConfig:
     root_fraction: float
     design_tsr: float
     rated_wind_speed_ms: float
+    rated_power_w: float
     cut_in_wind_speed_ms: float
     cut_out_wind_speed_ms: float
     parameterisation: ParameterisationConfig

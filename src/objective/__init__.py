@@ -7,10 +7,10 @@ and this package owns the last three links.
 
   `power`      wind-speed bins, the operating strategy, and P(V; d) with the
                rated-power limit applied.
-  `weibull`    the wind-speed distribution. Its two parameters are still TODO,
-               so `from_config()` raises -- see docs/OUTSTANDING-INPUTS.md.
+  `weibull`    the wind-speed distribution, from `config/site.yaml`
+               (`k = 1.709`, `c = 7.274 m/s` at 20 m since 2026-09-13).
   `objective`  AEP, J(d) = -AEP(d), and the unit-weighted surrogate the
-               smoothness gate runs on while the resource is outstanding.
+               smoothness gate ran on while the resource was outstanding.
 
 Author: MJ Hendrikse
 Project: DSP810S -- Inverse Design of Small Wind Turbine Blades

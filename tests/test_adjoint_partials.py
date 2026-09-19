@@ -13,14 +13,14 @@ root-finds -- and through `BEMSystem.J`, which is pinned to
 
     dR/dphi     complex phi into station.residual, every (b, i)
     dR/dd_j     complex d -> complex chord, twist, Reynolds -> station.residual
-    dJ/dphi     complex phi_{b,i} into J, every (b, i)   (450 evaluations)
+    dJ/dphi     complex phi_{b,i} into J, every (b, i)   (425 evaluations)
     dJ/dd_j     complex d into J
 
 at `x0` and at a perturbed design (chord x 1.2, twist + 3 deg), so the
 partials are not verified at one lucky point.
 
 The assertion is mixed, `|err| <= 1e-13 max(1, |partial|)` (`1e-12` for `J`,
-a 450-term sum), so a partial that is legitimately ~0 is judged on absolute
+a 425-term sum), so a partial that is legitimately ~0 is judged on absolute
 error and one that is O(10) on relative. A plateau near 1e-6 would mean a
 real dtype somewhere on the path, not mathematics. **Failure here is a bug:
 fix it, never loosen the tolerance.**
@@ -234,8 +234,9 @@ def test_dR_dd_twist_columns_have_no_reynolds_path(system, state, parts):
 # ---------------------------------------------------------------------------
 
 def test_dJ_dphi_matches_complex_step_at_every_station(system, state, parts):
-    """450 complex steps of `J`, one per (b, i): the limited bins' entries
-    must be exactly zero, the rated point's carry the limited mass."""
+    """425 complex steps of `J`, one per (b, i): the limited bins' entries
+    must be exactly zero (the rating is a configured constant, so a capped
+    bin's state does not enter J), every unlimited bin's non-zero."""
 
     dJ_dx = system.dJ_dx(state.phi, state.d, state.limited, parts)
     assert dJ_dx.shape == (system.n_points, system.n_stations)
@@ -250,7 +251,7 @@ def test_dJ_dphi_matches_complex_step_at_every_station(system, state, parts):
     limited_rows = np.flatnonzero(state.limited)
     assert np.all(dJ_dx[limited_rows] == 0.0)
     assert np.all(estimate[limited_rows] == 0.0)
-    assert np.any(dJ_dx[system.rated] != 0.0)
+    assert np.all(np.any(dJ_dx[~state.limited] != 0.0, axis=1))
 
 
 def test_dJ_dd_matches_complex_step(system, state, parts):
