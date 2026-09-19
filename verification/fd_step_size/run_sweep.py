@@ -34,9 +34,10 @@ units as the sweep) or `gradient_mwh_per_u` (MWh/yr per unit `u`; converted
 with the sweep's own `J0`). This is how the Tier 3 adjoint is compared to the
 whole sweep later without spending another 300 evaluations.
 
-Provisional bounds: `chord_max_m = 0.45 m` is a placeholder pending the
-hub-radius / root-attachment decision; the scaling `u = (d - lo)/span` and
-therefore every gradient here is stated under provisional bounds.
+Bounds: the configured set (`DesignBounds.from_config()`), grounded
+2026-09-19 -- `chord_max_m = 0.30 m`. The scaling `u = (d - lo)/span` and
+therefore every gradient here is stated under those bounds; the 0.45 m
+placeholder is retired.
 
 Run from the repo root (about 65 s):
 

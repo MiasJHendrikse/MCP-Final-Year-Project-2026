@@ -35,9 +35,9 @@ Outputs, next to this script: `tier3.json`, `adjoint_x0.json` (the
 reference file for `run_sweep.py --reference`), `v_curve_vs_adjoint.png`,
 `tier3_agreement.png`, and `README.md` (by hand, from the JSON).
 
-Provisional bounds: `chord_max_m = 0.45 m` is a placeholder pending the
-hub-radius / root-attachment decision; the scaling and every gradient here
-are under provisional bounds.
+Bounds: the configured set (`DesignBounds.from_config()`), grounded
+2026-09-19 -- `chord_max_m = 0.30 m`. The scaling and every gradient here
+are stated under those bounds; the 0.45 m placeholder is retired.
 
 Run from the repo root (about 1.5 min):
 
@@ -86,7 +86,7 @@ REL_TRIPWIRE = 1e-3        # gross-error tripwire on |adj - FD| / |FD|
 TAYLOR_STEPS = (1e-2, 1e-3, 1e-4)
 TAYLOR_MIN_RATIO = 30.0
 TAYLOR_DRAWS = 3
-MID_ITERATE = 13  # nit / 2 of the fixed-rating A4 run (27 iterations); was 17 of 34
+MID_ITERATE = 17  # nit / 2 of the 300 rpm A4 run (35 iterations); was 13 of 27
 
 
 def load_x0():

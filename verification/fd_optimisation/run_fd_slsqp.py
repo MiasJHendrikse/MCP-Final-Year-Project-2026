@@ -4,6 +4,8 @@ Phase 2, Stage A4: FD-driven SLSQP, end to end.
     minimise   fun(u) = J(u) / |J(u0)|,   J = -AEP [MWh/yr]
     over       u in [0, 1]^10
     subject to the polar-cache Reynolds envelope (linear, 50 rows, margin 5 %)
+               and the configured local-solidity cap (25 rows, inactive while
+               chord_max_m = 0.30 m binds first) -- `problem.constraints()`
     gradient   central finite differences at the global h* from
                verification/fd_step_size/sweep.json
 
@@ -23,9 +25,10 @@ Sanity gates (the implementation plan §5 A4): the expected AEP improvement is
 from 0.05 to 0.10 once, recorded, and the run restarted. A second failure
 propagates.
 
-Provisional bounds: `chord_max_m = 0.45 m` is a placeholder pending the
-hub-radius / root-attachment decision; the optimum is "under provisional
-bounds" in every artefact here.
+Bounds: the configured set (`DesignBounds.from_config()`), grounded
+2026-09-19 -- `chord_max_m = 0.30 m` binds, `chord_min_m`, `twist_min_rad`
+and `twist_max_rad` as in `config/`. `BOUNDS_LABEL` is stamped into every
+artefact this script writes; the 0.45 m placeholder is retired.
 
 Run from the repo root:
 
@@ -154,7 +157,7 @@ class Recorder:
 
 
 def run(problem, u0, h, maxiter, ftol):
-    envelope = problem.envelope_constraint()
+    constraints = problem.constraints()
     recorder = Recorder(problem, h)
 
     value0 = recorder.fun(u0)
@@ -166,7 +169,7 @@ def run(problem, u0, h, maxiter, ftol):
     result = minimize(
         recorder.fun, u0, jac=recorder.jac, method="SLSQP",
         bounds=Bounds(np.zeros(problem.n), np.ones(problem.n)),
-        constraints=[envelope],
+        constraints=constraints,
         options=dict(ftol=ftol, maxiter=maxiter, disp=True),
         callback=recorder.callback,
     )
@@ -305,6 +308,7 @@ def main(argv=None):
         "active_envelope_rows": active_env,
         "envelope_min_row_value_m": float(g_env.min()),
         "envelope_min_row": labels[int(np.argmin(g_env))],
+        "active_set": problem.active_set(u_star),
         "post_check_x0": post0,
         "post_check_optimum": post,
     }

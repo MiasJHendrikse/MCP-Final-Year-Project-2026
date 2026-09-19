@@ -1,16 +1,23 @@
 # Spline-fit error of the Schmitz baseline (PROJECT_DIRECTION_v2 §7.3 point 4)
 
-**Under provisional bounds: `chord_max_m = 0.45 m` is provisional** (pending
-the hub-radius / root-attachment decision). The A4 gain quoted below is
-under those bounds. This study itself uses no bound.
+**Bounds:** the AEP comparison quoted below uses A4's optimum, which is now
+found under the configured bounds in `config/rotor_design.yaml`
+(`chord_max_m = 0.30 m`, resolved 2026-09-19; `chord_min_m`, `twist_min_deg`,
+`twist_max_deg` grounded 2026-09-13). This study's *fit error* itself uses no
+bound.
 
-**Re-run 2026-09-19 under the fixed generator rating.** The fit error is a
-property of `x0` and is unchanged. The AEP comparison is not: with the cap
-floating, the analytic blade was credited with its *own* slightly higher
-`P_aero(11 m/s)` as its rating, which was 0.013 % of the 0.031 %
-representation difference recorded on 2026-09-13; under one rating for all
-three blades the representation difference is −0.018 % and A4's gain is
-+0.121 %. Same conclusion, smaller numbers.
+**History of the AEP comparison.** 2026-09-13 (floating cap): the analytic
+blade was credited with its *own* slightly higher `P_aero(11 m/s)` as its
+rating, so baseline and optimum were measured against different ratings and
+the representation difference came out at −0.031 %. 2026-09-19 (fixed
+rating): one rating for all three blades, −0.018 % and +0.121 %.
+**Re-run again later on 2026-09-19 under the 300 rpm operating law and the
+configured bounds:** the representation difference is −0.0154 % and A4's gain
+is **+0.1467 %**, ratio **9.5 ×** — same conclusion, and the gap widened
+because the optimiser has more room to work under the tighter box.
+
+The fit error is a property of `x0` alone and is unchanged by any of this;
+`x0_rebuild_max_abs_diff = 0` in `fit_error.json`.
 
 ## What was run
 
@@ -53,32 +60,32 @@ Three blades, one solver, one resource, one set of corrections:
 
 | blade | AEP [MWh/yr] |
 |---|---|
-| analytic Schmitz (station values straight from the formulas) | 10.271999 |
-| `x0` = its spline projection | 10.270157 |
-| A4 FD-SLSQP optimum | 10.282564 |
+| analytic Schmitz (station values straight from the formulas) | 10.249287 |
+| `x0` = its spline projection | 10.247707 |
+| A4 FD-SLSQP optimum | 10.262736 |
 
 | difference | MWh/yr | % |
 |---|---|---|
-| representation: `x0` − analytic | **−0.001842** | **−0.018 %** |
-| optimisation: optimum − `x0` | **+0.012407** | **+0.121 %** |
-| ratio | | **6.7×** |
+| representation: `x0` − analytic | **−0.001580** | **−0.0154 %** |
+| optimisation: optimum − `x0` | **+0.015029** | **+0.1467 %** |
+| ratio | | **9.5×** |
 
 **No — the fit error does not explain the gain.** The projection onto the
-spline costs the Schmitz blade 0.018 % of AEP; the optimiser gained 0.121 %
-over the projected blade, nearly seven times more. Even if the optimiser had
+spline costs the Schmitz blade 0.015 % of AEP; the optimiser gained 0.147 %
+over the projected blade, nearly ten times more. Even if the optimiser had
 done nothing but undo the projection error it could only have recovered
-0.018 %; the remaining 0.103 % is above the *analytic* Schmitz blade
+0.015 %; the remaining 0.131 % is above the *analytic* Schmitz blade
 evaluated by the same solver. That is also visible in the shapes: the
-optimiser moved the chord by up to 19 mm (RMS 6 mm) and the twist by up to
-2.2° (RMS 0.62°), against fit errors of 1.5 mm and 0.27° — the optimum is
-not the analytic blade found again, it is a different blade (thinner tip
-twisted down onto the −2° bound; see
-`verification/fd_optimisation/README.md`).
+optimiser moved the chord by up to 21.3 mm (RMS 12.3 mm) and the twist by up
+to 2.02° (RMS 0.97°), against fit errors of 1.5 mm and 0.27° — the optimum is
+not the analytic blade found again, it is a different blade (a thicker root
+pinned to the 0.30 m bound with a thinner outboard chord and the tip twisted
+down to −1.85°; see `verification/fd_optimisation/README.md`).
 
-What the numbers *do* say about the gain being small (0.12 % against the
+What the numbers *do* say about the gain being small (0.147 % against the
 2–6 % expected in §7.4): the baseline is a fair one. §7.3's requirement was
 that the only difference between baseline and optimum be the optimisation
-itself; the representation difference is 0.02 %, a seventh of the effect
+itself; the representation difference is 0.015 %, a tenth of the effect
 being measured, and it works *against* the baseline (the spline is slightly
 worse than the analytic curve), so it cannot have inflated the gain. The
 small gain is a property of the objective and starting point, not of the

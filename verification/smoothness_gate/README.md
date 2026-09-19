@@ -8,6 +8,18 @@ python verification/smoothness_gate/run_gate.py [--points N]
 ```
 → `smoothness_gate.json`, `smoothness_gate.png` (~11 min at 300 points)
 
+**Not re-run in the 2026-09-19 sweep of the optimisation artefacts.** The
+committed numbers are from 2026-09-13 and therefore predate two later changes
+to the objective: the generator rating fixed at `x0`'s own nameplate
+(2026-09-19) and the 300 rpm rotor-speed ceiling (`max_rotor_speed_rpm`,
+2026-09-19). The gate sweeps the 10 design variables, so those two changes
+*do* move its numbers; they do not move its **verdict**, which is structural —
+the single C² defect is the Buhl correction's blend at `a = 0.4`, a property of
+the induction model rather than of the power law or the schedule. Re-running it
+costs ~11 min and is the natural closing step of Phase 4 (plan step 2), where
+the bound-aware sweep ranges replace the "chord ±40 % of `x₀`" ranges this run
+used.
+
 **Verdict: PASSED, with one documented non-smoothness.** `J` is **C¹ but not
 C²**. That is sufficient for the adjoint and for finite-difference
 verification, which is what Phase 2 and Phase 3 need. The C² defect is inherent

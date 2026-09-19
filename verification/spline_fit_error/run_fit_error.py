@@ -23,8 +23,8 @@ What this script measures
 Outputs next to this script: `fit_error.json`, `fit_error.png`, and the
 README written from them.
 
-Provisional bounds: `chord_max_m = 0.45 m` is a placeholder pending the
-hub-radius / root-attachment decision; A4's gain is under provisional bounds.
+Bounds: the configured set (`DesignBounds.from_config()`), grounded
+2026-09-19 -- `chord_max_m = 0.30 m`; A4's gain is stated under those bounds.
 
 Run from the repo root (~5 s):
 

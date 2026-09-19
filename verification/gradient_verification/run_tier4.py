@@ -37,8 +37,8 @@ side. Nothing left unexplained.
 Outputs, next to this script: `tier4.json`, `tier4_attribution.png`, and
 the Tier 4 section of `README.md` (by hand, from the JSON).
 
-Provisional bounds: `chord_max_m = 0.45 m` is a placeholder pending the
-hub-radius / root-attachment decision.
+Bounds: the configured set (`DesignBounds.from_config()`), grounded
+2026-09-19 -- `chord_max_m = 0.30 m`; the 0.45 m placeholder is retired.
 
 Run from the repo root (about 1 min):
 
@@ -254,31 +254,50 @@ def analyse_point(problem, point, sweep_steps, alpha_nodes, re_rows, names, a3_s
     # Buhl contribution, with its sign.
     def _is_clean(r):
         return (r["alpha_knot_crossings"] + r["reynolds_row_crossings"] + r["buhl_crossings"]) == 0
+
+    # Window: crossing-free steps whose error is well clear of the round-off
+    # floor, i.e. steps that are genuinely truncation-dominated. If no step
+    # clears that bar the truncation regime is not observable at this point:
+    # no law is reported rather than a fit through pure round-off, and the
+    # reason is recorded in place of the coefficient.
     fit_rows = [r for r in sweep_rows if _is_clean(r) and r["abs_error_mwh_per_u"]
                 and r["abs_error_mwh_per_u"] > 30.0 * r["roundoff_floor_mwh_per_u"]]
-    C = float(np.exp(np.mean([math.log(r["abs_error_mwh_per_u"] / r["h"] ** 2) for r in fit_rows])))
+    fit_rule = "crossing-free and above 30x the round-off floor"
+    C = (float(np.exp(np.mean([math.log(r["abs_error_mwh_per_u"] / r["h"] ** 2)
+                               for r in fit_rows]))) if fit_rows else None)
+    if C is None:
+        fit_rule = ("no law fitted: no crossing-free step rises clear of its round-off floor, "
+                    "so the O(h^2) truncation regime is not observable at this point")
     for r in sweep_rows:
-        r["smooth_h2_prediction_mwh_per_u"] = C * r["h"] ** 2
+        r["smooth_h2_prediction_mwh_per_u"] = None if C is None else C * r["h"] ** 2
         r["crossing_free"] = _is_clean(r)
-        r["excess_over_h2_mwh_per_u"] = (None if r["abs_error_mwh_per_u"] is None
+        r["excess_over_h2_mwh_per_u"] = (None if C is None or r["abs_error_mwh_per_u"] is None
                                          else r["abs_error_mwh_per_u"] - C * r["h"] ** 2)
-    crossing_rows = [r for r in sweep_rows if not r["crossing_free"] and r["excess_over_h2_mwh_per_u"] is not None]
+    crossing_rows = [r for r in sweep_rows
+                     if not r["crossing_free"] and r["abs_error_mwh_per_u"] is not None]
     buhl_rows = [r for r in crossing_rows if r["buhl_crossings"] > 0]
-    smallest_crossing_h = min(r["h"] for r in crossing_rows)
+    excesses = [r["excess_over_h2_mwh_per_u"] for r in crossing_rows
+                if r["excess_over_h2_mwh_per_u"] is not None]
+    smallest_crossing_h = min(r["h"] for r in crossing_rows) if crossing_rows else None
     smallest_buhl_h = min(r["h"] for r in buhl_rows) if buhl_rows else None
 
+    law = ("no law fitted" if C is None
+           else f"C = {C:.3e} fitted on {len(fit_rows)} steps")
     print(f"  {name}: truncation-side slope d log|err| / d log h = {slope:.2f} over h >= 1e-4 "
-          f"(2 = smooth O(h^2); 1 = crossing-dominated O(h)); smooth law C h^2 with "
-          f"C = {C:.3e} fitted on {len(fit_rows)} crossing-free steps")
+          f"(2 = smooth O(h^2); 1 = crossing-dominated O(h)); smooth law C h^2: {law} "
+          f"({fit_rule})")
     for r in sweep_rows:
         e = r["abs_error_mwh_per_u"]
         x = r["excess_over_h2_mwh_per_u"]
+        p = r["smooth_h2_prediction_mwh_per_u"]
         print(f"    h={r['h']:.0e}  |FD-adj|={'   n/a  ' if e is None else f'{e:.2e}'}  "
-              f"h^2 law={r['smooth_h2_prediction_mwh_per_u']:.1e}  "
+              f"h^2 law={'  n/a ' if p is None else f'{p:.1e}'}  "
               f"excess={'   n/a  ' if x is None else f'{x:+.1e}'}  "
               f"floor={r['roundoff_floor_mwh_per_u']:.1e}  knots {r['alpha_knot_crossings']:3d}  "
               f"Re {r['reynolds_row_crossings']:3d}  Buhl {r['buhl_crossings']:3d}")
-    print(f"  smallest step with any crossing: {smallest_crossing_h:.0e}; with a Buhl crossing: "
+    print(f"  smallest step with any crossing: "
+          f"{'none' if smallest_crossing_h is None else f'{smallest_crossing_h:.0e}'}; "
+          f"with a Buhl crossing: "
           f"{'none' if smallest_buhl_h is None else f'{smallest_buhl_h:.0e}'}; h* = {h_star[j]:.0e}")
 
     return {
@@ -301,10 +320,13 @@ def analyse_point(problem, point, sweep_steps, alpha_nodes, re_rows, names, a3_s
         "roundoff_floor_at_clean_step_mwh_per_u": float(delta_J / h_clean),
         "truncation_side_slope": slope,
         "smooth_h2_coefficient": C,
+        "smooth_h2_fit_rule": fit_rule,
         "smooth_h2_fit_steps": [r["h"] for r in fit_rows],
-        "smallest_step_with_any_crossing": float(smallest_crossing_h),
+        "smallest_step_with_any_crossing": (None if smallest_crossing_h is None
+                                            else float(smallest_crossing_h)),
         "smallest_step_with_buhl_crossing": smallest_buhl_h,
-        "max_abs_excess_at_crossing_steps_mwh_per_u": float(max(abs(r["excess_over_h2_mwh_per_u"]) for r in crossing_rows)),
+        "max_abs_excess_at_crossing_steps_mwh_per_u": (None if not excesses
+                                                       else float(max(abs(x) for x in excesses))),
         "excess_at_buhl_steps_mwh_per_u": [[r["h"], r["excess_over_h2_mwh_per_u"]] for r in buhl_rows],
         "sweep_worst_variable": sweep_rows,
         "n_stations_above_buhl": int(np.sum(state.a > BUHL_AC)),

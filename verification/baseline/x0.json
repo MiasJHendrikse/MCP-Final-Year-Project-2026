@@ -35,10 +35,22 @@
   "twist_rms_fit_error_deg": 0.1060685944716805
  },
  "feasibility": {
-  "checked": false,
-  "reason": "design-variable bounds are still TODO in config/rotor_design.yaml: chord_min_m, chord_max_m, twist_min_deg, twist_max_deg. Plan section 7.1 requires them to come from a manufacturability study, not from a default. See docs/OUTSTANDING-INPUTS.md. Pass explicit values to DesignBounds(...) for a study that states its own provisional range.",
+  "checked": true,
+  "reason": null,
   "clipped": false,
-  "violations": []
+  "violations": [],
+  "clipped_vector": [
+   0.27579071642734754,
+   0.18161320987881632,
+   0.09713355431852173,
+   0.07864351363070732,
+   0.06700234064946949,
+   0.4281306164915448,
+   0.16975885372514066,
+   0.0705030380285644,
+   0.01746444725446997,
+   0.010223752012068798
+  ]
  },
  "rotor": {
   "radius_m": 2.0,

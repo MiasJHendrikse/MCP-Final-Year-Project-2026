@@ -31,7 +31,16 @@ were `TODO`. They resolved on 2026-09-13, so `evaluate_baseline` now reports a
 real `aep_mwh_per_year` alongside the wind-resource-independent numbers
 (Cp-lambda, spanwise loading, root bending moment, peak thrust), together with
 whether it falls in plan 1.4's sanity band (revised to 8-12 MWh/yr on
-2026-09-13; it does, at 10.27).
+2026-09-13; it does, at 10.25 under the 2026-09-19 operating law).
+
+THE OPERATING LAW MOVED ON 2026-09-19 (B1: 300 rpm, so V_tip,max = 62.83 m/s
+and V_c = 9.67 m/s). `evaluate_baseline` used to sweep the operating line at
+the design tip-speed ratio and solve the design point at `lambda = 6.5` at
+11 m/s -- 341 rpm, a speed this machine cannot reach. The line and the design
+point now both come from `objective.power.tsr_schedule`, so this artefact and
+the objective cannot disagree about which lambda a wind speed runs at. The
+old headlines (Cp 0.4720, 206.7 N.m, 597.2 N at lambda = 6.5) are kept as
+history in `verification/baseline/README.md`.
 
 A NOTE ON HOW THAT WAS WIRED, because it is the kind of thing that should not
 recur. Until 2026-09-13 this module did not import the objective at all: the
@@ -58,6 +67,7 @@ from config import load_design_rotor, load_site
 from config.unresolved import UnresolvedConfigError
 from design.bounds import DesignBounds
 from design.parameterisation import BladeParameterisation
+from objective.power import tsr_schedule
 from design.schmitz import (
     DEFAULT_DESIGN_REYNOLDS,
     max_lift_to_drag_point,
@@ -205,11 +215,19 @@ def evaluate_baseline(baseline, wind_speeds=None, tsr_values=None,
     """
     The reference numbers, everything that does not need the wind resource.
 
-    The operating line is fixed tip-speed ratio from cut-in to rated, which is
-    the design strategy below rated (plan step 1.5). Above rated the strategy
-    involves power limiting, which lands with the AEP model; the sweep
-    therefore stops at rated and says so rather than extrapolating a strategy
-    that has not been specified.
+    The operating line follows the configured schedule
+    `lambda(V) = min(lambda_design, V_tip,max / V)` from cut-in to rated,
+    which is the design strategy below rated (plan step 1.5) and the same
+    law the objective runs. Under the 2026-09-19 machine decision
+    (`max_rotor_speed_rpm: 300`, `V_tip,max = 62.83 m/s`) every point from
+    about 9.7 m/s up is held at the ceiling, so the line is no longer at
+    `lambda_design = 6.5` above that speed and the design point moves to
+    `lambda(11) = 5.71`. The `cp_lambda` sweep stays a fixed-lambda sweep by
+    definition, at the rated wind speed.
+
+    Above rated the strategy involves power limiting, which lands with the
+    AEP model; the sweep therefore stops at rated and says so rather than
+    extrapolating a strategy that has not been specified.
 
     Returns a dict with `cp_lambda`, `operating_line`, `spanwise` at the design
     point, `root_bending_moment_nm`, `peak_thrust_n`, and `outstanding` naming
@@ -230,12 +248,13 @@ def evaluate_baseline(baseline, wind_speeds=None, tsr_values=None,
     if tsr_values is None:
         tsr_values = [round(2.0 + 0.25 * i, 2) for i in range(33)]  # 2.0 .. 10.0
 
-    # Operating line at the design tip-speed ratio.
+    # Operating line on the configured schedule: one lambda per wind speed.
     operating_line = []
     peak_thrust = 0.0
     peak_thrust_speed = None
     for v_inf in wind_speeds:
-        result = solve_rotor(geometry, tsr=design.design_tsr, v_inf=v_inf, **air)
+        tsr_b = tsr_schedule(v_inf, design.design_tsr, design.max_tip_speed_ms)
+        result = solve_rotor(geometry, tsr=tsr_b, v_inf=v_inf, **air)
         area = math.pi * geometry.R ** 2
         thrust = result["Ct"] * 0.5 * site.air_density * v_inf ** 2 * area
         power = result["Cp"] * 0.5 * site.air_density * v_inf ** 3 * area
@@ -243,6 +262,8 @@ def evaluate_baseline(baseline, wind_speeds=None, tsr_values=None,
             peak_thrust, peak_thrust_speed = thrust, v_inf
         operating_line.append({
             "v_inf": v_inf,
+            "tsr": tsr_b,
+            "rpm": tsr_b * v_inf / geometry.R * 60.0 / (2.0 * math.pi),
             "Cp": result["Cp"],
             "Ct": result["Ct"],
             "power_w": power,
@@ -263,8 +284,12 @@ def evaluate_baseline(baseline, wind_speeds=None, tsr_values=None,
             "converged": result["converged"],
         })
 
-    # Spanwise detail and the root bending moment at the design point.
-    design_point = solve_rotor(geometry, tsr=design.design_tsr,
+    # Spanwise detail and the root bending moment at the design point, which
+    # is the rated wind speed on the schedule -- the point Phase 4's load
+    # constraint is evaluated at.
+    design_tsr = tsr_schedule(design.rated_wind_speed_ms, design.design_tsr,
+                              design.max_tip_speed_ms)
+    design_point = solve_rotor(geometry, tsr=design_tsr,
                                v_inf=design.rated_wind_speed_ms, **air)
     stations = design_point["stations"]
     moment = root_bending_moment(stations, chords, site.air_density,
@@ -295,7 +320,9 @@ def evaluate_baseline(baseline, wind_speeds=None, tsr_values=None,
         "cp_lambda": cp_lambda,
         "design_point": {
             "v_inf": design.rated_wind_speed_ms,
-            "tsr": design.design_tsr,
+            "tsr": design_tsr,
+            "rpm": design_tsr * design.rated_wind_speed_ms / geometry.R * 60.0
+                   / (2.0 * math.pi),
             "Cp": design_point["Cp"],
             "Ct": design_point["Ct"],
             "converged": design_point["converged"],
