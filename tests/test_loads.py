@@ -37,7 +37,7 @@ import os
 import numpy as np
 import pytest
 
-from adjoint import BEMSystem
+from adjoint import BEMSystem, RootMomentSystem
 from design import BladeParameterisation, DesignBounds
 from objective import WeibullResource
 from objective.loads import (
@@ -136,6 +136,25 @@ def state(system, design):
 @pytest.fixture(scope="module")
 def parts(system, state):
     return system.partials(state.phi, state.d)
+
+
+@pytest.fixture(scope="module")
+def load_system():
+    parameterisation = BladeParameterisation()
+    bounds = DesignBounds.from_config(n_chord=parameterisation.n_chord,
+                                      n_twist=parameterisation.n_twist)
+    return RootMomentSystem(parameterisation, bounds, WeibullResource.from_config(),
+                            m_ref_nm=M_REFERENCE)
+
+
+@pytest.fixture(scope="module")
+def load_state(load_system, design):
+    return load_system.solve(design)
+
+
+@pytest.fixture(scope="module")
+def load_parts(load_system, load_state):
+    return load_system.partials(load_state.phi, load_state.d)
 
 
 # ---------------------------------------------------------------------------
@@ -237,6 +256,41 @@ def test_root_bending_moment_is_per_blade(x0):
     assert moment == pytest.approx(manual, rel=1e-14)
 
 
+def test_load_system_moments_equal_forward_path(load_system, load_state):
+    """`RootMomentSystem.moments` (the kernel's `m`, trapezoid-integrated) is
+    the forward path's `root_moments` (the solver's `w`, `Cn`) at every point
+    of `L` -- a second, independent code path for the same physics."""
+
+    parameterisation = BladeParameterisation()
+    geometry = parameterisation.to_geometry(load_state.d)
+    from config import load_site
+
+    site = load_site()
+    forward_moments, results = root_moments(geometry, EXPECTED_LOAD_POINTS,
+                                            site.air_density, site.kinematic_viscosity)
+    assert all(result["converged"] for result in results)
+    adjoint_moments = load_system.moments(load_state.phi, load_state.d)
+    assert adjoint_moments.shape == forward_moments.shape
+    assert np.allclose(adjoint_moments, forward_moments, rtol=1e-12)
+
+
+def test_load_system_omega_matches_the_schedule(load_system):
+    """The load system's operating points are `L`; `omega = lambda V / R`."""
+
+    assert load_system.points == EXPECTED_LOAD_POINTS
+    assert load_system.tsr_per_bin == [lam for _v, lam in EXPECTED_LOAD_POINTS]
+    for b, (v, lam) in enumerate(EXPECTED_LOAD_POINTS):
+        assert load_system.omega[b] == pytest.approx(lam * v / load_system.R, rel=1e-15)
+
+
+def test_load_set_is_below_the_rating_at_x0(load_system, load_state):
+    """The parent's `limited` mask is all-False on `L` at `x0` -- the KS
+    functional carries every point, none of the AEP cap logic applies."""
+
+    assert load_state.limited.shape == (len(EXPECTED_LOAD_POINTS),)
+    assert not np.any(load_state.limited)
+
+
 # ---------------------------------------------------------------------------
 # Tier 1: m and its partials against complex steps of the value code
 # ---------------------------------------------------------------------------
@@ -285,6 +339,58 @@ def test_no_plateau_in_m_at_the_real_dtype_signature(system, state, parts):
 
 
 # ---------------------------------------------------------------------------
+# Tier 1: the KS functional's partials (RootMomentSystem) against complex
+# steps of the value code, at x0 and x_pert
+# ---------------------------------------------------------------------------
+
+def test_dKS_dx_matches_complex_step(load_system, load_state, load_parts):
+    """All 225 entries: a complex step of `phi` through `KS(phi, d)`."""
+
+    dKS_dx = load_system.dKS_dx(load_state.phi, load_state.d, load_parts)
+    estimate = np.empty_like(dKS_dx)
+    for b in range(load_system.n_points):
+        for i in range(load_system.n_stations):
+            phi = load_state.phi.astype(complex)
+            phi[b, i] += 1j * H
+            estimate[b, i] = load_system.KS(phi, load_state.d).imag / H
+    _assert_mixed(estimate, dKS_dx, TOL_J, "dKS/dphi")
+
+
+def test_dKS_dd_matches_complex_step(load_system, load_state, load_parts):
+    """Every design variable: a complex `d` through `KS(phi, d)` (TOL_J, the
+    functional level, exactly as `dJ_dd`)."""
+
+    dKS_dd = load_system.dKS_dd(load_state.phi, load_state.d, load_parts)
+    for j in range(load_system.n_design):
+        d = load_state.d.astype(complex)
+        d[j] += 1j * H
+        estimate = load_system.KS(load_state.phi, d).imag / H
+        _assert_mixed(estimate, dKS_dd[j], TOL_J, f"dKS/dd_{j}")
+
+
+# ---------------------------------------------------------------------------
+# Tier 2: the forward-mode tangent and the inherited transpose
+# ---------------------------------------------------------------------------
+
+def test_tangent_matches_adjoint_direction(load_system, load_state):
+    """`tangent(phi, d, v) == gradient(d).dKS_dd @ v` for three seeded `v`."""
+
+    rng = np.random.default_rng(42)
+    for _ in range(3):
+        v = rng.normal(size=load_system.n_design)
+        tangent = load_system.tangent(load_state.phi, load_state.d, v)
+        adjoint = float(load_system.gradient(load_state.d).dKS_dd @ v)
+        assert tangent == pytest.approx(adjoint, rel=1e-12)
+
+
+def test_moment_transpose_is_the_parent_operator(load_system):
+    """The matrix-free transpose is the parent's; its Tier 2 identity carries
+    over unchanged."""
+
+    assert RootMomentSystem.apply_dR_dd_T is BEMSystem.apply_dR_dd_T
+
+
+# ---------------------------------------------------------------------------
 # KS aggregate (the functional is Step 2b; the scalar is here because the
 # forward path defines it)
 # ---------------------------------------------------------------------------
@@ -310,3 +416,12 @@ def test_ks_is_complex_safe():
     estimate = np.array([ks(values + 1j * H * (np.arange(len(values)) == j), rho).imag / H
                          for j in range(len(values))])
     assert np.allclose(estimate, ks_weights(values, rho), atol=1e-12)
+
+
+def test_ks_decreases_toward_max_as_rho_increases():
+    values = np.array([0.1, 0.3, 0.9, 0.5])
+    at_30 = ks(values, 30.0)
+    at_100 = ks(values, 100.0)
+    at_300 = ks(values, 300.0)
+    assert at_30 >= at_100 >= at_300
+    assert at_300 >= float(np.max(values))

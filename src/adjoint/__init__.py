@@ -26,7 +26,8 @@ Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
 """
 
 from adjoint.kernels import StationPartials, station_partials
+from adjoint.loads import MomentGradientResult, RootMomentSystem
 from adjoint.system import BEMSystem, ForwardState, GradientResult
 
-__all__ = ["BEMSystem", "ForwardState", "GradientResult", "StationPartials",
-           "station_partials"]
+__all__ = ["BEMSystem", "ForwardState", "GradientResult", "MomentGradientResult",
+           "RootMomentSystem", "StationPartials", "station_partials"]
