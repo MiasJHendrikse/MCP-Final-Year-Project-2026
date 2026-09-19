@@ -220,6 +220,10 @@ class StationPartials:
     cd: object
     cn: object
     ct: object
+    m: object
+    dm_dphi: object
+    dm_dc: object
+    dm_dtheta: object
     buhl: bool
 
 
@@ -289,10 +293,15 @@ def station_partials(phi, chord, twist, reynolds, r, lam_r, R, B, r_hub, polar,
     w = v_inf * (1.0 - a) / s
     q = 0.5 * air_density * w ** 2 * B * chord * ct * r
 
+    # -- the root-moment integrand (per blade: no B, no rotor-speed factor) --
+    arm = r - (0.0 if (r_hub is None or r_hub <= 0) else r_hub)
+    m = 0.5 * air_density * arm * chord * w ** 2 * cn
+
     if not derivatives:
         return StationPartials(
             residual=residual, dR_dphi=None, dR_dc=None, dR_dtheta=None,
             q=q, dq_dphi=None, dq_dc=None, dq_dtheta=None,
+            m=m, dm_dphi=None, dm_dc=None, dm_dtheta=None,
             a=a, da_dphi=None, da_dc=None, da_dtheta=None,
             F=F, dF_dphi=F_phi, alpha=alpha, cl=cl, cd=cd, cn=cn, ct=ct, buhl=buhl,
         )
@@ -339,9 +348,16 @@ def station_partials(phi, chord, twist, reynolds, r, lam_r, R, B, r_hub, polar,
     dq_dc = prefactor * (w * w * ct + chord * (2.0 * w * w_c * ct + w * w * ct_c))
     dq_dtheta = prefactor * chord * (2.0 * w * w_theta * ct + w * w * ct_theta)
 
+    # -- root-moment-integrand partials (three terms, as dq_dc) ----------------
+    m_prefactor = 0.5 * air_density * arm
+    dm_dphi = m_prefactor * chord * (2.0 * w * w_phi * cn + w * w * cn_phi)
+    dm_dc = m_prefactor * (w * w * cn + chord * (2.0 * w * w_c * cn + w * w * cn_c))
+    dm_dtheta = m_prefactor * chord * (2.0 * w * w_theta * cn + w * w * cn_theta)
+
     return StationPartials(
         residual=residual, dR_dphi=dR_dphi, dR_dc=dR_dc, dR_dtheta=dR_dtheta,
         q=q, dq_dphi=dq_dphi, dq_dc=dq_dc, dq_dtheta=dq_dtheta,
+        m=m, dm_dphi=dm_dphi, dm_dc=dm_dc, dm_dtheta=dm_dtheta,
         a=a, da_dphi=a_phi, da_dc=a_c, da_dtheta=a_theta,
         F=F, dF_dphi=F_phi, alpha=alpha, cl=cl, cd=cd, cn=cn, ct=ct, buhl=buhl,
     )

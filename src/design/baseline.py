@@ -67,6 +67,7 @@ from config import load_design_rotor, load_site
 from config.unresolved import UnresolvedConfigError
 from design.bounds import DesignBounds
 from design.parameterisation import BladeParameterisation
+from objective.loads import root_bending_moment
 from objective.power import tsr_schedule
 from design.schmitz import (
     DEFAULT_DESIGN_REYNOLDS,
@@ -188,26 +189,6 @@ def build_schmitz_baseline(parameterisation=None,
         max_lift_to_drag=lift_to_drag,
         feasibility=_check_feasibility(design_vector, parameterisation),
     )
-
-
-def root_bending_moment(stations, chords, air_density, n_blades, r_hub):
-    """
-    Flapwise root bending moment for one blade, N.m.
-
-    M = integral of dT/dr * (r - r_hub) dr, with dT/dr the same normal-force
-    integrand `solve_rotor` uses for thrust. Per *blade*, not per rotor: the
-    root attachment carries one blade's load, and quoting a rotor-summed figure
-    here would overstate it by a factor of B.
-    """
-
-    radii = [station["r"] for station in stations]
-    lever_arms = [r - r_hub for r in radii]
-    load = [
-        0.5 * air_density * station["w"] ** 2 * chord * station["Cn"] * arm
-        for station, chord, arm in zip(stations, chords, lever_arms)
-    ]
-    return sum(0.5 * (load[i] + load[i + 1]) * (radii[i + 1] - radii[i])
-               for i in range(len(radii) - 1))
 
 
 def evaluate_baseline(baseline, wind_speeds=None, tsr_values=None,

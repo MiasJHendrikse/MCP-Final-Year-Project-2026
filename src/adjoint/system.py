@@ -290,10 +290,10 @@ class BEMSystem:
 
         phi = np.asarray(phi)
         chord, twist = self.chord_twist(d)
-        fields = ("residual", "q", "a", "F", "dF_dphi", "alpha", "cl", "cd", "cn", "ct", "buhl")
+        fields = ("residual", "q", "m", "a", "F", "dF_dphi", "alpha", "cl", "cd", "cn", "ct", "buhl")
         if derivatives:
             fields += ("dR_dphi", "dR_dc", "dR_dtheta", "dq_dphi", "dq_dc", "dq_dtheta",
-                       "da_dphi", "da_dc", "da_dtheta")
+                       "dm_dphi", "dm_dc", "dm_dtheta", "da_dphi", "da_dc", "da_dtheta")
         columns = {name: [] for name in fields}
         for b in range(self.n_points):
             row = {name: [] for name in fields}

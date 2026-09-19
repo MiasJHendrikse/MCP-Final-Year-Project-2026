@@ -25,6 +25,14 @@ from objective.objective import (
     sanity_band,
 )
 from objective.power import BIN_WIDTH_MS, aerodynamic_power, power_per_bin, wind_speed_bins
+from objective.loads import (
+    ks,
+    ks_weights,
+    load_operating_points,
+    root_bending_moment,
+    root_moment,
+    root_moments,
+)
 from objective.weibull import WeibullResource
 
 __all__ = [
@@ -35,8 +43,14 @@ __all__ = [
     "annual_energy_mwh",
     "bin_powers",
     "energy_surrogate",
+    "ks",
+    "ks_weights",
+    "load_operating_points",
     "objective",
     "power_per_bin",
+    "root_bending_moment",
+    "root_moment",
+    "root_moments",
     "sanity_band",
     "wind_speed_bins",
 ]
