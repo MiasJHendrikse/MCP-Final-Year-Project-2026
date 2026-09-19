@@ -332,8 +332,10 @@ def evaluate_baseline(baseline, wind_speeds=None, tsr_values=None,
         "aep_in_sanity_band": band[0] <= aep <= band[1],
         "outstanding": {
             "above_rated_operating_line": (
-                "Not swept: power limiting above the rated wind speed is part "
-                "of the AEP model (plan step 1.5) and is not yet specified."
+                "Not swept: above the rated wind speed the operating line is "
+                "the fixed rating on the 300 rpm ceiling (P = rated_power_w, "
+                "B2 provisional; the limiting mechanism, B3, is open), so the "
+                "table stops at the rated bin."
             ),
         },
     }

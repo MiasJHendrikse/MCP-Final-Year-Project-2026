@@ -86,7 +86,15 @@ REL_TRIPWIRE = 1e-3        # gross-error tripwire on |adj - FD| / |FD|
 TAYLOR_STEPS = (1e-2, 1e-3, 1e-4)
 TAYLOR_MIN_RATIO = 30.0
 TAYLOR_DRAWS = 3
-MID_ITERATE = 17  # nit / 2 of the 300 rpm A4 run (35 iterations); was 13 of 27
+#: The mid-run iterate Tier 3 checks is `nit // 2` of the committed A4 run,
+#: read from `fd_optimisation/result.json` (35 iterations -> 17 today; the
+#: 27-iteration run before the 300 rpm law gave 13). `MID_ITERATE_TODAY` pins
+#: what the committed `tier3.json` was produced at.
+MID_ITERATE_TODAY = 17
+
+
+def mid_iterate_from_result():
+    return int(load_json(RESULT_PATH)["nit"]) // 2
 
 
 def load_x0():
@@ -290,8 +298,14 @@ def plot_agreement(points, names, path):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    parser.add_argument("--mid-iterate", type=int, default=MID_ITERATE)
+    parser.add_argument("--mid-iterate", type=int, default=None,
+                        help="default: nit // 2 of fd_optimisation/result.json")
     args = parser.parse_args(argv)
+    if args.mid_iterate is None:
+        args.mid_iterate = mid_iterate_from_result()
+        assert args.mid_iterate == MID_ITERATE_TODAY, (
+            f"nit // 2 is {args.mid_iterate}, the committed tier3.json was produced "
+            f"at {MID_ITERATE_TODAY}: fd_optimisation/result.json moved")
 
     problem = build_problem()
     names = variable_names(problem.parameterisation)
