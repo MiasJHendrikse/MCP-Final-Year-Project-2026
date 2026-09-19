@@ -41,9 +41,11 @@ alphabetical list:
     fd_optimisation        result.json, iterates.json         → x* consumed by Tier 3/4, fit_error, multistart
     spline_fit_error       fit_error.json                     → consumes result.json's x*
     gradient_verification  tier3.json, tier4.json             → consumes sweep.json + iterates.json + result.json
-    adjoint_optimisation   result.json                        → checked against fd_optimisation's
+    fd_optimisation_multistart  starts.json, results.json     → consumes the feasible region and A4's result.json
+    adjoint_optimisation   result.json                        → checked against fd_optimisation's; reads the multistart's
+                                                                 `spread_of_optima_u_inf` for its u-agreement tolerance,
+                                                                 so it runs AFTER the multistart (corrected 2026-09-19, audit)
     cross_evaluate_xstar   cross_evaluate_xstar.json          → consumes the adjoint x* and evaluates it under 5 ceilings
-    fd_optimisation_multistart  starts.json, results.json     → consumes the feasible region
     aep_optimisation_experiment  (port only)
 
 `cross_evaluate_xstar.py` is the one script inside the frozen `aep_gain_audit/`

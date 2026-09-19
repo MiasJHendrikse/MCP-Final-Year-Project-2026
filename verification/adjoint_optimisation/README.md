@@ -14,6 +14,18 @@ floor. Both were made under the retired `PROVISIONAL_BOUNDS` box
 (`chord_max_m = 0.45 m`) and the fixed-λ = 6.5 law. Same script, same A4
 comparison, against the re-run A4.
 
+**Order note (2026-09-19, audit).** This script reads
+`verification/fd_optimisation_multistart/results.json` for the `u`-agreement
+tolerance (`10 × spread_of_optima_u_inf`), so it must run *after* the
+multi-start study, not before it. The first re-run of the day ran it before
+(16:05, multistart collected 16:23) and recorded the previous study's spread
+(0.0174). It was re-run at 16:49 after the multistart: the optimum, every
+iterate `u_k`, `J_k` and gradient are bit-identical to the 16:05 run; only
+`multistart_u_spread_inf` (0.0174 → 0.0166), `u_agreement_tol`, the
+timestamp and the wall time changed. The 54.4 s wall time recorded at 16:05
+was machine load (the FD multistart was being prepared alongside); the
+re-run's 24.2 s is the honest cost.
+
 ## What was run
 
     python verification/adjoint_optimisation/run_adjoint_slsqp.py
@@ -43,7 +55,7 @@ recording, same sanity gates on the gain.
 | `nit` / `nfev` / `njev` | **35 / 36 / 35** | 35 / 36 / 35 |
 | objective evaluations in total | 39 (36 + 3 post-checks) | 1438 |
 | gradient evaluations in total | 70 adjoint (35 + initial + 34 callback re-evaluations, as A4) | 35 × 20 + 34 × 20 FD evaluations |
-| wall time | **54.4 s** | 367.1 s |
+| wall time | **24.2 s** | 367.1 s |
 | AEP at `x0` | 10.247707 MWh/yr | same |
 | AEP at optimum | 10.262736 MWh/yr | 10.262736 MWh/yr |
 | ΔAEP vs x0 | +0.147 % | +0.147 % |
@@ -66,7 +78,7 @@ to SLSQP's tolerance; the measured differences are
 
 | | value | tolerance (stated in the script) |
 |---|---|---|
-| `‖u*_adj − u*_fd‖∞` | **1.0e-8** | 0.174 (10 × the spread the multi-start study measured between eight equally converged FD optima, 0.0174 — which lies along the near-inert root direction, see that README) |
+| `‖u*_adj − u*_fd‖∞` | **1.0e-8** | 0.166 (10 × the spread the multi-start study measured between eight equally converged FD optima, 0.0166 — which lies along the `chord_0` root direction, six of eight starts on the bound and two just short of it, see that README) |
 | `AEP*_adj − AEP*_fd` | **−5.9e-12 MWh/yr** | 1e-7 in `fun` ≈ 1e-6 MWh/yr (`ftol = 1e-8`, a few times over) |
 | `fun*_adj − fun*_fd` | +5.7e-13 | 1e-7 |
 
@@ -117,11 +129,11 @@ thrust for +0.147 % AEP. `x_star_fd` is carried alongside and agrees to
 
 ## What this costs, honestly
 
-The run is **6.8 × faster** than A4 for the same 35 iterations (54.4 s
+The run is **15 × faster** than A4 for the same 35 iterations (24.2 s
 against 367.1 s) and spends **39 objective evaluations against 1438** —
 37 × fewer. Each FD gradient is 20 forward solves at ≈ 0.25 s each
 (≈ 5.1 s per gradient); each adjoint gradient is one forward solve plus
-the partials, ≈ 0.78 s per adjoint evaluation. With `n = 10` design
+the partials, ≈ 0.35 s per adjoint evaluation. With `n = 10` design
 variables and a diagonal state Jacobian that ratio is roughly
 `2n × J / (1.15 × J) ≈ 17` in evaluations, and it would grow linearly with
 `n`; the adjoint's cost is independent of `n`. But the brief's point

@@ -10,7 +10,7 @@
   "twist_max_deg": 35.0
  },
  "command": "python verification/adjoint_optimisation/run_adjoint_slsqp.py",
- "generated": "2026-09-19T16:05:35",
+ "generated": "2026-09-19T16:49:24",
  "variables": [
   "chord_0",
   "chord_1",
@@ -40,7 +40,7 @@
  "objective_evaluations_total": 39,
  "adjoint_evaluations_total": 70,
  "callback_extra_evaluations": 34,
- "wall_time_s": 54.36622100000022,
+ "wall_time_s": 24.209364199999982,
  "J0_mwh_per_yr": -10.247707391810723,
  "aep_x0_mwh_per_yr": 10.247707391810723,
  "aep_optimum_mwh_per_yr": 10.262736459224527,
@@ -259,8 +259,8 @@
   "objective_evaluations_total_fd": 1438,
   "wall_time_s_fd": 367.1180641000028,
   "fun_agreement_tol": 1e-07,
-  "multistart_u_spread_inf": 0.017406961221282047,
-  "u_agreement_tol": 0.17406961221282047,
+  "multistart_u_spread_inf": 0.016563224478690297,
+  "u_agreement_tol": 0.16563224478690297,
   "agrees_fun": true,
   "agrees_u": true,
   "comparison_agrees": true
