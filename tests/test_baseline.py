@@ -253,21 +253,25 @@ def test_the_sanity_band_is_still_narrow_enough_to_catch_a_bug(performance):
 
 
 # ---------------------------------------------------------------------------
-# Feasibility must not read as "passed" when it was never checked
+# Feasibility is checked, and x0 passes it unclipped
 # ---------------------------------------------------------------------------
 
-def test_feasibility_reports_that_it_was_not_checked(baseline):
+def test_x0_is_feasible_against_the_configured_bounds(baseline):
     """
-    The bounds are still TODO, so the status must say so explicitly.
-
-    A baseline that was never checked must not be indistinguishable from one
-    that passed. When the manufacturability study lands this test fails
-    deliberately, which is the reminder to replace it with a real check.
+    Plan step 1.7: feasibility *recorded*. Until 2026-09-19 the bounds were
+    TODO and this test asserted `checked is False`; with `chord_max_m =
+    0.30 m` in config the check runs, and the Schmitz root control point
+    (276 mm) sits inside it -- the fairness argument of the audit's section
+    3.4 depends on the baseline being unclipped, so that is asserted, not
+    merely reported.
     """
 
-    assert baseline.feasibility["checked"] is False
-    assert "TODO" in baseline.feasibility["reason"]
-    assert baseline.feasibility["violations"] == []
+    feasibility = baseline.feasibility
+    assert feasibility["checked"] is True
+    assert feasibility["reason"] is None
+    assert feasibility["clipped"] is False
+    assert feasibility["violations"] == []
+    assert np.allclose(feasibility["clipped_vector"], baseline.design_vector)
 
 
 # ---------------------------------------------------------------------------

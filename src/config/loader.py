@@ -257,6 +257,7 @@ def load_design_rotor(filename="rotor_design.yaml"):
         design_tsr=field("operating.design_tsr"),
         rated_wind_speed_ms=field("operating.rated_wind_speed_ms"),
         rated_power_w=field("operating.rated_power_w"),
+        max_rotor_speed_rpm=field("operating.max_rotor_speed_rpm"),
         cut_in_wind_speed_ms=field("operating.cut_in_wind_speed_ms"),
         cut_out_wind_speed_ms=field("operating.cut_out_wind_speed_ms"),
         parameterisation=ParameterisationConfig(
@@ -268,6 +269,7 @@ def load_design_rotor(filename="rotor_design.yaml"):
             twist_min_deg=field("parameterisation.bounds.twist_min_deg"),
             twist_max_deg=field("parameterisation.bounds.twist_max_deg"),
         ),
+        max_local_solidity=field("constraints.max_local_solidity"),
         aep_mwh_per_year_min=field("sanity.aep_mwh_per_year_min"),
         aep_mwh_per_year_max=field("sanity.aep_mwh_per_year_max"),
     )

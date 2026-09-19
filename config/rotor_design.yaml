@@ -56,7 +56,54 @@ operating:
   # section 9). When B2 is answered this value is replaced and every
   # optimisation artefact re-runs; nothing here should be read as "the
   # machine is a 3.8 kW machine".
+  #
+  # Note added 2026-09-19 with the rotor-speed ceiling below: the basis is
+  # P_aero(11 m/s; x0) AT THE DESIGN TSR (lambda = 6.5, 341 rpm), which the
+  # test pins as stated. Under the 300 rpm ceiling the rotor runs lambda =
+  # 5.71 at 11 m/s, so the baseline's power on the actual schedule at rated
+  # wind is a little below this number; the rating is a nameplate and does
+  # not move with the schedule.
   rated_power_w: 3822.189755449124
+
+  # Maximum rotor speed, rpm -- outstanding input B1, RESOLVED PROVISIONALLY
+  # on 2026-09-19 (after the ceiling cross-evaluation). This is the
+  # one machine fact that gives the AEP objective a tip-speed-ratio dimension:
+  # the operating law is
+  #
+  #     lambda(V) = min(design_tsr, Omega_max R / V)
+  #
+  # i.e. the design TSR below V_c = Omega_max R / design_tsr and constant
+  # rotor speed above it (src/objective/power.py). With `null` there is no
+  # ceiling and every bin runs at the design TSR -- the pre-2026-09-19
+  # objective, kept as the control case (tests/test_operating_law_control.py).
+  #
+  # At R = 2.0 m, 300 rpm is a tip speed of 62.8 m/s and V_c = 9.67 m/s: only
+  # the 10.5 m/s bin runs below the design TSR uncapped, and the measured
+  # effect on the optimiser's gain over Schmitz is +0.121 % -> +0.147 %
+  # (verification/aep_optimisation_experiment/, run 2026-09-19).
+  #
+  # PROVISIONAL, WITH A STATED BASIS -- not a measured fact about a specified
+  # generator, which is what B1 still asks for:
+  #   * Without a ceiling the rotor runs lambda = 6.5 up to rated, i.e.
+  #     341 rpm = 71.4 m/s tip speed at 11 m/s. That is above the ~60-65 m/s
+  #     noise-conscious upper limit generally applied to residential-scale
+  #     small turbines.
+  #   * The closest commercial analogue in size and rating (Skystream 3.7,
+  #     2.4 kW, 3.72 m rotor) runs to ~330 rpm, ~64 m/s tip speed.
+  #     Off-the-shelf direct-drive 3 kW permanent-magnet generators cluster
+  #     at 250-300 rpm rated.
+  #   * 263 rpm (55 m/s) and 239 rpm (50 m/s) were explicitly NOT chosen.
+  #     They are the ceilings that inflate the gain (+2.33 % and +7.84 %,
+  #     docs/AEP_GAIN_AUDIT.md section 3.1) and would amount to designing for
+  #     an under-sped generator to make the number bigger -- the gimmick the
+  #     audit's section 3.5 names. 300 rpm does not flatter the optimiser.
+  #   * Open confirmation item (docs/OUTSTANDING-INPUTS.md section 10): the
+  #     Kestrel e400 (3 kW, 4.0 m diameter, made in Gqeberha) is the nearest
+  #     regional comparable; its datasheet rated rpm should be cited if it
+  #     supports ~300 rpm. A confirmation, not a blocker.
+  # When a generator is specified, this value is replaced and every
+  # optimisation artefact re-runs, exactly as for rated_power_w.
+  max_rotor_speed_rpm: 300
 
 # ---------------------------------------------------------------------------
 # Parameterisation -- plan section 4
@@ -69,21 +116,67 @@ operating:
 # asserted, so these are the starting configuration for that study, not its
 # conclusion.
 #
-# The bounds are TODO on purpose. Plan section 7.1 fixes only that chord and
-# twist bounds exist and are applied to the SCALED variables; it commits to no
-# numbers, and no study has selected any. Inventing a manufacturability
-# envelope here would be exactly the failure mode ground rule 3 forbids: a
-# number with no basis that silently constrains every optimisation result
-# downstream.
+# BOUNDS -- resolved 2026-09-19 (MJ's decision, outstanding input section 2
+# and the audit's O4). Applied to the control points, and to the SCALED
+# variables through design.bounds.DesignBounds (plan section 7.1). Until
+# 2026-09-19 these were TODO here and lived as a provisional set in
+# tests/test_parameterisation.py::PROVISIONAL_BOUNDS, with chord_max_m = 0.45
+# as a placeholder with no basis; that placeholder is retired.
+#
+# Three of the four were grounded on 2026-09-13 and are unchanged:
+#   chord_min_m   0.045 m  SG6043 10 % t/c at 32.1 % chord -> ~4.5 mm
+#                          laminate minimum at the tip.
+#   twist_min_deg  -2 deg  Schmitz baseline tip twist 0.57 deg with margin.
+#                          NOTE: this bound is ACTIVE at the unconstrained
+#                          optimum (the tip-twist control point sits on it
+#                          from every start, verification/adjoint_optimisation/).
+#   twist_max_deg  35 deg  Schmitz baseline root twist 23.07 deg with margin.
+#
+# chord_max_m = 0.30 m -- basis:
+#   * Local solidity at the root cut-out r = 0.3 m: 0.45 m gives
+#     sigma = B c / (2 pi r) = 0.72 (blades nearly touching; BEM's
+#     independent-annuli assumption and the Prandtl loss model no longer
+#     hold). 0.30 m gives sigma = 0.48, the conventional edge of BEM
+#     validity. The radius-aware form of the same limit is the solidity cap
+#     below.
+#   * c / R = 0.15 is the top of the small-turbine commercial range
+#     (~0.08-0.15).
+#   * The Schmitz root control point is 276 mm, so the baseline stays
+#     feasible and unclipped (docs/AEP_GAIN_AUDIT.md section 3.4) and the
+#     fairness argument is unchanged.
+#   * Measured to be neither generous nor punitive: at 300 rpm the gain is
+#     +0.147 % with either 0.30 or 0.45 m (root bound active, no measurable
+#     cost); at 263 rpm, 2.33 % -> 2.28 %.
+# Still an engineering judgement rather than a measured hub/attachment
+# limit; if a root-attachment concept lands with a different number, this
+# value is replaced and the optimisation artefacts re-run.
 parameterisation:
   n_bem_strips: 25
   n_control_points_chord: 5
   n_control_points_twist: 5
   bounds:
-    chord_min_m: "TODO: manufacturability/root-attachment study (plan 7.1)"
-    chord_max_m: "TODO: manufacturability/solidity study (plan 7.1)"
-    twist_min_deg: "TODO: physically realistic range (plan 7.1)"
-    twist_max_deg: "TODO: physically realistic range (plan 7.1)"
+    chord_min_m: 0.045
+    chord_max_m: 0.30
+    twist_min_deg: -2.0
+    twist_max_deg: 35.0
+
+# ---------------------------------------------------------------------------
+# Operating constraints -- plan section 7.4
+# ---------------------------------------------------------------------------
+# Local solidity cap, sigma_i = B c_i / (2 pi r_i) <= max_local_solidity at
+# every BEM station. Resolved 2026-09-19 together with chord_max_m above: it
+# is the radius-aware statement of the same BEM-validity limit, linear in the
+# design vector (gradients.ScaledProblem.solidity_constraint). 0.5 is the
+# conventional edge of the independent-annuli assumption.
+#
+# Honesty note: with chord_max_m = 0.30 m on the control points and the
+# B-spline's convex-hull property (no station chord exceeds the largest
+# control point), the cap cannot be reached -- at the first station,
+# r = 0.334 m, sigma = 0.5 needs c = 0.350 m. It is wired and reported so
+# the artefacts can show it inactive, not because it shapes any result; the
+# box bound is what bites at the root.
+constraints:
+  max_local_solidity: 0.5
 
 # Sanity band for the AEP module (plan section 1.4). A result far outside this
 # indicates a bug, not a discovery. Recorded so the check reads it rather than

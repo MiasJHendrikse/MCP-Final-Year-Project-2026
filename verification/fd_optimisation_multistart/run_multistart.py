@@ -50,12 +50,11 @@ import numpy as np
 _HERE = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.abspath(os.path.join(_HERE, "..", ".."))
 sys.path.insert(0, os.path.join(REPO_ROOT, "src"))
-sys.path.insert(0, os.path.join(REPO_ROOT, "tests"))
 sys.path.insert(0, os.path.join(REPO_ROOT, "verification", "fd_optimisation"))
 
 from gradients.problem import DEFAULT_ENVELOPE_MARGIN  # noqa: E402
 from run_fd_slsqp import (  # noqa: E402
-    ACTIVE_TOL, ENVELOPE_ACTIVE_TOL, PROVISIONAL_LABEL,
+    ACTIVE_TOL, ENVELOPE_ACTIVE_TOL, BOUNDS_LABEL,
     build_problem, load_h_star, load_x0, run,
 )
 
@@ -121,7 +120,7 @@ def do_sample(args):
     problem = build_problem(DEFAULT_ENVELOPE_MARGIN)
     accepted, rejected = sample_starts(problem, args.n_starts, args.seed)
     payload = {
-        "provisional_bounds": PROVISIONAL_LABEL,
+        "bounds_label": BOUNDS_LABEL,
         "seed": args.seed,
         "n_starts": len(accepted),
         "acceptance": "envelope satisfied, all stations converged at all 18 operating "
@@ -169,7 +168,7 @@ def do_start(args):
     u_a4 = np.array(a4["u_star"])
 
     record = {
-        "provisional_bounds": PROVISIONAL_LABEL,
+        "bounds_label": BOUNDS_LABEL,
         "start": args.start,
         "generated": datetime.datetime.now().isoformat(timespec="seconds"),
         "fd_step": h,
@@ -238,7 +237,7 @@ def do_collect(args):
     x_stars = np.array([r["x_star"] for r in runs])
 
     summary = {
-        "provisional_bounds": PROVISIONAL_LABEL,
+        "bounds_label": BOUNDS_LABEL,
         "generated": datetime.datetime.now().isoformat(timespec="seconds"),
         "command": "python verification/fd_optimisation_multistart/run_multistart.py "
                    "--sample | --start K | --collect",
@@ -322,7 +321,7 @@ def plot(runs, a4, starts_payload, path):
     ax.grid(True, color="#dddddd", lw=0.6)
     ax.legend(fontsize=8, frameon=False)
 
-    fig.suptitle("Multi-start FD-driven SLSQP -- " + PROVISIONAL_LABEL, fontsize=10)
+    fig.suptitle("Multi-start FD-driven SLSQP -- " + BOUNDS_LABEL, fontsize=10)
     fig.tight_layout()
     fig.savefig(path, dpi=150)
     plt.close(fig)

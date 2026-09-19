@@ -29,9 +29,8 @@ The set must contain Buhl-branch stations (`a > BUHL_AC`) -- the implicit
 differentiation of §4.4 is otherwise untested -- and none on the
 `gamma2 < 0` branch, which the adjoint does not model.
 
-Bounds are provisional (`chord_max_m = 0.45 m` is a placeholder); they enter
-only through `BEMSystem`'s constructor, from
-`test_parameterisation.PROVISIONAL_BOUNDS`.
+Bounds enter only through `BEMSystem`'s constructor (the scaling chain),
+from `DesignBounds.from_config()`.
 
 Author: MJ Hendrikse
 Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
@@ -48,7 +47,6 @@ from adjoint import BEMSystem
 from bem.corrections import BUHL_AC, buhl_gammas
 from design import BladeParameterisation, DesignBounds
 from objective import WeibullResource, annual_energy_mwh
-from test_parameterisation import PROVISIONAL_BOUNDS
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 X0_PATH = os.path.abspath(os.path.join(_HERE, "..", "verification", "baseline", "x0.json"))
@@ -78,8 +76,8 @@ def _assert_mixed(estimate, partial, tol, label):
 @pytest.fixture(scope="module")
 def system():
     parameterisation = BladeParameterisation()
-    bounds = DesignBounds(n_chord=parameterisation.n_chord,
-                          n_twist=parameterisation.n_twist, **PROVISIONAL_BOUNDS)
+    bounds = DesignBounds.from_config(n_chord=parameterisation.n_chord,
+                          n_twist=parameterisation.n_twist)
     return BEMSystem(parameterisation, bounds, WeibullResource.from_config())
 
 

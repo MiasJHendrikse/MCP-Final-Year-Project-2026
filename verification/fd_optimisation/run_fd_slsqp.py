@@ -49,14 +49,12 @@ from scipy.optimize import Bounds, minimize
 _HERE = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.abspath(os.path.join(_HERE, "..", ".."))
 sys.path.insert(0, os.path.join(REPO_ROOT, "src"))
-sys.path.insert(0, os.path.join(REPO_ROOT, "tests"))
 
 from design import BladeParameterisation, DesignBounds, clamped_knots  # noqa: E402
 from gradients import ScaledProblem  # noqa: E402
 from gradients.problem import DEFAULT_ENVELOPE_MARGIN  # noqa: E402
 from objective import WeibullResource  # noqa: E402
 from polars.interpolant import PolarDomainError  # noqa: E402
-from test_parameterisation import PROVISIONAL_BOUNDS  # noqa: E402
 
 X0_PATH = os.path.join(REPO_ROOT, "verification", "baseline", "x0.json")
 SWEEP_PATH = os.path.join(REPO_ROOT, "verification", "fd_step_size", "sweep.json")
@@ -64,8 +62,8 @@ RESULT_PATH = os.path.join(_HERE, "result.json")
 ITERATES_PATH = os.path.join(_HERE, "iterates.json")
 FIGURE_PATH = os.path.join(_HERE, "optimised_blade.png")
 
-PROVISIONAL_LABEL = ("under provisional bounds (chord_max_m = 0.45 m provisional; "
-                     "chord_min_m, twist_min, twist_max grounded)")
+BOUNDS_LABEL = ("under the configured bounds (chord_max_m = 0.30 m, resolved "
+                "2026-09-19; chord_min_m, twist_min, twist_max grounded 2026-09-13)")
 
 ACTIVE_TOL = 1e-6          # |u| or |1 - u| below this: bound active
 ENVELOPE_ACTIVE_TOL = 1e-6  # constraint row (metres of chord) below this: active
@@ -87,8 +85,8 @@ def load_h_star():
 
 def build_problem(margin):
     parameterisation = BladeParameterisation()
-    bounds = DesignBounds(n_chord=parameterisation.n_chord,
-                          n_twist=parameterisation.n_twist, **PROVISIONAL_BOUNDS)
+    bounds = DesignBounds.from_config(n_chord=parameterisation.n_chord,
+                          n_twist=parameterisation.n_twist)
     return ScaledProblem(parameterisation, bounds, WeibullResource.from_config(),
                          margin=margin)
 
@@ -206,7 +204,7 @@ def plot(problem, x0, x_star, path):
         ax.grid(True, color="#dddddd", lw=0.6)
         ax.legend(fontsize=8, frameon=False)
 
-    fig.suptitle("FD-driven SLSQP optimum vs x0 -- " + PROVISIONAL_LABEL, fontsize=10)
+    fig.suptitle("FD-driven SLSQP optimum vs x0 -- " + BOUNDS_LABEL, fontsize=10)
     fig.tight_layout()
     fig.savefig(path, dpi=150)
     plt.close(fig)
@@ -270,8 +268,8 @@ def main(argv=None):
     summary = {
         "description": "FD-driven SLSQP on fun(u) = J(u)/|J(u0)| with the polar-cache "
                        "envelope constraint, from x0.",
-        "provisional_bounds": PROVISIONAL_LABEL,
-        "bounds": {k: float(v) for k, v in PROVISIONAL_BOUNDS.items()},
+        "bounds_label": BOUNDS_LABEL,
+        "bounds": problem.bounds.as_record(),
         "command": "python verification/fd_optimisation/run_fd_slsqp.py",
         "generated": datetime.datetime.now().isoformat(timespec="seconds"),
         "variables": names,
@@ -313,7 +311,7 @@ def main(argv=None):
     with open(RESULT_PATH, "w", encoding="utf-8") as handle:
         json.dump(summary, handle, indent=1)
     with open(ITERATES_PATH, "w", encoding="utf-8") as handle:
-        json.dump({"provisional_bounds": PROVISIONAL_LABEL, "fd_step": h,
+        json.dump({"bounds_label": BOUNDS_LABEL, "fd_step": h,
                    "iterates": recorder.iterates}, handle, indent=1)
 
     plot(problem, x0, x_star, FIGURE_PATH)
@@ -334,7 +332,7 @@ def main(argv=None):
 
 def _write_partial(domain_errors):
     with open(RESULT_PATH, "w", encoding="utf-8") as handle:
-        json.dump({"provisional_bounds": PROVISIONAL_LABEL, "aborted": True,
+        json.dump({"bounds_label": BOUNDS_LABEL, "aborted": True,
                    "domain_errors": domain_errors}, handle, indent=1)
 
 

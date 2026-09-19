@@ -26,6 +26,7 @@ Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
 """
 
 import contextlib
+import math
 import os
 import re
 import shutil
@@ -191,12 +192,22 @@ def _temporary_config(overrides):
                 yaml.safe_dump(data, f)
 
         loader.CONFIG_DIR = scratch
-        loader.load_site.cache_clear()
+        _clear_config_caches()
         yield
     finally:
         loader.CONFIG_DIR = original
-        loader.load_site.cache_clear()
+        _clear_config_caches()
         shutil.rmtree(scratch, ignore_errors=True)
+
+
+def _clear_config_caches():
+    """Every `lru_cache`d loader, so an override is actually read."""
+
+    from config import loader
+
+    for load in (loader.load_site, loader.load_design_rotor,
+                 loader.load_phase_vi_rotor, loader.load_polar_cache):
+        load.cache_clear()
 
 
 def test_an_inconsistent_atmosphere_is_rejected():
@@ -307,14 +318,58 @@ def test_a_partially_resolved_wind_resource_is_rejected():
             config.load_site()
 
 
-def test_unresolved_design_bounds_raise():
-    """The design-variable bounds are TODO too (plan 7.1), and behave the same."""
+def test_design_bounds_are_resolved_with_their_recorded_values():
+    """
+    The design-variable bounds were TODO (plan 7.1) until 2026-09-19; they
+    are resolved now, with the basis recorded in the YAML. Pinned to the
+    decided numbers so an edit has to restate its basis, and so a `TODO`
+    creeping back in would fail here rather than three modules downstream.
+    """
 
     bounds = config.load_design_rotor().parameterisation
 
-    for name in ("chord_min_m", "chord_max_m", "twist_min_deg", "twist_max_deg"):
-        with pytest.raises(config.UnresolvedConfigError, match=name):
-            float(getattr(bounds, name))
+    assert float(bounds.chord_min_m) == pytest.approx(0.045)
+    assert float(bounds.chord_max_m) == pytest.approx(0.30)      # O4, 2026-09-19
+    assert float(bounds.twist_min_deg) == pytest.approx(-2.0)
+    assert float(bounds.twist_max_deg) == pytest.approx(35.0)
+
+
+def test_a_todo_bound_still_raises_when_used():
+    """The unresolved mechanism is kept: a TODO in the YAML raises on use."""
+
+    rotor_yaml = _load_raw("rotor_design.yaml")
+    rotor_yaml["parameterisation"]["bounds"]["chord_max_m"] = "TODO: reopened"
+
+    with _temporary_config({"rotor_design.yaml": rotor_yaml}):
+        bounds = config.load_design_rotor().parameterisation
+        with pytest.raises(config.UnresolvedConfigError, match="chord_max_m"):
+            float(bounds.chord_max_m)
+
+
+def test_the_machine_facts_are_recorded():
+    """
+    B1 (rotor-speed ceiling) and the solidity cap, resolved provisionally on
+    2026-09-19. `max_tip_speed_ms` is derived from the rpm and the radius so
+    the two cannot drift apart.
+    """
+
+    design = config.load_design_rotor()
+
+    assert design.max_rotor_speed_rpm == pytest.approx(300.0)
+    assert design.max_tip_speed_ms == pytest.approx(300.0 * 2.0 * math.pi / 60.0 * 2.0)
+    assert design.max_local_solidity == pytest.approx(0.5)
+
+
+def test_no_ceiling_is_spelled_null():
+    """`max_rotor_speed_rpm: null` means no ceiling -- the control case."""
+
+    rotor_yaml = _load_raw("rotor_design.yaml")
+    rotor_yaml["operating"]["max_rotor_speed_rpm"] = None
+
+    with _temporary_config({"rotor_design.yaml": rotor_yaml}):
+        design = config.load_design_rotor()
+        assert design.max_rotor_speed_rpm is None
+        assert design.max_tip_speed_ms is None
 
 
 def test_resolved_design_values_are_present():

@@ -5,11 +5,11 @@ Everything the FD-driven SLSQP run rests on that can be checked without
 running it: the central difference is exact where it should be exact, the
 step-size sweep records an out-of-cache step rather than patching it, the
 objective is normalised to exactly -1 at the start, and the polar-cache
-envelope constraint says yes at `x0` and no where the provisional bounds
-would take the optimiser outside the cache.
+envelope constraint says yes at `x0` and no where the box bounds would take
+the optimiser outside the cache.
 
-Bounds are provisional (`chord_max_m = 0.45 m` is a placeholder), taken from
-`test_parameterisation.PROVISIONAL_BOUNDS` -- the single copy.
+Bounds are the configured ones (`DesignBounds.from_config()`; `chord_max_m =
+0.30 m` since 2026-09-19).
 
 Author: MJ Hendrikse
 Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
@@ -26,7 +26,6 @@ from gradients import ScaledProblem, central_difference, step_size_sweep
 from gradients.finite_difference import OUT_OF_CACHE
 from objective import WeibullResource
 from polars.interpolant import PolarDomainError
-from test_parameterisation import PROVISIONAL_BOUNDS
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 X0_PATH = os.path.abspath(os.path.join(_HERE, "..", "verification", "baseline", "x0.json"))
@@ -39,8 +38,8 @@ def parameterisation():
 
 @pytest.fixture(scope="module")
 def bounds(parameterisation):
-    return DesignBounds(n_chord=parameterisation.n_chord,
-                        n_twist=parameterisation.n_twist, **PROVISIONAL_BOUNDS)
+    return DesignBounds.from_config(n_chord=parameterisation.n_chord,
+                        n_twist=parameterisation.n_twist)
 
 
 @pytest.fixture(scope="module")
@@ -162,7 +161,7 @@ def test_envelope_constraint_is_satisfied_at_u0(problem, u0):
 
 
 def test_envelope_constraint_is_violated_with_every_chord_at_its_bound(problem):
-    """u = 1: all chord control points at the provisional 0.45 m -> Re > 1 M."""
+    """u = 1: all chord control points at chord_max_m -> tip Re > 1 M at 19.5 m/s."""
 
     g = problem.envelope_constraint()["fun"](np.ones(problem.n))
     ceiling_rows = g[problem.parameterisation.n_stations:]

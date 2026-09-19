@@ -22,14 +22,16 @@ from here in the same commit that fills it.
 > them with, what evidence to regenerate, and how to tell whether the result is
 > actually right rather than merely green.
 
-Last reviewed: **2026-09-19**. Phases 1–3 are complete; the list below is
-what gates Phases 4 and 5. Since the 14th: the generator rating is **frozen
-in code** (audit recommendation 2, section 9 below) at a provisional,
-baseline-derived value, so B2 now asks for a number to *replace* a
-placeholder rather than for a modelling decision. **The three machine facts in section 9 are now the
-most consequential entries** — they decide the structure of the production
-objective, and with it whether the headline result is "+0.2 %, the
-optimiser confirms Schmitz" or a multi-% gain over it.
+Last reviewed: **2026-09-19 (evening)**. Phases 1–3 are complete. Since the
+14th: the generator rating is **frozen in code** (audit recommendation 2,
+section 9) at a provisional, baseline-derived value, so B2 asks for a number
+to *replace* a placeholder. **On the 19th MJ decided B1 (maximum rotor
+speed, 300 rpm, provisional with a stated basis) and the bounds (section 2,
+`chord_max_m = 0.30 m` with a solidity cap)** on the evidence of the
+isolated experiment now recorded in `verification/aep_optimisation_experiment/`.
+Both are in `config/rotor_design.yaml`. Nothing on this list blocks Phase 4
+or Phase 5 any more; B2 and B3 remain open as *replacements* and *scope
+limits* (section 9), and section 10 is a confirmation.
 
 ---
 
@@ -78,51 +80,49 @@ MJ decided the same day: widen the band. Done, to **8–12 MWh/yr**, with the
 derivation recorded rather than the numbers merely stretched to fit. See
 section 7, which is closed.
 
-So section 1 leaves nothing blocking behind it. The 🟠 bounds entry
-(section 2) was the most blocking item until 2026-09-13's provisional set
-unblocked Phases 2–3; section 9 now carries the items that gate Phase 5.
+So section 1 leaves nothing blocking behind it. The bounds entry (section
+2) was the most blocking item until 2026-09-13's provisional set unblocked
+Phases 2–3, and was resolved on 2026-09-19; section 9 carries the machine
+facts, of which B1 was resolved provisionally the same day.
 
 ---
 
-## 2. Design-variable bounds 🟠 partially blocking
+## 2. Design-variable bounds ✅ **RESOLVED 2026-09-19 — MJ's decision (O4)**
 
-**Needed for:** plan step 1.6's bounds bullet, step 1.7's feasibility check,
-and step 1.8's "sweep `d_i` across its **feasible** range".
+Kept in place rather than deleted, because the fourth value is an
+engineering judgement with a recorded basis, not a measured hub/attachment
+limit, and the basis has to stay findable.
 
-**Where it goes:** `config/rotor_design.yaml`, under `parameterisation.bounds`
+**What landed:** `config/rotor_design.yaml`, `parameterisation.bounds`:
 
-| field | needed |
-|---|---|
-| `chord_min_m` | manufacturability / root-attachment limit |
-| `chord_max_m` | manufacturability / solidity limit |
-| `twist_min_deg` | physically realistic range |
-| `twist_max_deg` | physically realistic range |
+| field | value | basis |
+|---|---|---|
+| `chord_min_m` | 0.045 m | SG6043 10 % t/c at 32.1 % chord → ~4.5 mm laminate minimum (2026-09-13) |
+| `chord_max_m` | **0.30 m** | local solidity at the root cut-out r = 0.3 m: 0.45 m gives σ = 0.72 (blades nearly touching; BEM's independent-annuli assumption and the Prandtl loss model no longer hold), 0.30 m gives σ = 0.48, the conventional edge of BEM validity; c/R = 0.15 is the top of the small-turbine commercial range (~0.08–0.15); the Schmitz root is 276 mm, so the baseline stays feasible and unclipped (audit §3.4) and the fairness argument is unchanged; measured neither generous nor punitive — +0.147 % at 300 rpm with either 0.30 or 0.45 m, and 2.33 → 2.28 % at 263 rpm |
+| `twist_min_deg` | −2° | Schmitz tip twist 0.57° with margin (2026-09-13). **Active at the optimum** from every start |
+| `twist_max_deg` | 35° | Schmitz root twist 23.07° with margin (2026-09-13) |
 
-**Source:** plan section 7.1's manufacturability study. The plan commits only
-to the fact that bounds exist and are applied to the **scaled** variables; it
-selects no numbers, and no study has.
+plus `constraints.max_local_solidity: 0.5` — the radius-aware form of the
+same limit, `σ_i = B c_i / (2π r_i) ≤ 0.5` at every station, wired through
+`ScaledProblem.solidity_constraint(cap)`. Honesty note, recorded in the YAML
+too: with the 0.30 m box on the control points and the spline's convex-hull
+property, the cap cannot be reached (at the first station, r = 0.334 m,
+σ = 0.5 needs 350 mm), so it will report *inactive* in every run; the box is
+what bites at the root.
 
-**Context that may inform them:** the Schmitz baseline runs from **263 mm chord
-at the root to 69 mm at the tip**, with twist **23.07° → 0.57°** (see
-`verification/representation_study/`). A root chord of 263 mm on a 2.0 m blade
-is wide — characteristic of Schmitz — so whether the baseline is feasible
-against a real manufacturability envelope is a genuinely open question, not a
-formality.
+**What changed in code:** `DesignBounds.from_config()` now loads instead of
+raising; the provisional set in `tests/test_parameterisation.py::PROVISIONAL_BOUNDS`
+(0.45 m placeholder, 2026-09-13) is retired and every script and test reads
+the config. Three tests that were written to go red when this landed did,
+and were replaced (`test_design_bounds_are_resolved_with_their_recorded_values`,
+`test_bounds_from_config_carry_the_decided_values`,
+`test_x0_is_feasible_against_the_configured_bounds`). Because the box
+changed, the `u` scaling changed with it, so every gradient and optimisation
+artefact was re-run — see the 2026-09-19 journal entry.
 
-**What unblocks:** `DesignBounds.from_config()`, which currently raises; step
-1.7's "clip and record if violated"; and the sweep ranges in step 1.8.
-
-**Interim position — updated 2026-09-13, MJ's decision:**
-`tests/test_parameterisation.py::PROVISIONAL_BOUNDS` now carries a *grounded*
-set for three of the four values — `chord_min_m = 0.045` (SG6043 10 % t/c at
-32.1 % chord → ~4.5 mm laminate minimum), `twist −2° … 35°` (Schmitz baseline
-0.57° / 23.07° with margin) — and a *provisional* `chord_max_m = 0.45`, which
-depends on the hub radius and root-attachment concept, neither yet decided.
-`x0` is feasible against this set (control points 0.067–0.276 m,
-0.59°–24.5°; zero violations). Bounds-dependent work (plan steps 1.6–1.8,
-Phase 2 SLSQP bounds) proceeds by constructing `DesignBounds(**PROVISIONAL_BOUNDS)`
-explicitly. **Nothing goes into `config/` and `from_config()` keeps raising**
-until `chord_max_m` has a basis — see `PROJECT_DIRECTION_v2.md` §16.
+**What would replace it:** a hub radius and root-attachment concept that
+fixes a different upper chord. Then the value is replaced, not reconciled,
+and the artefacts re-run.
 
 ---
 
@@ -276,7 +276,7 @@ every AEP figure in the report.
 
 ---
 
-## 9. The machine — three facts that decide the Phase 5 objective 🔴 blocking Phase 5
+## 9. The machine — three facts that decide the Phase 5 objective 🟡 B1 resolved provisionally, B2 provisional, B3 open (scope limit)
 
 **Raised 2026-09-13** by `docs/AEP_GAIN_AUDIT.md` §5, after the FD-driven
 and adjoint-driven optimisations both stopped at **+0.217 %** over Schmitz
@@ -289,43 +289,87 @@ in it to optimise. A larger honest number requires the machine model to
 contain a feature the real machine has. Which features it has is hardware,
 not a modelling choice.
 
-**Needed for:** Phase 5's production run and every AEP-gain figure in the
-results chapter. Not needed for Phase 4.
+**Status 2026-09-19 (evening).** Nothing here blocks Phase 4 or Phase 5.
 
-**Where it goes:** `config/rotor_design.yaml` (operating strategy fields) and
-`src/objective/power.py::power_per_bin`; then A3/A4/B3/B5 re-run.
+### B1 — maximum rotor speed ✅ **resolved provisionally 2026-09-19: 300 rpm**
 
-**B2 is half-done as of 2026-09-19.** The cap no longer floats: `power_per_bin`
-holds power above rated at `operating.rated_power_w` from the config, and the
-adjoint carries the capped bins as a constant (`adjoint.system.BEMSystem.
-J_capped`). The value in the file is **provisional** — `P_aero(11 m/s; x0) =
-3822.189755449124 W`, the Schmitz baseline's own aerodynamic power at the
-rated wind speed, recorded at full precision so the baseline's AEP did not
-move — and `tests/test_baseline.py::
-test_configured_rating_is_the_baselines_aerodynamic_rated_power` pins it to
-that basis. What B2 still needs is the nameplate, which replaces the number
-(and retires that test); A3/A4/B3/B5 and the multi-start then re-run once
-more. A3/A4/B3/B4/B5 have already been re-run under the frozen provisional
-rating; the current-model gain is **+0.121 %** and every artefact says so.
+`config/rotor_design.yaml`, `operating.max_rotor_speed_rpm: 300` (62.8 m/s
+tip speed at R = 2 m; the ceiling bites at V_c = 9.67 m/s). The operating
+law in `src/objective/power.py` is `λ(V) = min(6.5, Ω_max R / V)`. Basis,
+recorded in the YAML:
 
-| # | fact | why it matters | measured sensitivity (audit §3, provisional bounds, fixed rating) |
+- 341 rpm (= no ceiling below rated) is 71.4 m/s tip speed at rated — above
+  the ~60–65 m/s noise-conscious upper limit generally applied to
+  residential-scale small turbines.
+- The closest commercial analogue in size and rating (Skystream 3.7, 2.4 kW,
+  3.72 m rotor) runs to ~330 rpm ≈ 64 m/s tip speed; off-the-shelf
+  direct-drive 3 kW PMGs cluster at 250–300 rpm rated.
+- 263 and 239 rpm (55 / 50 m/s) were explicitly *not* chosen: they are the
+  cases that inflate the gain and would amount to designing for an
+  under-sped generator. 300 rpm gives **+0.147 %** (from +0.121 %), i.e. the
+  decision does not flatter the optimiser.
+- Evidence: `verification/aep_optimisation_experiment/` (2026-09-19).
+
+**Provisional** in the sense that it is a stated engineering basis, not a
+generator datasheet. A specified generator's rated rpm replaces it, and the
+artefacts re-run. Section 10 is the confirmation item.
+
+### B2 — generator nameplate rating 🟡 provisional (unchanged since the 19th, morning)
+
+The cap no longer floats: `power_per_bin` holds power above rated at
+`operating.rated_power_w`, and the adjoint carries the capped bins as a
+constant (`adjoint.system.BEMSystem.J_capped`). The value is **provisional**
+— `P_aero(11 m/s; x0) = 3822.189755449124 W`, the Schmitz baseline's own
+aerodynamic power at the rated wind speed at full precision — and
+`tests/test_baseline.py::test_configured_rating_is_the_baselines_aerodynamic_rated_power`
+pins it to that basis. Note that under the 300 rpm ceiling the baseline runs
+λ = 5.71 at 11 m/s, not 6.5, so `P_aero(11 m/s; x0)` on the *schedule* is no
+longer exactly the configured rating; the test pins the basis as stated
+(λ = 6.5), and the config comment says so. What B2 still needs is the
+nameplate, which replaces the number and retires that test.
+
+### B3 — above-rated limiting mechanism 🟠 open; a scope limit, not a blocker
+
+Ideal hold (current model): a capped bin contributes a constant to the
+objective and nothing to the gradient. That is defensible for the *energy*
+axis. It is **not** a model of the *loads* above rated: at (V > 11 m/s,
+Ω_max) the BEM state produces P_aero > P_rated with no mechanism shedding
+the difference, so the thrust and root moment there are those of a machine
+that is not the one modelled — and at 20 m/s / 300 rpm, λ = 3.1 and the
+inboard stations are at α ≈ 30° on the Viterna extrapolation. Consequence
+for Phase 4: the load constraint is applied at **rated wind speed at Ω_max
+(11 m/s, 300 rpm, λ = 5.71)**, the highest B3-independent point, inside the
+polar cache's α band; the cut-out moment is reported as a labelled
+post-check only. B3 would be needed to constrain above rated, and would
+change the adjoint structure (a trim equation). Not required for the
+project's stated scope.
+
+| # | fact | status | measured sensitivity |
 |---|---|---|---|
-| **B1** | **Maximum rotor speed** — generator rated rpm, or a tip-speed limit with its reason (noise, structural) — or an explicit "none below rated" | Decides whether the objective has a TSR dimension at all; at λ = 6.5 the rotor already runs 71.5 m/s tip speed at rated | ceiling ≥ 70 m/s: 0; 60 m/s: +0.34 %; **55 m/s: +2.33 %**; 50 m/s: +7.84 % |
-| **B2** | **Generator nameplate rating**, or confirmation that 3822 W aerodynamic at 11 m/s is to be frozen as the rating | 42 % of the site's energy is in the capped region; with the cap floating with the design, half the current gain is the generator getting bigger, not the blade getting better | floating: +0.217 %; **fixed: +0.121 %** |
-| **B3** | **Above-rated limiting mechanism** for the actual machine: ideal hold (current model), constant-rpm passive stall, torque-controlled soft stall, or furling | Decides whether 42 % of the objective is blade-independent (current) or the most blade-sensitive region; also whether §6.2's smooth-objective argument still holds, and whether the adjoint needs a trim equation | not measured — the SG6043 blade does not stall-regulate itself at 341 rpm (`P_aero ≈ 7.7 kW` at 15 m/s); a controller has to drive it there |
-
-**Interaction with section 2:** the ceiling-designed blades are wider (root
-control point 376–441 mm against Schmitz's 276 mm), so **`chord_max_m`
-becomes blocking the moment B1 is answered with a ceiling.** Settle both
-together.
+| **B1** | maximum rotor speed | **300 rpm, provisional with basis** | none: +0.121 %; 300 rpm: **+0.147 %**; 286 rpm (60 m/s): +0.34 %; 263 rpm: +2.33 %; 239 rpm: +7.84 % |
+| **B2** | generator nameplate rating | provisional, `P_aero(11 m/s; x0)` at λ = 6.5 | floating: +0.217 %; fixed: +0.121 % |
+| **B3** | above-rated limiting mechanism | open; limits the load constraint to ≤ rated | not measured |
 
 **What is NOT acceptable as a way of resolving this** (audit §3.5): choosing
 a ceiling because it makes the number bigger; swapping the baseline for a
-linear-taper blade (that measures the textbook's gap, not the optimiser's —
-report it as context only); keeping the floating rating; building Schmitz at
-a datasheet α; lowering `n_crit`. If none of B1–B3 departs from the ideal
-machine, the honest headline is "a polar-consistent Schmitz design is within
-0.12 % of the numerical AEP optimum; the optimiser confirms the textbook
-design", supported by three independent lines of evidence — and the load
-axis (`Ct` −2.1 % at equal power, audit §1.5) becomes the more interesting
-result.
+linear-taper blade (report it as context only); keeping the floating rating;
+building Schmitz at a datasheet α; lowering `n_crit`. The 300 rpm decision
+was taken with those exclusions in front of it, which is why 263/239 rpm are
+recorded as rejected.
+
+---
+
+## 10. Kestrel e400 rated rotor speed 🟢 confirm only
+
+**Raised 2026-09-19** with the B1 decision. Nothing is blocked; this is a
+citation to strengthen the basis of `max_rotor_speed_rpm: 300`.
+
+**Needed for:** the report's justification of the rotor-speed ceiling. The
+Kestrel e400 (3 kW, 4.0 m rotor diameter, manufactured in Gqeberha) is the
+nearest regional comparable in size and rating.
+
+**What to pull:** the datasheet rated rotor speed (rpm) and, if given, the
+rated tip speed or noise rating. If it supports ~300 rpm, cite it beside the
+Skystream 3.7 figure in the config comment and the methodology chapter. If it
+does not, record what it says and whether the basis should move; the
+artefacts re-run only if the config value changes.

@@ -61,22 +61,20 @@ import numpy as np
 _HERE = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.abspath(os.path.join(_HERE, "..", ".."))
 sys.path.insert(0, os.path.join(REPO_ROOT, "src"))
-sys.path.insert(0, os.path.join(REPO_ROOT, "tests"))
 
 from bem.corrections import BUHL_AC  # noqa: E402
 from design import BladeParameterisation, DesignBounds  # noqa: E402
 from gradients import ScaledProblem  # noqa: E402
 from gradients.finite_difference import _central_component  # noqa: E402
 from objective import WeibullResource  # noqa: E402
-from test_parameterisation import PROVISIONAL_BOUNDS  # noqa: E402
 
 SWEEP_PATH = os.path.join(REPO_ROOT, "verification", "fd_step_size", "sweep.json")
 TIER3_PATH = os.path.join(_HERE, "tier3.json")
 TIER4_PATH = os.path.join(_HERE, "tier4.json")
 FIGURE_PATH = os.path.join(_HERE, "tier4_attribution.png")
 
-PROVISIONAL_LABEL = ("under provisional bounds (chord_max_m = 0.45 m provisional; "
-                     "chord_min_m, twist_min, twist_max grounded)")
+BOUNDS_LABEL = ("under the configured bounds (chord_max_m = 0.30 m, resolved "
+                "2026-09-19; chord_min_m, twist_min, twist_max grounded 2026-09-13)")
 
 NOISE_STEPS = np.arange(-4, 5) * 1e-12   # the line J is sampled along for delta J
 
@@ -88,8 +86,8 @@ def load_json(path):
 
 def build_problem():
     parameterisation = BladeParameterisation()
-    bounds = DesignBounds(n_chord=parameterisation.n_chord,
-                          n_twist=parameterisation.n_twist, **PROVISIONAL_BOUNDS)
+    bounds = DesignBounds.from_config(n_chord=parameterisation.n_chord,
+                          n_twist=parameterisation.n_twist)
     return ScaledProblem(parameterisation, bounds, WeibullResource.from_config())
 
 
@@ -361,7 +359,7 @@ def plot(points, path):
         ax.legend(fontsize=7, frameon=False, loc="upper center")
     np.atleast_1d(axes)[0].set_ylabel("|FD(h) − adjoint|   [MWh/yr per unit u]")
     fig.suptitle("Tier 4: FD error vs step, with C² crossings counted (α knots, Buhl, Re rows) — "
-                 + PROVISIONAL_LABEL, fontsize=9)
+                 + BOUNDS_LABEL, fontsize=9)
     fig.tight_layout()
     fig.savefig(path, dpi=150)
     plt.close(fig)
@@ -403,7 +401,7 @@ def main(argv=None):
         "description": "Tier 4: what the FD stencil crosses (alpha knots, Reynolds rows, "
                        "Buhl a = 0.4) at h*_j and across the step grid, the measured "
                        "round-off floor of J, and the attribution of |FD - adjoint|.",
-        "provisional_bounds": PROVISIONAL_LABEL,
+        "bounds_label": BOUNDS_LABEL,
         "command": "python verification/gradient_verification/run_tier4.py",
         "generated": datetime.datetime.now().isoformat(timespec="seconds"),
         "variables": names,

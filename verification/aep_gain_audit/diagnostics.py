@@ -42,7 +42,6 @@ import numpy as np
 _HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(_HERE, "..", ".."))
 sys.path.insert(0, os.path.join(REPO, "src"))
-sys.path.insert(0, os.path.join(REPO, "tests"))
 
 from bem.rotor import solve_rotor  # noqa: E402
 from config import load_design_rotor, load_site  # noqa: E402
@@ -54,7 +53,16 @@ from objective.objective import HOURS_PER_YEAR  # noqa: E402
 from objective.power import aerodynamic_power, wind_speed_bins  # noqa: E402
 from polars.interpolant import PolarDomainError  # noqa: E402
 from polars.polar import interpolant_for  # noqa: E402
-from test_parameterisation import PROVISIONAL_BOUNDS  # noqa: E402
+
+# The bounds this 2026-09-13 audit ran under, kept here verbatim so the script
+# stays a reproducible record. They were `tests/test_parameterisation.py::
+# PROVISIONAL_BOUNDS` at the time; that set was retired on 2026-09-19 when
+# `chord_max_m = 0.30 m` (O4) went into config/rotor_design.yaml. Do not read
+# 0.45 m as a current bound.
+PROVISIONAL_BOUNDS = {
+    "chord_min_m": 0.045, "chord_max_m": 0.45,
+    "twist_min_rad": math.radians(-2.0), "twist_max_rad": math.radians(35.0),
+}
 
 design = load_design_rotor()
 site = load_site()
