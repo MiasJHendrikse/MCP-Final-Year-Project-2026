@@ -22,14 +22,34 @@ Per-station chord and twist reach the design vector only through the
 constant spline Jacobians `N_c`, `N_theta` (`BladeParameterisation`); nothing
 here accepts per-station values as a design variable.
 
+Operating points and the per-bin tip-speed ratio (2026-09-19)
+--------------------------------------------------------------
+The operating points are `objective.power.operating_points()`: the 17 bin
+midpoints, each with its own `lambda_b = min(6.5, Omega_max R / V_b)` from
+the configured rotor-speed ceiling. Everything lambda touches here reads
+the per-point list `self.omega` (`Omega_b = lambda_b V_b / R`): the local
+speed ratio `lam_r`, the zero-induction Reynolds estimate `W = hypot(V_b,
+Omega_b r_i)`, and the power assembly `P_b = Omega_b sum_i t_i q_{b,i}`. The
+schedule is a function of `V` alone, so `Omega_b` is a constant of the
+station and nothing in the derivation changes: `dR/dx` stays diagonal,
+`dR/dd` keeps its form, and `gradient()` assembles `dJ/dd = sum_b omega_b
+dP_b/dd` as before. With no ceiling (`max_rotor_speed_rpm: null`) every
+`lambda_b` is the design TSR and this is the pre-2026-09-19 system
+bit-for-bit (`tests/test_operating_law_control.py`).
+
+`points` may be passed explicitly as `[(V, lambda)]` for a system on other
+operating points -- the load constraint's, for one -- with `mass=None`
+meaning unit weights.
+
 Forward solve
 --------------
 `solve(d)` calls `objective.power.aerodynamic_power` once per operating point
-(the 17 bin midpoints) and reads `phi` from the returned station records. It
-does not re-implement the root-find and does not solve twice. `limited = P_b
-> P_rated` exactly as `objective.power.power_per_bin` flags it, with
-`P_rated` the configured generator rating (`operating.rated_power_w`); that
-mask is a fixed input to every derivative (§7 of the derivation).
+with that point's `lambda_b` and reads `phi` from the returned station
+records. It does not re-implement the root-find and does not solve twice.
+`limited = P_b > P_rated` exactly as `objective.power.power_per_bin` flags
+it, with `P_rated` the configured generator rating
+(`operating.rated_power_w`); that mask is a fixed input to every derivative
+(§7 of the derivation).
 
 The rating is fixed, so a capped bin contributes the constant `-(T/1e6) m_b
 P_rated` to `J` and nothing to any derivative: its weight `omega_b` is zero
@@ -45,9 +65,8 @@ the Tier 1 tests can complex-step the code's own residual and the assembled
 objective. No array is pre-allocated with a real dtype on those paths: rows
 are built as lists and `np.array` infers the dtype.
 
-Bounds are provisional (`chord_max_m = 0.45 m` is a placeholder); `bounds`
-is taken as an argument so the scaling chain `span` is available to
-`gradients.ScaledProblem.jac_adjoint`, and is read from nowhere else.
+`bounds` is taken as an argument so the scaling chain `span` is available
+to `gradients.ScaledProblem.jac_adjoint`, and is read from nowhere else.
 
 Author: MJ Hendrikse
 Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
@@ -62,7 +81,7 @@ from adjoint.kernels import station_partials
 from bem.station import StationParams, residual as station_residual
 from config import load_design_rotor, load_site
 from objective.objective import HOURS_PER_YEAR
-from objective.power import aerodynamic_power, wind_speed_bins
+from objective.power import aerodynamic_power, operating_points, wind_speed_bins
 from polars.polar import CachedPolar, interpolant_for
 
 
@@ -106,15 +125,23 @@ class BEMSystem:
     ----------
     parameterisation : design.BladeParameterisation
     bounds : design.DesignBounds
-        Required; the scaling chain only. Provisional numbers are constructed
-        by the caller from `tests/test_parameterisation.py::PROVISIONAL_BOUNDS`.
+        Required; the scaling chain only (`DesignBounds.from_config()`).
     resource : objective.WeibullResource
     polar_cache : str
         The blade's polar cache; `"sg6043"`, the one default, matching
         `BladeParameterisation.to_geometry`.
+    points : list of (float, float) or None
+        Operating points `(V, lambda)`. `None` is the objective's,
+        `objective.power.operating_points()`, with the bin masses from
+        `resource`. Given explicitly, the masses are unit weights unless
+        `mass` is passed, and `J` is then not the AEP -- subclasses on other
+        operating points (the load constraint) define their own functional.
+    mass : array-like or None
+        Per-point weights to go with explicit `points`.
     """
 
-    def __init__(self, parameterisation, bounds, resource, polar_cache="sg6043"):
+    def __init__(self, parameterisation, bounds, resource, polar_cache="sg6043",
+                 points=None, mass=None):
         if bounds.n_design_variables != parameterisation.n_design_variables:
             raise ValueError(
                 f"bounds carry {bounds.n_design_variables} variables, the "
@@ -136,20 +163,31 @@ class BEMSystem:
         self.n_blades = int(self.design.n_blades)
         self.r_hub = float(parameterisation.root_fraction * parameterisation.radius_m)
 
-        # Operating points: the 17 bin midpoints. The rating is a number from
+        # Operating points: the 17 bin midpoints on the configured schedule,
+        # each with its own tip-speed ratio. The rating is a number from
         # config, so nothing is solved at the rated wind speed.
-        edges, midpoints, _width = wind_speed_bins()
-        self.speeds = [float(v) for v in midpoints]
-        self.n_bins = len(midpoints)
+        if points is None:
+            edges, _midpoints, _width = wind_speed_bins()
+            points = operating_points(self.design)
+            mass = resource.probability_between(edges[:-1], edges[1:])
+        elif mass is None:
+            mass = np.ones(len(points))
+        self.points = [(float(v), float(lam)) for v, lam in points]
+        self.speeds = [v for v, _lam in self.points]
+        self.tsr_per_bin = [lam for _v, lam in self.points]
+        self.n_bins = len(self.points)
         self.n_points = len(self.speeds)
         self.p_rated = float(self.design.rated_power_w)
-        self.mass = np.asarray(resource.probability_between(edges[:-1], edges[1:]), dtype=float)
+        self.mass = np.asarray(mass, dtype=float)
+        if self.mass.shape != (self.n_points,):
+            raise ValueError(f"mass has shape {self.mass.shape}, expected ({self.n_points},)")
 
         # Station constants: radii as `to_geometry` hands them to the solver
-        # (float per station), the local speed ratio, the trapezoid weights.
+        # (float per station), the per-point rotor speed (the one list every
+        # lambda-dependent quantity reads), the trapezoid weights.
         self.radii = [float(r) for r in parameterisation.radii]
         self.n_stations = len(self.radii)
-        self.omega = [self.tsr * v / self.R for v in self.speeds]
+        self.omega = [lam * v / self.R for v, lam in self.points]
         self.trapz_weights = _trapezoid_weights(self.radii)
 
         self.N_c = parameterisation.dchord_dd()
@@ -200,8 +238,8 @@ class BEMSystem:
         geometry = self.parameterisation.to_geometry(d, polar_cache=self.polar_cache)
 
         phi, power, a, reynolds, converged = [], [], [], [], True
-        for v in self.speeds:
-            p, result = aerodynamic_power(geometry, v, self.tsr, self.air_density,
+        for v, lam in self.points:
+            p, result = aerodynamic_power(geometry, v, lam, self.air_density,
                                           self.kinematic_viscosity)
             stations = result["stations"]
             phi.append([s["phi"] for s in stations])

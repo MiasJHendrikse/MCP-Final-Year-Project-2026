@@ -47,6 +47,8 @@ from adjoint import BEMSystem
 from bem.corrections import BUHL_AC, buhl_gammas
 from design import BladeParameterisation, DesignBounds
 from objective import WeibullResource, annual_energy_mwh
+from objective.power import operating_points
+from objective.power import operating_points
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 X0_PATH = os.path.abspath(os.path.join(_HERE, "..", "verification", "baseline", "x0.json"))
@@ -117,6 +119,23 @@ def parts(system, state):
 # ---------------------------------------------------------------------------
 # the values: kernel R == station.residual, J == annual_energy_mwh
 # ---------------------------------------------------------------------------
+
+def test_the_system_runs_the_configured_schedule(system):
+    """
+    `Omega_b = lambda_b V_b / R` per operating point, with `lambda_b` from
+    `objective.power.operating_points()` -- the one list every
+    lambda-dependent quantity in the system reads. Under the 300 rpm
+    ceiling the last ten bins share one rotor speed.
+    """
+
+    points = operating_points()
+    assert system.points == points
+    for (v, lam), omega in zip(points, system.omega):
+        assert omega == lam * v / system.R
+    omega_max = system.design.max_rotor_speed_rpm * 2.0 * math.pi / 60.0
+    assert np.allclose(system.omega[7:], omega_max)
+    assert all(o < omega_max for o in system.omega[:7])
+
 
 def test_kernel_residual_value_matches_station_residual(system, state, parts):
     """Same calls in the same order: the residual value is the code's own."""

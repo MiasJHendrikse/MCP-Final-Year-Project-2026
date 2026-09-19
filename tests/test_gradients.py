@@ -179,31 +179,80 @@ def test_envelope_jacobian_is_the_constant_derivative_of_its_fun(problem, u0):
 
 
 def test_envelope_limits_match_the_documented_numbers(problem):
-    """The chord ceiling/floor table in the implementation plan §4.4, to 3 s.f."""
+    """
+    The chord ceiling/floor table, to 3 s.f., on the 300 rpm schedule.
+
+    The floor at the root is set by the calmest bin at lambda = 6.5 (3.5
+    m/s) and is what it was under the fixed-lambda law, 0.145 m. The tip
+    ceiling is set by the 19.5 m/s bin at Omega_max, W = hypot(19.5,
+    62.8 * 0.983) = 64.8 m/s, so 0.289 m -- against 0.148 m when every bin
+    ran lambda = 6.5 (W = 128 m/s). The exact form is looser under a
+    ceiling; the conservative form the experiment reused was never active,
+    so no result depended on the difference.
+    """
 
     data = problem.envelope_data()
     r_over_R = data["radii"] / problem.parameterisation.radius_m
     tip = int(np.argmin(np.abs(r_over_R - 0.983)))
     root = int(np.argmin(np.abs(r_over_R - 0.167)))
-    assert data["chord_max_m"][tip] == pytest.approx(0.148, abs=5e-4)
+    assert data["chord_max_m"][tip] == pytest.approx(0.289, abs=5e-4)
     assert data["chord_min_m"][root] == pytest.approx(0.145, abs=5e-4)
+    assert data["v_at_max_w"][tip] == 19.5
+    assert data["tsr_at_max_w"][tip] < problem.design.design_tsr
+    assert data["v_at_min_w"][root] == 3.5
+    assert data["tsr_at_min_w"][root] == problem.design.design_tsr
     assert data["reynolds_lo"] == 40_000.0
     assert data["reynolds_hi"] == 1_000_000.0
 
 
-def test_solidity_constraint_requires_a_cap(problem):
-    with pytest.raises(TypeError):
-        problem.solidity_constraint()
+def test_envelope_extremes_are_taken_over_every_operating_point(problem):
+    """
+    Not assumed to sit at V_min and V_max: `W_i(V_b) = hypot(V_b, Omega_b r_i)`
+    is recomputed at every point and the row takes its extreme. Under the
+    ceiling the 9.5 m/s bin (lambda = 6.5, 294.8 rpm) and the 19.5 m/s bin
+    (300 rpm) are close at the tip, which is exactly why this is not left to
+    an assumption.
+    """
+
+    data = problem.envelope_data()
+    R = problem.parameterisation.radius_m
+    radii = problem.parameterisation.radii
+    nu = float(problem.site.kinematic_viscosity)
+    w = np.array([np.hypot(v, lam * v * radii / R) for v, lam in problem.operating_points()])
+    assert np.allclose(data["chord_max_m"], problem.reynolds_hi * nu / w.max(axis=0))
+    assert np.allclose(data["chord_min_m"], problem.reynolds_lo * nu / w.min(axis=0))
 
 
-def test_solidity_constraint_is_linear_when_a_cap_is_given(problem, u0):
-    """Built, never run: only its shape and sign convention are checked."""
+def test_solidity_constraint_reads_the_configured_cap(problem, u0):
+    """
+    The cap is `constraints.max_local_solidity` (0.5, 2026-09-19). Linear,
+    satisfied at x0, and -- as the config says -- unreachable inside the
+    0.30 m box: at u = 1 (every chord control point at chord_max_m) the
+    first station's solidity is still below the cap.
+    """
 
-    constraint = problem.solidity_constraint(cap=1.0)
+    constraint = problem.solidity_constraint()
     g = constraint["fun"](u0)
     assert g.shape == (problem.parameterisation.n_stations,)
-    assert np.all(g > 0.0)  # x0's solidity is far below 1
+    assert np.all(g > 0.0)
     assert constraint["jac"](u0).shape == (problem.parameterisation.n_stations, problem.n)
+    assert np.all(constraint["fun"](np.ones(problem.n)) > 0.0)
+    assert problem.design.max_local_solidity == 0.5
+
+
+def test_constraints_is_the_envelope_then_the_solidity_cap(problem, u0):
+    cons = problem.constraints()
+    assert [c["type"] for c in cons] == ["ineq", "ineq"]
+    assert len(cons[0]["fun"](u0)) == 2 * problem.parameterisation.n_stations
+    assert len(cons[1]["fun"](u0)) == problem.parameterisation.n_stations
+
+
+def test_active_set_at_x0_is_empty(problem, u0):
+    active = problem.active_set(u0)
+    assert active["bounds_lower"] == [] and active["bounds_upper"] == []
+    assert active["envelope"] == [] and active["solidity"] == []
+    assert active["envelope_tightest"]["slack_m"] > 0.0
+    assert active["sigma_max"] < active["sigma_cap"]
 
 
 def test_jac_fd_returns_a_gradient_of_the_right_shape(problem, u0):
@@ -212,11 +261,24 @@ def test_jac_fd_returns_a_gradient_of_the_right_shape(problem, u0):
     assert np.all(np.isfinite(grad))
 
 
-def test_alpha_check_at_x0_is_inside_the_cache(problem, u0):
+def test_alpha_check_at_x0_is_inside_the_cache_on_the_uncapped_points(problem, u0):
+    """
+    Under the 300 rpm ceiling the capped bins run lambda ~ 3-5 and the
+    inboard stations reach alpha ~ 29 deg at 19.5 m/s -- outside the XFOIL
+    band, on the Viterna extrapolation. Those bins are constants in J. The
+    check therefore reports both: every point (not within, and it says so)
+    and the uncapped points (within), and the gate every run applies is the
+    uncapped one.
+    """
+
     report = problem.alpha_check(u0)
-    assert report["within"]
     assert report["all_converged"]
     assert report["alpha_limits_deg"] == [-8.0, 18.0]
+    assert report["n_uncapped_points"] == 8
+    assert report["uncapped"]["within"]
+    assert report["uncapped"]["alpha_max_deg"] < 8.0
+    assert not report["within"]
+    assert report["alpha_max_deg"] > 18.0
     assert problem.reynolds_lo < report["reynolds_min"] < report["reynolds_max"] < problem.reynolds_hi
 
 
