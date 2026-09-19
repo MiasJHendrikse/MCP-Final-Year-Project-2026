@@ -344,11 +344,18 @@ post-check only. B3 would be needed to constrain above rated, and would
 change the adjoint structure (a trim equation). Not required for the
 project's stated scope.
 
+**Phase 4 delivered 2026-09-19.** The root-moment KS constraint at ≤ rated is
+implemented and verified (`verification/load_constraint/`,
+`docs/adjoint_derivation.md` §10): the `ε = 0` run is the Phase 5 production
+optimum (+0.1465 % AEP over `x0` at the baseline's own moment cap), and the
+2/5/10 % Pareto costs 0.0206/0.1282/0.5785 % AEP. Loads **above** rated remain
+B3's, kept as a labelled cut-out post-check.
+
 | # | fact | status | measured sensitivity |
 |---|---|---|---|
 | **B1** | maximum rotor speed | **300 rpm, provisional with basis** | none: +0.121 %; 300 rpm: **+0.147 %**; 286 rpm (60 m/s): +0.34 %; 263 rpm: +2.33 %; 239 rpm: +7.84 % |
 | **B2** | generator nameplate rating | provisional, `P_aero(11 m/s; x0)` at λ = 6.5 | floating: +0.217 %; fixed: +0.121 % |
-| **B3** | above-rated limiting mechanism | open; limits the load constraint to ≤ rated | not measured |
+| **B3** | above-rated limiting mechanism | open; the ≤ rated load constraint is **done** (Phase 4, 2026-09-19), above-rated still B3 | not measured |
 
 **What is NOT acceptable as a way of resolving this** (audit §3.5): choosing
 a ceiling because it makes the number bigger; swapping the baseline for a

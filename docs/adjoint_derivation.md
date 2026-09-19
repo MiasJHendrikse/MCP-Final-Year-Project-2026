@@ -28,6 +28,15 @@ left as written, with the re-run Tier 3/4 numbers in
 `verification/gradient_verification/README.md`. Tier 1 and Tier 2 pass unchanged
 on the 425-state system (`pytest tests/test_adjoint_*.py`).
 
+**Revision 2026-09-19 (Phase 4).** §10 appended: the second right-hand side —
+the per-blade flapwise root-moment integrand `m` and its partials in §6's
+notation, the nine-point KS aggregate `KS_rho(M/M_ref)`, the same diagonal
+adjoint on the 9 × 25 system, and the four tiers with the measured numbers from
+`tests/test_loads.py` and `verification/load_constraint/`. The functional is
+`src/objective/loads.py` (forward path) and `src/adjoint/loads.py`
+(`RootMomentSystem`); the ScaledProblem constraint is
+`src/gradients/problem.py::moment_constraint`.
+
 ---
 
 ## 1. State choice: `φ` only
@@ -545,3 +554,156 @@ optimisation comparison (§9.6).
 - **Loosening a tier**: none loosened. Tier 3's residual disagreement was
   unexplained until Tier 4 explained it, and Tier 4 explained it as round-off with
   the polar interpolation contributing zero at `h*_j`.
+
+---
+
+## 10. A second right-hand side: the root moment and its KS aggregate
+
+**Added 2026-09-19 (Phase 4, Steps 2a–2d).** The load constraint is a
+*relative* flapwise root-moment cap on the BEM spanwise loading. It reuses the
+whole Phase 3 machinery — the same residual `R`, the same diagonal `∂R/∂φ`,
+the same `dR/dd` through `N_c`, `N_θ` — with a different scalar functional and
+therefore a different right-hand side for the one adjoint solve. Nothing in
+§1–§8 changes; this section gives the new functional and its tiers.
+
+### 10.1 The integrand `m` and its partials
+
+In §6's notation, at station `i` of operating point `b`, with
+`arm = r_i − r_hub` a station constant (`r_hub = root_fraction · R`):
+
+    m = 1/2 rho · arm · c · w^2 · Cn                              [N·m per station]
+
+with `w = V (1−a)/sin φ` and `Cn = Cl cos φ + Cd sin φ` — the same `w`, `Cn`
+the power integrand `q` uses. Two deliberate asymmetries against `q`: **no
+blade count `B`** (this is one blade's root load; the rotor-summed figure would
+overstate it by `B`) and **no rotor speed `Ω_b`** (the power assembly is
+`P_b = Ω_b Σ_i t_i q`; the moment is `Σ_i t_i m` with no such factor).
+
+The partials are the same product rule as `q_φ, q_c, q_θ`, with `c` entering
+explicitly, through `σ → a → w`, and through `Re → Cl, Cd` in the third term of
+`m_c`:
+
+    m_φ     = 1/2 rho arm · c ( 2 w w_φ Cn + w^2 Cn_φ )
+    m_c     = 1/2 rho arm · [ w^2 Cn + c ( 2 w w_c Cn + w^2 Cn_c ) ]
+    m_θ     = 1/2 rho arm · c ( 2 w w_θ Cn + w^2 Cn_θ )
+
+`Cn_φ, Cn_c, Cn_θ` already exist in the kernel (they feed `Y`), and `m_c`'s
+third term is the `Re(c)` path `dre_dc = Re/c`. `r_hub is None` or `≤ 0` is
+treated as `0` exactly as `loss_factor_and_derivative` does. The value code is
+shared with `R` and `q`: with `derivatives=False` the kernel returns `m` and
+`None` partials, so a complex step of the value path is available.
+
+### 10.2 The load set `L`, the aggregate, the constraint
+
+Per blade, `M_b = Σ_i t_i m_{b,i}` (`t_i` the trapezoid weights that make the
+sum equal `bem.rotor._trapz`), and no `Ω_b`, no `B`.
+
+The operating set is fixed at construction from `x0` and is **not** recomputed
+per design (a set that moved with `d` would be a non-smooth constraint):
+
+    L = { (V_b, λ_b) : bin midpoint b with P_b(x0) ≤ P_rated }
+        ∪ { (11.0, λ(11.0) = 5.711986642890533) }
+      = 3.5 … 9.5 m/s at λ = 6.5, 10.5 at λ = 5.984, 11.0 at 5.712   →  nine points
+
+225 states, one scalar residual each. Normalising by
+`M_ref = M(x0) = 177.3755406092969 N·m` (11 m/s on the 300 rpm ceiling) makes
+`ρ` dimensionless and the constraint O(1):
+
+    Mhat_b         = M_b / M_ref
+    KS_ρ(Mhat)     = max_b Mhat_b + ln( Σ_b exp(ρ (Mhat_b − max)) ) / ρ
+    ∂KS/∂Mhat_b    = exp(ρ (Mhat_b − max)) / Σ_b exp(...)          (softmax, sums to 1)
+
+so, by the chain rule through the trapezoid and the normalisation,
+
+    ∂KS/∂φ_{b,i}   = softmax_b · t_i · m_φ_{b,i} / M_ref
+
+The adjoint is the same equation as §8 with this right-hand side:
+
+    ψ_{b,i} = −(∂KS/∂φ_{b,i}) / (∂R_{b,i}/∂φ_{b,i})                (225 divisions)
+    dKS/dd  = ∂KS/∂d|_explicit + Σ_{b,i} ψ_{b,i} ∂R_{b,i}/∂d
+
+with the explicit part `Σ_b softmax_b t_i (m_c N_cᵀ + m_θ N_θᵀ)/M_ref`. The
+constraint SLSQP sees, for reduction fraction `ε`, is
+
+    g_ε(u) = (1 − ε) KS_ρ(x0) − KS_ρ(u)  ≥ 0,   KS_ρ(x0) = 1.0004357284444418
+
+and the scaled Jacobian is `dg/du = −(dKS/dd) ⊙ span`. The limit is **`KS_ρ(x0)`
+and not `Mhat_max(x0) = 1`**: the aggregate exceeds its own max by the
+conservatism `KS − max` (0.00044 at `ρ = 100`), so a limit at 1 would make the
+baseline infeasible at `ε = 0`; at `KS_ρ(x0)` the starting point has exactly
+zero slack.
+
+### 10.3 What the load model is, and is not
+
+Out-of-plane moment, not rotated into the section flap axis; no centrifugal
+relief, no gravity, no dynamic amplification, no in-plane component. The model
+is the same integrand the baseline quotes, so `x0` vs optimised comparisons are
+consistent; the absolute number is not a structural load. Because the cap is
+relative no material allowable enters (stress `= M/Z` is a constant factor).
+The design condition is the rated wind speed at the rotor-speed ceiling — the
+highest B3-independent point — and the cut-out case
+(20 m/s, λ = 3.14159, 300 rpm, α up to ≈ 30° on Viterna) is **reported as a
+labelled post-check, never constrained on**.
+
+### 10.4 Implementation
+
+`src/objective/loads.py` is the forward path (`root_moment`, `root_moments`,
+`load_operating_points`, `ks`, `ks_weights`), independent of the adjoint;
+`design.baseline.root_bending_moment` is re-exported from it. `src/adjoint/loads.py`
+is `RootMomentSystem(BEMSystem)`, which inherits `solve`, `residual`, `partials`,
+`dR_dx`, `dR_dd`, the matrix-free operators and `state_sensitivity` unchanged
+and adds `moments_from_m`, `moments`, `KS`, `dKS_dx`, `dKS_dd`, `tangent`,
+`gradient` (`MomentGradientResult`). The parent's AEP methods (`J`, `weights`,
+`J_capped`, `dJ_dx`, `dJ_dd`, `powers_from_q`) are not called: they carry `Ω_b`,
+the bin masses and the rated mask. `ScaledProblem.moment_constraint` wraps it
+for SLSQP and caches the last `gradient` keyed on the exact `u` bytes, so the
+constraint's separate `fun`/`jac` at one `u` cost one 9-point solve
+(`n_moment_solves` counts them).
+
+### 10.5 The four tiers, measured
+
+Tier 1 is a complex step (`h = 1e-30`) through the value code, reported as the
+worst mixed error `|estimate − partial| / max(1, |partial|)`; Tier 2 is the
+forward-mode tangent against the adjoint direction and the assembly identity;
+Tier 3 is the constraint Jacobian against central FD at the global
+`h* = 3.162277660168379e-06` and `h*/√10`, `h*√10`, with `ε_j` the three-step
+local jitter and the round-off floor `δg/h*` measured from nine samples of `g`
+along `u + t e_j`, `t = −4e-12 … 4e-12`. All numbers are at `src` commit
+`a220e1b`, in `verification/load_constraint/checks.json`; Tier 1/2 also live in
+`tests/test_loads.py`.
+
+| point | Tier 1 worst mixed `m` | Tier 1 worst mixed KS | Tier 2 tangent | Tier 2 assembly | Tier 3 worst `|diff|/ε_j` | Taylor min ratio |
+|---|---|---|---|---|---|---|
+| `x0` | 3.19e-14 (`dm_dφ`) | 8.33e-16 (`dKS_dx`) | 8.9e-16 | 0.0 | 0.396 (`twist_0`) | 99.0 |
+| `u*` (unconstrained optimum) | 3.62e-14 (`dm_dφ`) | 1.17e-15 (`dKS_dx`) | 8.8e-16 | 0.0 | 22.64 (`chord_1`), floor-limited | 94.8 |
+
+At `x0` all ten variables are within `3 ε_j` (worst 0.396), and every
+disagreement is 0.0–4.8 × the measured round-off floor. At `u*` the single
+failure is `chord_1`: `ε_j = 3.42e-13`, two decades below every other variable,
+while `|diff| = 7.74e-12` is **0.18 ×** the measured floor `4.41e-11` — the same
+fragility §9.5 records for the objective at `x0`, where the flatness estimate
+lands on a degenerate neighbour pair. The adjoint is not the suspect; the
+acceptance scale is. No tolerance and no estimator was changed, and
+`checks.json` records `passes: false`, `fragile_only: true`, `resolved: true`;
+it is MJ's for the BLOCKING list. The production runs start at `x0`, where the
+Jacobian passes with worst ratio 0.396.
+
+The aggregate at `x0` is dominated by the rated point: softmax weight **0.957**
+at 11 m/s (plus 0.043 at 10.5 m/s; the other seven sum below 1e-37), so at
+`ρ = 100` the KS *is* the rated-point moment to within the conservatism. The
+conservatism `KS − max` is 0.0115 / 0.00044 / 2.94e-7 at
+`ρ = 30 / 100 / 300`.
+
+### 10.6 What Step 2 measured
+
+`verification/load_constraint/` (`result_eps{E}.json`, `pareto.json`). SLSQP
+from `x0` at `ε = 0, 0.02, 0.05, 0.10`, exit 0 at every `ε`, constraint active
+and `chord_0` on its 0.30 m upper bound at every `ε` (`chord_4` reaches its
+0.045 m lower bound from `ε = 0.02`). At `ε = 0` — the Phase 5 production
+optimum for now — `AEP = 10.262719 MWh/yr`, `+0.1465 %` over `x0` at a cost of
+only **0.00017 %** against the unconstrained optimum: the unconstrained `u*`'s
+extra +0.285 % KS bought essentially no energy. At `ε = 0.10` the cost is
+**0.5785 %** for a 10.000 % KS reduction, inside the 0.3–3 % band. The Pareto
+sweep is cold- and warm-started at every `ε` and the two agree to the
+multi-start spread 0.0166; cost is monotone in `ε`. The moment adjoint costs
+0.127 s against the objective's 0.205 s (9 points against 17).
