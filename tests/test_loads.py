@@ -538,9 +538,10 @@ def test_cut_out_post_check_reports_alpha_above_the_xfoil_band(problem, u0):
 def test_moment_constraint_jacobian_matches_fd_at_x0(problem, u0):
     """`moment_constraint(0)["jac"](u0)` vs central FD of its `fun` at the
     committed global `h*` and `h* / sqrt(10)`, `h* sqrt(10)`, with `eps_j`
-    re-measured as run_tier3.py does. Acceptance `|adj - fd| <= 3 eps_j`; the
-    measured round-off floor (the hand-off's `delta_g / h*` at `h*/1000`) is
-    reported in any failure, for the §3.4 xfail route."""
+    re-measured as run_tier3.py does. Acceptance `|adj - fd| <= 3 eps_j`. The
+    measured round-off floor (Tier 4's nine-sample linear fit, as
+    `run_load_checks.py` does it) is computed only on failure and reported with
+    it, for the §3.4 xfail route; a passing run does not pay for it."""
 
     constraint = problem.moment_constraint(0.0)
     jac = constraint["jac"](u0)[0]
@@ -555,18 +556,19 @@ def test_moment_constraint_jacobian_matches_fd_at_x0(problem, u0):
     eps = np.maximum(np.abs(g_mid - g_lo), np.abs(g_mid - g_hi))
     abs_err = np.abs(jac - g_mid)
 
-    small = H_STAR_GLOBAL / 1000.0
-    e = np.eye(problem.n)
-    floor = np.array([abs(g(u0 + small * e[j]) - g(u0 - small * e[j])) / H_STAR_GLOBAL
-                      for j in range(problem.n)])
-
     if not np.all(abs_err <= 3.0 * eps):
         worst = int(np.argmax(abs_err / eps))
+        ts = np.linspace(-4e-12, 4e-12, 9)
+        e = np.zeros(problem.n)
+        e[worst] = 1.0
+        values = np.array([g(u0 + t * e) for t in ts])
+        residual = values - np.polyval(np.polyfit(ts, values, 1), ts)
+        floor = float(np.sqrt(np.mean(residual ** 2))) / H_STAR_GLOBAL
         pytest.fail(
             f"moment constraint Jacobian outside 3 eps at variable {worst}: "
             f"|adj - fd| = {abs_err[worst]:.3e}, eps = {eps[worst]:.3e}, "
-            f"ratio = {abs_err[worst] / eps[worst]:.3f}, measured floor = "
-            f"{floor[worst]:.3e}, eps_below_floor = {bool(eps[worst] < floor[worst])}")
+            f"ratio = {abs_err[worst] / eps[worst]:.3f}, measured round-off floor = "
+            f"{floor:.3e}, eps_below_floor = {bool(eps[worst] < floor)}")
 
 
 def test_moment_constraint_taylor_remainder_is_second_order(problem, u0):

@@ -323,11 +323,18 @@ class ScaledProblem:
                                   m_ref_nm=self.m_ref)
         self._systems[rho] = system
 
-        result = system.gradient(self.physical(self.u0))
+        # The forward state at u0 does not depend on rho: a second stiffness
+        # reuses the solve the first one made rather than repeating it.
+        u0_key = np.asarray(self.u0, dtype=float).tobytes()
+        state = None
+        if self._moment_cache is not None and self._moment_cache_key[1] == u0_key:
+            state = self._moment_cache.state
+        else:
+            self.n_moment_solves += 1
+        result = system.gradient(self.physical(self.u0), state=state)
         self._ks0[rho] = float(result.KS)
-        self._moment_cache_key = (float(rho), np.asarray(self.u0, dtype=float).tobytes())
+        self._moment_cache_key = (float(rho), u0_key)
         self._moment_cache = result
-        self.n_moment_solves += 1
         if rho == DEFAULT_KS_RHO:
             self.KS0 = float(result.KS)
         return system
@@ -467,6 +474,7 @@ class ScaledProblem:
         cut_moment, cut_result = root_moment(geometry, v_cut, tsr_cut, rho_air, nu)
         cut_alpha = [math.degrees(s["alpha"]) for s in cut_result["stations"]]
         Ct_cut = float(cut_result["Ct"])
+        alpha_max_deg = float(max(cut_alpha))
 
         return {
             "u": [float(x) for x in u],
@@ -493,7 +501,7 @@ class ScaledProblem:
             "cut_out": {
                 "label": ("B3-dependent: the model holds P = P_rated with no "
                           "mechanism, so the state here is not the machine's; "
-                          "alpha up to ~28 deg on Viterna"),
+                          f"alpha up to {alpha_max_deg:.1f} deg on Viterna"),
                 "B3_dependent": True,
                 "v_ms": v_cut,
                 "tsr": float(tsr_cut),
@@ -503,7 +511,7 @@ class ScaledProblem:
                 "thrust_n": float(Ct_cut * 0.5 * rho_air * v_cut ** 2 * area),
                 "moment_nm": float(cut_moment),
                 "alpha_min_deg": float(min(cut_alpha)),
-                "alpha_max_deg": float(max(cut_alpha)),
+                "alpha_max_deg": alpha_max_deg,
                 "converged": bool(cut_result["converged"]),
             },
         }
