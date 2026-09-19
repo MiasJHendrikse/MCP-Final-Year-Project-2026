@@ -199,15 +199,17 @@ def run_constrained(problem, u0, eps, maxiter=200, ftol=1e-8, x_start=None):
     constraints = problem.constraints_with_moment(eps)
     recorder = Recorder(problem, eps)
 
-    value0 = recorder.fun(u0)
-    grad0 = recorder.jac(u0)
-    ks0 = recorder.ks(u0)
-    recorder.record_start(u0, value0, grad0, ks0)
+    # Iterate 0 is the point SLSQP actually starts from: x0 cold, or the
+    # previous eps's optimum when warm-started by run_pareto.py.
+    start = u0 if x_start is None else np.asarray(x_start, dtype=float)
+    value0 = recorder.fun(start)
+    grad0 = recorder.jac(start)
+    ks0 = recorder.ks(start)
+    recorder.record_start(start, value0, grad0, ks0)
     print(f"J(x0) = {problem.J0:.6f} MWh/yr; KS0 = {problem.KS0!r}; "
           f"eps = {eps:g}; margin = {problem.margin}; "
           f"start = {'warm' if x_start is not None else 'x0'}", flush=True)
 
-    start = u0 if x_start is None else np.asarray(x_start, dtype=float)
     started = time.perf_counter()
     result = minimize(
         recorder.fun, start, jac=recorder.jac, method="SLSQP",
@@ -222,10 +224,11 @@ def run_constrained(problem, u0, eps, maxiter=200, ftol=1e-8, x_start=None):
 
 def kkt_report(problem, u, eps, g_scaled, names):
     """
-    SciPy's SLSQP does not expose multipliers, so report the slope directly:
-    the component of `grad fun` in the span of the active constraint/bound
-    normals, and the residual after removing it. For a KKT point the residual
-    is zero up to the solver tolerance.
+    SciPy's SLSQP does not expose multipliers, so estimate them: the
+    least-squares coefficients of `grad fun` on the active constraint/bound
+    normals are the multipliers (all must be >= 0 at a minimiser), the
+    projection is the part they explain, and the residual after removing it is
+    zero at a KKT point up to the solver tolerance.
     """
 
     u = np.asarray(u, dtype=float)
@@ -262,21 +265,38 @@ def kkt_report(problem, u, eps, g_scaled, names):
             row[j] = -1.0
             rows.append(row)
 
+    # Every row is written so that its KKT multiplier is non-negative at a
+    # minimiser: constraints as `g >= 0` (SciPy's convention, `grad fun = sum
+    # lambda_i grad g_i`), lower bounds as `+e_j`, upper bounds as `-e_j`. The
+    # least-squares coefficients ARE the multiplier estimates; a negative one
+    # would mean the row is pushing the wrong way and the point is not KKT.
     g = np.asarray(g_scaled, dtype=float)
     if rows:
         A = np.vstack(rows)
-        coefficients, *_ = np.linalg.lstsq(A.T, g, rcond=None)
-        projection = A.T @ coefficients
+        multipliers, *_ = np.linalg.lstsq(A.T, g, rcond=None)
+        projection = A.T @ multipliers
     else:
         A = np.zeros((0, problem.n))
+        multipliers = np.zeros(0)
         projection = np.zeros(problem.n)
     residual = g - projection
     free = np.array([abs(u[j]) > ACTIVE_TOL and abs(1.0 - u[j]) > ACTIVE_TOL
                      for j in range(problem.n)])
+    multiplier_by_row = {label: float(value) for label, value in zip(labels, multipliers)}
+    moment_multiplier = multiplier_by_row.get("moment")
+    # The moment row's multiplier is the shadow price of the cap: in scaled
+    # units it is d(fun)/d(g), and `|J0|` times it is the AEP given up per unit
+    # of KS -- the number that says whether a reduction "costs nothing".
+    shadow_price = (None if moment_multiplier is None
+                    else float(moment_multiplier * abs(problem.J0)))
 
     return {
         "active_rows": labels,
         "n_active_rows": len(labels),
+        "multipliers_scaled": multiplier_by_row,
+        "all_multipliers_nonnegative": bool(np.all(multipliers >= -1e-12)),
+        "moment_multiplier_scaled": moment_multiplier,
+        "moment_shadow_price_mwh_per_yr_per_unit_ks": shadow_price,
         "gradient_norm_scaled": float(np.linalg.norm(g)),
         "projection_norm_onto_active_normals": float(np.linalg.norm(projection)),
         "residual_norm_after_projection": float(np.linalg.norm(residual)),
@@ -499,6 +519,11 @@ def main(argv=None):
     print(f"active set: {summary['active_set']['bounds_lower']} lower, "
           f"{summary['active_set']['bounds_upper']} upper; moment slack "
           f"{summary['moment_row']['slack']:.3e}")
+    kkt = summary["kkt"]
+    print(f"KKT: multipliers {kkt['multipliers_scaled']} (all >= 0: "
+          f"{kkt['all_multipliers_nonnegative']}); moment shadow price "
+          f"{kkt['moment_shadow_price_mwh_per_yr_per_unit_ks']} MWh/yr per unit KS; "
+          f"residual {kkt['residual_norm_after_projection']:.2e}")
     if summary["suspected_defect"]:
         print(f"\n*** {summary['suspected_defect']} ***")
     print(f"wrote {result_path}\n      {iterates_path}\n      {figure_path}")

@@ -8,9 +8,10 @@ study's spread in `u` (`verification/fd_optimisation_multistart/results.json`,
 0.0166); where they do not, the better optimum (the higher AEP) is chosen and
 the README says why.
 
-The Pareto figure plots AEP cost [%] against rated-point moment reduction [%],
-with `x0` and the unconstrained `u*` marked (`u*` sits on the wrong side of the
-origin: -0.147 % cost for +0.31 % moment). A second and third panel show where
+The Pareto figure plots AEP cost [%] (`-(AEP change vs x0)`, one convention for
+every marker) against rated-point moment reduction [%], with `x0` at the origin
+and the unconstrained `u*` marked (`u*` sits on the wrong side of the origin:
+-0.147 % cost for -0.31 % reduction). A second and third panel show where
 the load came off the blade -- chord and twist for `x0`, `u*` and each `eps`.
 
 Outputs, next to this script: `pareto.json`, `pareto.png`.
@@ -121,26 +122,28 @@ def plot(rc, probe, steps, x0, x_star, star_reduction_pct, star_cost_pct, path):
 
     fig, axes = plt.subplots(1, 3, figsize=(16, 4.6))
 
-    # (a) Pareto: AEP cost against rated-point moment reduction.
+    # (a) Pareto: AEP cost against rated-point moment reduction. One sign
+    # convention for every marker: cost = -(AEP change vs x0), so a gain is
+    # negative, x0 is the origin, u* sits at (-0.31, -0.147) and the
+    # constrained front climbs to the upper right.
+    front_x = [step["chosen"]["moment_reduction_pct"] for step in steps]
+    front_y = [-step["chosen"]["change_pct_vs_x0"] for step in steps]
     axes[0].plot([0.0], [0.0], "o", color="#888888", ms=8, label="x0")
     axes[0].plot([star_reduction_pct], [star_cost_pct], "s", color="#d1495b", ms=8,
                  label="unconstrained u*")
-    for step in steps:
-        chosen = step["chosen"]
-        axes[0].plot([chosen["moment_reduction_pct"]], [chosen["change_pct_vs_x0"]],
-                     "o-", color="#1f5fbf", ms=6)
-        axes[0].annotate(f"eps={step['eps']:g}", (chosen["moment_reduction_pct"],
-                                                  chosen["change_pct_vs_x0"]),
+    axes[0].plot(front_x, front_y, "o-", color="#1f5fbf", ms=6, lw=1.4,
+                 label="constrained x_c(eps)")
+    for step, x, y in zip(steps, front_x, front_y):
+        axes[0].annotate(f"eps={step['eps']:g}", (x, y),
                          textcoords="offset points", xytext=(6, 5), fontsize=8)
         if not step["agrees_to_multistart_spread"]:
-            axes[0].plot([step["cold"]["moment_reduction_pct"]],
-                         [step["cold"]["change_pct_vs_x0"]], "x", color="#e08a1e", ms=7)
-            axes[0].plot([step["warm"]["moment_reduction_pct"]],
-                         [step["warm"]["change_pct_vs_x0"]], "x", color="#e08a1e", ms=7)
+            for record in (step["cold"], step["warm"]):
+                axes[0].plot([record["moment_reduction_pct"]],
+                             [-record["change_pct_vs_x0"]], "x", color="#e08a1e", ms=7)
     axes[0].axhline(0.0, color="#bbbbbb", lw=0.8)
     axes[0].axvline(0.0, color="#bbbbbb", lw=0.8)
-    axes[0].set_xlabel("rated-point moment reduction [%]  (positive = less load)")
-    axes[0].set_ylabel("AEP change vs x0 [%]  (negative = gain; gap to u* = cost)")
+    axes[0].set_xlabel("rated-point moment reduction vs x0 [%]  (positive = less load)")
+    axes[0].set_ylabel("AEP cost vs x0 [%]  (negative = gain)")
     axes[0].set_title("Pareto front", fontsize=11)
     axes[0].grid(True, color="#dddddd", lw=0.6)
     axes[0].legend(fontsize=8, frameon=False)

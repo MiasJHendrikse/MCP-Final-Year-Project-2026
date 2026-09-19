@@ -227,7 +227,11 @@ def tier3(problem, u, h_star):
     ratio = abs_err / eps
     within = abs_err <= EPS_FACTOR * eps
     eps_below_floor = eps < fit_floor
-    fragile_only = bool((not np.all(within)) and np.all(within | eps_below_floor))
+    # A failure is "floor-limited" when every failing variable's eps_j sits
+    # below the measured round-off floor (the section 2 fragility of the
+    # acceptance scale). That describes the failure; it does not pass it:
+    # `passes` stays False and the reader decides.
+    floor_limited = bool((not np.all(within)) and np.all(within | eps_below_floor))
     return {
         "h_star": float(h_star),
         "adjoint": [float(x) for x in jac],
@@ -246,8 +250,7 @@ def tier3(problem, u, h_star):
         "worst_variable": int(np.argmax(ratio)),
         "worst_abs_error_over_eps": float(np.max(ratio)),
         "passes": bool(np.all(within)),
-        "fragile_only": fragile_only,
-        "resolved": bool(np.all(within) or fragile_only),
+        "floor_limited": floor_limited,
     }
 
 
@@ -305,7 +308,7 @@ def verify_point(problem, label, u, h_star, names, time_it=False):
     t3 = point["tier3"]
     print(f"  Tier 3 worst |diff|/eps {t3['worst_abs_error_over_eps']:.3f} "
           f"at {names[t3['worst_variable']]} (passes {t3['passes']}, "
-          f"fragile-only {t3['fragile_only']})", flush=True)
+          f"floor-limited {t3['floor_limited']})", flush=True)
 
     if time_it:
         # Fresh probes, clear of the reference cached at construction, so the
@@ -420,7 +423,10 @@ def main(argv=None):
                        "tier3": f"|adj - fd| <= {EPS_FACTOR:g} eps_j"},
         "points": points,
         "all_tier3_pass": bool(all(p["tier3"]["passes"] for p in points)),
-        "all_tier3_resolved": bool(all(p["tier3"]["resolved"] for p in points)),
+        "tier3_failures": [{"point": p["label"],
+                            "variable": names[p["tier3"]["worst_variable"]],
+                            "floor_limited": p["tier3"]["floor_limited"]}
+                           for p in points if not p["tier3"]["passes"]],
         "all_taylor_pass": bool(all(t["passes"] for p in points for t in p["taylor"])),
         "wall_time_s": wall,
         "n_moment_solves": int(problem.n_moment_solves),
@@ -431,7 +437,7 @@ def main(argv=None):
         json.dump(summary, handle, indent=1)
 
     print(f"\nTier 3 all pass: {summary['all_tier3_pass']}; "
-          f"all resolved (pass or floor caveat): {summary['all_tier3_resolved']}; "
+          f"failures: {summary['tier3_failures']}; "
           f"Taylor all pass: {summary['all_taylor_pass']}  ({wall:.1f} s)")
     print(f"wrote {CHECKS_PATH}\n      {FIGURE_PATH}")
     return summary
