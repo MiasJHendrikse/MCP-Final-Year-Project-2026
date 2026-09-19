@@ -12,8 +12,8 @@ multiplies which.
 
 Three operators, at `x0` and at the perturbed design of Tier 1:
 
-    A = dR/dx        (450 x 450, diagonal)          trivial; still done
-    A = dR/dd        (450 x 10)                     apply_dR_dd / apply_dR_dd_T
+    A = dR/dx        (425 x 425, diagonal)          trivial; still done
+    A = dR/dd        (425 x 10)                     apply_dR_dd / apply_dR_dd_T
     A = d -> dJ/dd   (1 x 10, the full chain)       tangent (forward mode)
                                                     vs the adjoint gradient
 
@@ -203,5 +203,5 @@ def test_adjoint_gradient_is_explicit_plus_implicit(system, state):
     implicit = system.apply_dR_dd_T(parts, result.psi)
     assert np.array_equal(result.dJ_dd, result.dJ_dd_explicit + implicit)
     assert np.all(np.abs(result.dR_dx * result.psi + result.dJ_dx) <= RTOL * np.abs(result.dJ_dx))
-    assert result.J == pytest.approx(float(np.sum(system.weights(state.limited) * state.power_w)),
-                                     rel=1e-12)
+    assert result.J == pytest.approx(float(np.sum(system.weights(state.limited) * state.power_w))
+                                     + system.J_capped(state.limited), rel=1e-12)

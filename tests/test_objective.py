@@ -124,16 +124,19 @@ def test_power_is_limited_above_rated_and_free_below(powers):
 
 def test_above_rated_bins_all_hold_exactly_the_rated_power(powers):
     """
-    The property that keeps J smooth in d above rated.
+    The property that makes the capped bins a constant in J.
 
-    Every limited bin takes the value P_aero(V_rated; d), which is smooth in
-    d. If instead the limit were read off the bin grid, the objective would
-    depend on where the bins happened to fall.
+    Every limited bin takes the configured generator rating -- the same
+    number for every design, so a capped bin contributes nothing to any
+    derivative. Until 2026-09-19 it took P_aero(V_rated; d) instead, which
+    credited the optimiser with a bigger generator (docs/AEP_GAIN_AUDIT.md
+    section 3.2).
     """
 
     limited = powers["power_w"][powers["limited"]]
     assert len(limited) > 0, "no bin is limited; the test case is not exercising the cut"
-    assert np.allclose(limited, powers["rated_power_w"], rtol=1e-12)
+    assert np.all(limited == powers["rated_power_w"])
+    assert powers["rated_power_w"] == load_design_rotor().rated_power_w
 
 
 def test_power_rises_monotonically_below_rated(powers):

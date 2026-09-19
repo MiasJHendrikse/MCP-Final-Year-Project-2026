@@ -292,6 +292,32 @@ def test_committed_x0_matches_what_the_code_builds(baseline, committed_x0):
                        baseline.design_vector[n_chord:], rtol=1e-12)
 
 
+def test_configured_rating_is_the_baselines_aerodynamic_rated_power(baseline):
+    """
+    `operating.rated_power_w` in `config/rotor_design.yaml` is provisional:
+    it stands in for the generator nameplate (outstanding input B2) and its
+    stated basis is `P_aero(V_rated; x0)` -- the Schmitz baseline's own
+    aerodynamic power at the rated wind speed, at full precision so freezing
+    the rating left the baseline's AEP unchanged.
+
+    This pins the config to that basis, so the number cannot be edited
+    without the basis being restated. **When B2 lands and the nameplate
+    replaces it, this test is deleted** (not loosened): the rating then has a
+    basis outside the code and nothing here can check it.
+    """
+
+    from objective.power import aerodynamic_power
+    from config import load_site
+
+    design, site = load_design_rotor(), load_site()
+    geometry = baseline.parameterisation.to_geometry(baseline.design_vector)
+    p_aero, result = aerodynamic_power(geometry, design.rated_wind_speed_ms,
+                                       design.design_tsr, site.air_density,
+                                       site.kinematic_viscosity)
+    assert result["converged"]
+    assert design.rated_power_w == pytest.approx(p_aero, rel=1e-12)
+
+
 def test_committed_x0_records_its_construction(committed_x0):
     """The artefact has to be self-describing -- it outlives this session."""
 

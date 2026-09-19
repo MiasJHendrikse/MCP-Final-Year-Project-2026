@@ -15,13 +15,27 @@ All bounds referred to are provisional: `chord_max_m = 0.45 m` is a placeholder
 pending the hub-radius / root-attachment decision. Nothing here reads a bound from
 `config/`.
 
+**Revision 2026-09-19 — fixed generator rating.** The objective's cap above rated
+was `P_aero(V_rated; d)`, floating with the design; `docs/AEP_GAIN_AUDIT.md` §3.2
+found that indefensible (a nameplate does not grow because the blade improved) and
+it is now the configured constant `operating.rated_power_w` (provisionally the
+baseline's own `P_aero(11 m/s; x0)`, pending input B2). For the adjoint this
+removes the rated solve as an operating point — the system is **17 × 25 = 425**
+states, not 450 — and turns the capped bins into a constant term in `J` with no
+weight on any state (§7). §1 and §7 below are restated in the current form; the
+measured numbers in §9 are the 2026-09-13 record of the 450-state system and are
+left as written, with the re-run Tier 3/4 numbers in
+`verification/gradient_verification/README.md`. Tier 1 and Tier 2 pass unchanged
+on the 425-state system (`pytest tests/test_adjoint_*.py`).
+
 ---
 
 ## 1. State choice: `φ` only
 
 **State:** `x = φ_{b,i}`, one inflow angle per (operating point `b`, station `i`).
-18 operating points (17 bin midpoints `V_b = 3.5 … 19.5 m/s` and the rated solve
-`V = 11 m/s`) × 25 stations = **450 scalars**.
+17 operating points (the bin midpoints `V_b = 3.5 … 19.5 m/s`) × 25 stations =
+**425 scalars**. (Until 2026-09-19 the rated solve at `V = 11 m/s` was an
+eighteenth point, 450 scalars; see the revision note above.)
 
 **Design:** `d ∈ ℝ¹⁰ = [c₀…c₄ (m), θ₀…θ₄ (rad)]`, the chord and twist control
 points. Per-station chord and twist are the *constant* linear maps
@@ -36,7 +50,7 @@ true of `a'` (which the residual does not even use — see the `residual` docstr
 the κ' substitution). Choosing `x = φ` therefore makes each `R_{b,i}` a scalar
 equation in a scalar unknown with every other quantity explicit, so
 
-    ∂R/∂x  is diagonal (450 × 450), and the adjoint "solve" is 450 scalar divisions.
+    ∂R/∂x  is diagonal (425 × 425), and the adjoint "solve" is 425 scalar divisions.
 
 Had `(a, a')` been taken as states alongside `φ`, the system would be 3 × 3 per
 station with two trivially-satisfied rows, and the derivation would have to track
@@ -84,7 +98,8 @@ back; the round trip is exact in the derivative.)
 
 Objective (`objective.annual_energy_mwh`, `objective.objective`), with bin masses
 `m_b = WeibullResource.probability_between(edges[:-1], edges[1:])`, `T_h = 8766`,
-`limited_b = (P_b > P_rated)` exactly as `power_per_bin` flags it:
+`limited_b = (P_b > P_rated)` exactly as `power_per_bin` flags it, and `P_rated`
+the configured generator rating (`operating.rated_power_w`), a constant:
 
     P̃_b = P_rated  if limited_b  else  P_b
     J    = −(T_h / 10⁶) Σ_b m_b P̃_b                  [MWh/yr]
@@ -255,9 +270,15 @@ per-operating-point weight
 
     ω_b = −(T_h/10⁶) m_b     for unlimited b
     ω_b = 0                  for limited b        (its own solve does not enter J)
-    ω_rated = −(T_h/10⁶) M_L                      (the rated solve enters once per limited bin)
 
-Then, for every operating point `b` (including `rated`) and station `i`:
+and the constant the capped bins contribute,
+
+    J_L = −(T_h/10⁶) P_rated M_L                  (`BEMSystem.J_capped`; no state in it)
+
+so `J = Σ_b ω_b P_b + J_L`. (Until 2026-09-19, with `P_rated = P_aero(V_rated; d)`,
+the capped mass was instead a weight `ω_rated = −(T_h/10⁶) M_L` on an eighteenth
+operating point, the rated solve. That weight, and that point, are gone.) Then,
+for every operating point `b` and station `i`:
 
     ∂J/∂φ_{b,i} = ω_b Ω_b t_i q_{φ,b,i}
     ∂J/∂c_i     = Σ_b ω_b Ω_b t_i q_{c,b,i}          ∂J/∂θ_i = Σ_b ω_b Ω_b t_i q_{θ,b,i}
@@ -265,7 +286,7 @@ Then, for every operating point `b` (including `rated`) and station `i`:
 
 and for the residuals
 
-    ∂R_{b,i}/∂d_j = (∂R/∂c)_{b,i} N_c[i, j] + (∂R/∂θ)_{b,i} N_θ[i, j]         (18, 25, 10)
+    ∂R_{b,i}/∂d_j = (∂R/∂c)_{b,i} N_c[i, j] + (∂R/∂θ)_{b,i} N_θ[i, j]         (17, 25, 10)
 
 Scaling (`DesignBounds`, `ScaledProblem`): `d = lo + u ⊙ span`, `fun = J/|J₀|`, so
 
@@ -280,8 +301,8 @@ where a below-rated bin crosses the limit as `d` moves (`objective.power` docstr
 and the adjoint at such a point is the one-sided derivative of whichever side the
 forward solve landed on. This is a property of the objective, not of the gradient.
 Tier 1 checks the weighting directly: `∂J/∂φ` is exactly zero on the nine limited
-bins' rows and non-zero on the rated row, on the complex-step side as well as the
-derived side (`test_dJ_dphi_matches_complex_step_at_every_station`).
+bins' rows and non-zero on every unlimited row, on the complex-step side as well
+as the derived side (`test_dJ_dphi_matches_complex_step_at_every_station`).
 
 ---
 
@@ -289,7 +310,7 @@ derived side (`test_dJ_dphi_matches_complex_step_at_every_station`).
 
 `∂R/∂x` diagonal ⇒ the adjoint equation `(∂R/∂x)ᵀ ψ = −(∂J/∂x)ᵀ` is
 
-    ψ_{b,i} = −(∂J/∂φ_{b,i}) / (∂R_{b,i}/∂φ_{b,i})                     (450 divisions)
+    ψ_{b,i} = −(∂J/∂φ_{b,i}) / (∂R_{b,i}/∂φ_{b,i})                     (425 divisions)
 
     dJ/dd   = ∂J/∂d + Σ_{b,i} ψ_{b,i} ∂R_{b,i}/∂d                         (10,)
 

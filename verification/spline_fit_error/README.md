@@ -4,6 +4,14 @@
 the hub-radius / root-attachment decision). The A4 gain quoted below is
 under those bounds. This study itself uses no bound.
 
+**Re-run 2026-09-19 under the fixed generator rating.** The fit error is a
+property of `x0` and is unchanged. The AEP comparison is not: with the cap
+floating, the analytic blade was credited with its *own* slightly higher
+`P_aero(11 m/s)` as its rating, which was 0.013 % of the 0.031 %
+representation difference recorded on 2026-09-13; under one rating for all
+three blades the representation difference is −0.018 % and A4's gain is
++0.121 %. Same conclusion, smaller numbers.
+
 ## What was run
 
     python verification/spline_fit_error/run_fit_error.py          # ~5 s
@@ -45,31 +53,32 @@ Three blades, one solver, one resource, one set of corrections:
 
 | blade | AEP [MWh/yr] |
 |---|---|
-| analytic Schmitz (station values straight from the formulas) | 10.273321 |
+| analytic Schmitz (station values straight from the formulas) | 10.271999 |
 | `x0` = its spline projection | 10.270157 |
-| A4 FD-SLSQP optimum | 10.292482 |
+| A4 FD-SLSQP optimum | 10.282564 |
 
 | difference | MWh/yr | % |
 |---|---|---|
-| representation: `x0` − analytic | **−0.003163** | **−0.031 %** |
-| optimisation: optimum − `x0` | **+0.022324** | **+0.217 %** |
-| ratio | | **7.1×** |
+| representation: `x0` − analytic | **−0.001842** | **−0.018 %** |
+| optimisation: optimum − `x0` | **+0.012407** | **+0.121 %** |
+| ratio | | **6.7×** |
 
 **No — the fit error does not explain the gain.** The projection onto the
-spline costs the Schmitz blade 0.031 % of AEP; the optimiser gained 0.217 %
-over the projected blade, seven times more. Even if the optimiser had done
-nothing but undo the projection error it could only have recovered 0.031 %;
-the remaining 0.186 % is above the *analytic* Schmitz blade evaluated by the
-same solver. That is also visible in the shapes: the optimiser moved the
-chord by up to 35 mm (RMS 11 mm) and the twist by up to 1.6° (RMS 0.75°),
-against fit errors of 1.5 mm and 0.27° — the optimum is not the analytic
-blade found again, it is a different blade (wider root, thinner and
-negatively twisted tip; see `verification/fd_optimisation/README.md`).
+spline costs the Schmitz blade 0.018 % of AEP; the optimiser gained 0.121 %
+over the projected blade, nearly seven times more. Even if the optimiser had
+done nothing but undo the projection error it could only have recovered
+0.018 %; the remaining 0.103 % is above the *analytic* Schmitz blade
+evaluated by the same solver. That is also visible in the shapes: the
+optimiser moved the chord by up to 19 mm (RMS 6 mm) and the twist by up to
+2.2° (RMS 0.62°), against fit errors of 1.5 mm and 0.27° — the optimum is
+not the analytic blade found again, it is a different blade (thinner tip
+twisted down onto the −2° bound; see
+`verification/fd_optimisation/README.md`).
 
-What the numbers *do* say about the gain being small (0.22 % against the
+What the numbers *do* say about the gain being small (0.12 % against the
 2–6 % expected in §7.4): the baseline is a fair one. §7.3's requirement was
 that the only difference between baseline and optimum be the optimisation
-itself; the representation difference is 0.03 %, a seventh of the effect
+itself; the representation difference is 0.02 %, a seventh of the effect
 being measured, and it works *against* the baseline (the spline is slightly
 worse than the analytic curve), so it cannot have inflated the gain. The
 small gain is a property of the objective and starting point, not of the

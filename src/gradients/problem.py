@@ -144,10 +144,13 @@ class ScaledProblem:
         return self.bounds.to_scaled(d)
 
     def operating_speeds(self):
-        """Every wind speed the objective solves at: bin midpoints, then rated."""
+        """
+        Every wind speed the objective solves at: the 17 bin midpoints. The
+        rating is a configured number, so the rated speed is not one of them.
+        """
 
         _edges, midpoints, _width = wind_speed_bins()
-        return [float(v) for v in midpoints] + [float(self.design.rated_wind_speed_ms)]
+        return [float(v) for v in midpoints]
 
     # -- objective ----------------------------------------------------------
 
@@ -345,7 +348,7 @@ class ScaledProblem:
         """
         Per-operating-point station state at `u`: what the post-checks read.
 
-        Solves the rotor at every speed in `operating_speeds()` (18 solves,
+        Solves the rotor at every speed in `operating_speeds()` (17 solves,
         the cost of one objective evaluation). Returns a dict of lists, one
         entry per speed: `speeds`, `alpha_deg` (25,), `reynolds` (25,),
         `phi` (25,), `a` (25,), `power_w`, `converged`.

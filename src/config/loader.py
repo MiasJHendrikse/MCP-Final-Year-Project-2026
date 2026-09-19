@@ -256,6 +256,7 @@ def load_design_rotor(filename="rotor_design.yaml"):
         root_fraction=field("geometry.root_fraction"),
         design_tsr=field("operating.design_tsr"),
         rated_wind_speed_ms=field("operating.rated_wind_speed_ms"),
+        rated_power_w=field("operating.rated_power_w"),
         cut_in_wind_speed_ms=field("operating.cut_in_wind_speed_ms"),
         cut_out_wind_speed_ms=field("operating.cut_out_wind_speed_ms"),
         parameterisation=ParameterisationConfig(
