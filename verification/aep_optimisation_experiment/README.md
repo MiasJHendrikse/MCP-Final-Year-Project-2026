@@ -1,5 +1,15 @@
 # EXPERIMENT — direct AEP optimisation under a rotor-speed ceiling, with the discrete adjoint
 
+> **Follow-up 2026-09-20.** The "best-vs-best" reading of this experiment —
+> comparing a ceiling-optimised blade against a Schmitz built at the design λ
+> rather than against a Schmitz re-tuned for the same ceiling — overstated
+> what a ceiling buys. Re-tuned Schmitz (proposal Appendix A.1, scratch,
+> unreviewed) leaves the optimiser ≤ ~0.3 % ahead at every ceiling. That
+> correction is recorded in `docs/PROPOSAL-mass-objective-2026-09-19.md`
+> §3.1 and is labelled there as proposal-appendix scratch, not a committed
+> artefact; this directory stays frozen as written.
+>
+
 > **Port note (2026-09-19).** This directory is a **frozen record, not a live
 > deliverable.** It was written and run in a separate testing copy of the
 > repository against commit `4c6feea` — i.e. *before* the configured bounds

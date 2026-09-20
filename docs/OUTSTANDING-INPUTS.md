@@ -380,3 +380,27 @@ rated tip speed or noise rating. If it supports ~300 rpm, cite it beside the
 Skystream 3.7 figure in the config comment and the methodology chapter. If it
 does not, record what it says and whether the basis should move; the
 artefacts re-run only if the config value changes.
+
+## 11. The laminate — `structure.laminate_density_kg_m3`, `structure.shell_thickness_m` 🟢 non-gating
+
+Raised 2026-09-20 with the re-pitch to minimum-material design
+(`docs/PLAN-mass-objective-2026-09-20.md`). The Phase 5 objective is the
+shell material proxy `k_P ∫ c dr` per blade and every structural row is
+relative to the Schmitz `x₀`, so **no material input is needed for any
+result**: the headline is `−4.24 %` shell material (`−8.53 %` on the solid
+proxy) at equal energy, and stays a percentage.
+
+The two fields are `TODO` in `config/rotor_design.yaml` (`structure:`) and
+arrive as `Unresolved`; `MaterialModel.mass_kg` returns `None` while they
+are. What each would unlock, none of it gating:
+
+| input | unlocks | changes the optimum? |
+|---|---|---|
+| `laminate_density_kg_m3` × `shell_thickness_m` | a kilogram figure for `x₀`, `x_c`, `x_m` (`m = ρ_lam t k_P ∫ c dr`) | no — a common factor |
+| Young's modulus `E` (with the two above) | an absolute tip deflection in mm from the deflection proxy | no, unless a tip clearance is then imposed |
+| a tip clearance | an absolute deflection row `δ ≤ δ_max` in place of `D ≤ D₀` | yes, if it binds before Schmitz's own deflection |
+| an allowable stress `σ_a` (with a section modulus) | an absolute stress row in place of `KS/c₀² ≤ KS₀/c₀₀²` | yes, likewise |
+
+Item 7.3's `TODO: material and allowable stress` in `PROJECT_PLAN.md` is
+the same input seen from the constraint side. Owner MJ; needed only if the
+report wants a number in kilograms or millimetres beside the percentage.
