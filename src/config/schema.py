@@ -112,9 +112,17 @@ class DesignRotorConfig:
     `"solid"`, reported only); `monotone_chord` / `monotone_twist` switch the
     manufacturability rows and `min_chord_m` is the buildable-tip floor on
     the chord control points (a row of the mass problem, not the box bound,
-    so the Phase 1-4 scaling is untouched); `laminate_density_kg_m3` and `shell_thickness_m`
-    are `Unresolved` until a laminate concept exists and are needed only to
-    quote a mass in kg -- every constraint row is relative and cancels them.
+    so the Phase 1-4 scaling is untouched).
+
+    The structural inputs (`structure:` in the YAML, provenance in
+    `docs/MATERIALS-STRUCTURAL-INPUTS.md`): `laminate_density_kg_m3`,
+    `shell_thickness_m`, `youngs_modulus_pa`, `allowable_stress_pa` and
+    `safety_factor` are resolved (2026-09-20, evening) -- one laminate, one
+    stated construction -- and give a mass in kg, an absolute root stress
+    and an absolute tip deflection from the same code as the relative rows;
+    `tip_clearance_m` is `Unresolved` until the machine geometry exists. No
+    committed constraint row depends on any of them: every relative row
+    cancels them, and the absolute rows are additional.
     """
 
     name: str
@@ -138,6 +146,21 @@ class DesignRotorConfig:
     min_chord_m: float
     laminate_density_kg_m3: "float | Unresolved"
     shell_thickness_m: "float | Unresolved"
+    youngs_modulus_pa: "float | Unresolved"
+    allowable_stress_pa: "float | Unresolved"
+    safety_factor: "float | Unresolved"
+    tip_clearance_m: "float | Unresolved"
+
+    @property
+    def design_allowable_stress_pa(self):
+        """
+        `allowable_stress_pa / safety_factor`: the design allowable the
+        absolute stress row compares the unfactored operating stress with.
+        Derived, so the ultimate strength and the factor cannot be applied
+        twice or not at all. Raises through `Unresolved` while either is TODO.
+        """
+
+        return float(self.allowable_stress_pa) / float(self.safety_factor)
 
     @property
     def max_tip_speed_ms(self):

@@ -87,6 +87,53 @@ logs the point in `evaluation_failures` so SLSQP's line search backs off,
 while their `jac` raises -- a stale Jacobian is never substituted, and an
 accepted iterate that cannot be evaluated is a failed start.
 
+The absolute rows (2026-09-20, evening)
+----------------------------------------
+With the laminate resolved (`config/rotor_design.yaml::structure`,
+`docs/MATERIALS-STRUCTURAL-INPUTS.md`) the two proxies have absolute
+counterparts on the same adjoints, with the constants carried instead of
+cancelled:
+
+    root stress     sigma(u)     = KS(u) M_ref / (k_Z c0(u)^2 t)          [Pa]
+    tip deflection  delta_tip(u) = delta_ref D(u) / (E k_I t)             [m]
+
+    stress_absolute      1 - sigma(u) / (sigma_allow / SF)      >= 0
+    deflection_absolute  1 - delta_tip(u) / tip_clearance_m     >= 0
+
+Each is the inequality of the brief (`sigma_allow/SF - sigma >= 0`,
+`delta_allow - delta_tip >= 0`) divided by its allowable, so that the row
+SLSQP sees is of order one like every other row rather than of order
+1e8 Pa; the feasible set is the same and `mass_problem_slacks` quotes the
+MPa and mm. The stress Jacobian is the relative row's chain rule
+(`dKS/dd / c0^2 - 2 KS / c0^3 e_0`) times `M_ref / (k_Z t sigma_design)`;
+the deflection Jacobian is `dD/dd` times `delta_ref / (E k_I t delta_allow)`
+-- the same cached `RootMomentSystem` and `DeflectionSystem` results, no new
+derivation, so Tiers 1-2 are inherited and Tier 3 is re-run at the new
+constants (`tests/test_mass_problem.py`, `verification/absolute_material/`).
+
+WHICH ROWS ARE THE DESIGN ROWS, AND WHY. The relative rows stay the
+production set (`MASS_PROBLEM_ROWS`, the committed `x_m`), and the absolute
+rows are ADDITIONAL (`ABSOLUTE_ROWS`, assembled by name), for a reason that
+is mechanics, not caution: the load set `L` is the *operating* set (the
+uncapped bins and the rated point), and at those loads the thin-shell root
+stress of `x0` is 22.6 MPa against a 196.5 MPa design allowable -- the
+absolute row is slack by a factor of nine and would not size anything. The
+loads that size a small blade's root are the ones IEC 61400-2 prescribes and
+this model does not compute (parked at the 50-year gust, fatigue), and the
+relative row `KS/c0^2 <= KS0/c00^2` is the statement that survives that
+gap: whatever the extreme load is, the optimum's root carries no more stress
+per unit of it than the reference's. Replacing the relative stress row by
+the absolute one therefore removes the stress constraint in effect (the
+optimum goes to the "no stress row" ablation of
+`verification/mass_optimisation/`), which is measured and recorded in
+`verification/absolute_material/`, not assumed. The moment cap `KS <= KS0`
+is likewise kept: it is a LOAD cap -- the hub, shaft and tower see no more
+flapwise moment than with the reference -- and not a strength check, which
+is what the stress rows are. `deflection_absolute` needs `tip_clearance_m`,
+which is machine geometry and still TODO; the row is built and tested with
+an injected clearance and `absolute_rows_available()` says why it is not
+assembled until then.
+
 Author: MJ Hendrikse
 Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
 """
@@ -95,7 +142,7 @@ import math
 
 import numpy as np
 
-from config import load_design_rotor, load_site
+from config import is_resolved, load_design_rotor, load_site
 from gradients.finite_difference import central_difference
 from objective.objective import objective
 from objective.power import aerodynamic_power, operating_points, tsr_schedule
@@ -119,9 +166,17 @@ ACTIVE_TOL = 1e-6
 #: function rejects the step. Reported, never silently absorbed.
 FAILED_SLACK = 1.0e3
 
-#: The rows of the mass problem, in assembly order.
+#: The rows of the committed mass problem, in assembly order -- the relative
+#: set every `verification/mass_optimisation/` artefact was run with.
 MASS_PROBLEM_ROWS = ("envelope", "solidity", "manufacturing", "aep_floor", "moment",
                      "stress", "deflection")
+
+#: The absolute rows (module docstring): additional, assembled by name, never
+#: part of `MASS_PROBLEM_ROWS` so the committed runs reproduce as run.
+ABSOLUTE_ROWS = ("stress_absolute", "deflection_absolute")
+
+#: Every row `mass_problem_rows` knows, in assembly order.
+ALL_MASS_PROBLEM_ROWS = MASS_PROBLEM_ROWS + ABSOLUTE_ROWS
 
 
 class ScaledProblem:
@@ -811,6 +866,126 @@ class ScaledProblem:
 
         return {"type": "ineq", "fun": fun, "jac": jac}
 
+    # -- the absolute rows (2026-09-20, evening) -----------------------------------
+
+    def mass_kg(self, u):
+        """The configured proxy at `u` as kg per blade (`MaterialModel.mass_kg`), or `None`."""
+
+        return self.material_model().mass_kg(self.physical(u))
+
+    def design_allowable_stress_pa(self):
+        """`allowable_stress_pa / safety_factor`; raises while either is TODO."""
+
+        return float(self.design.design_allowable_stress_pa)
+
+    def _stress_scale_pa(self):
+        """`M_ref / (k_Z t)`: what multiplies `KS / c0^2` to make pascals."""
+
+        self._system_for(DEFAULT_KS_RHO)  # m_ref
+        factor = self.material_model().section_modulus_factor_m()
+        if factor is None:
+            float(self.design.shell_thickness_m)  # raises, naming the field
+        return float(self.m_ref) / factor
+
+    def stress_absolute_pa(self, u):
+        """
+        The thin-shell root stress at `u`, Pa: `KS(u) M_ref / (k_Z c0(u)^2 t)`
+        -- the KS aggregate of the load set's root moments over the section
+        modulus of the root chord (module docstring).
+        """
+
+        return self._stress_scale_pa() * self.moment_ks(u) / self._root_chord(u) ** 2
+
+    def stress_constraint_absolute(self):
+        """
+        SciPy inequality for the absolute root stress,
+
+            g(u) = 1 - sigma(u) / sigma_design,  sigma_design = sigma_allow / SF
+
+        i.e. `sigma_allow/SF - sigma(u) >= 0` divided by the allowable.
+        `jac = -(M_ref / (k_Z t sigma_design)) (dKS/dd / c0^2 - 2 KS / c0^3 e_0) span`
+        on the cached moment state -- the relative row's chain rule with the
+        constants carried.
+        """
+
+        scale = self._stress_scale_pa() / self.design_allowable_stress_pa()
+        span = self.bounds.span()
+        e0 = np.zeros(self.n)
+        e0[0] = 1.0
+
+        def fun(u):
+            c0 = self._root_chord(u)
+            return np.array([1.0 - scale * self.moment_state(u).KS / c0 ** 2])
+
+        def jac(u):
+            c0 = self._root_chord(u)
+            state = self.moment_state(u)
+            g = state.dKS_dd / c0 ** 2 - 2.0 * state.KS / c0 ** 3 * e0
+            return (-scale * g * span)[None, :]
+
+        return {"type": "ineq", "fun": fun, "jac": jac}
+
+    def _deflection_scale_m(self):
+        """`delta_ref / (E k_I t)`: what multiplies `D` to make metres."""
+
+        self._deflection_system()  # delta_ref
+        factor = self.material_model().stiffness_factor_pa_m()
+        if factor is None:
+            float(self.design.youngs_modulus_pa)
+            float(self.design.shell_thickness_m)
+        return float(self.delta_ref) / factor
+
+    def deflection_absolute_m(self, u):
+        """
+        The thin-shell tip deflection at `u`, m: `delta_ref D(u) / (E k_I t)`,
+        the KS aggregate over the load set of the rated-point-normalised
+        deflections, made absolute (module docstring).
+        """
+
+        return self._deflection_scale_m() * self.deflection_ks(u)
+
+    def deflection_constraint_absolute(self):
+        """
+        SciPy inequality for the absolute tip deflection,
+
+            g(u) = 1 - delta_tip(u) / tip_clearance_m
+
+        i.e. `tip_clearance_m - delta_tip(u) >= 0` divided by the clearance;
+        `jac = -(delta_ref / (E k_I t delta_allow)) dD/dd span` on the cached
+        deflection state. Raises `UnresolvedConfigError` naming
+        `tip_clearance_m` while the clearance is TODO.
+        """
+
+        clearance = float(self.design.tip_clearance_m)
+        scale = self._deflection_scale_m() / clearance
+        span = self.bounds.span()
+
+        def fun(u):
+            return np.array([1.0 - scale * self._deflection_at(u).D])
+
+        def jac(u):
+            return (-scale * self._deflection_at(u).dD_dd * span)[None, :]
+
+        return {"type": "ineq", "fun": fun, "jac": jac}
+
+    def absolute_rows_available(self):
+        """
+        Which of `ABSOLUTE_ROWS` can be assembled from the config as it
+        stands: `{row: True}` or `{row: "TODO: <the field's note>"}`. What an
+        artefact records instead of silently omitting a row.
+        """
+
+        needs = {
+            "stress_absolute": ("shell_thickness_m", "allowable_stress_pa", "safety_factor"),
+            "deflection_absolute": ("shell_thickness_m", "youngs_modulus_pa", "tip_clearance_m"),
+        }
+        out = {}
+        for row, fields in needs.items():
+            missing = [f for f in fields if not is_resolved(getattr(self.design, f))]
+            out[row] = True if not missing else "TODO: " + "; ".join(
+                f"{f}: {getattr(self.design, f).note}" for f in missing)
+        return out
+
     def manufacturing_rows(self):
         """
         The difference matrix `D` (rows x n) of the enabled monotone blocks:
@@ -918,11 +1093,15 @@ class ScaledProblem:
             "moment": lambda: self._guarded("moment", self.moment_constraint(0.0)),
             "stress": lambda: self._guarded("stress", self.stress_constraint()),
             "deflection": lambda: self._guarded("deflection", self.deflection_constraint()),
+            "stress_absolute": lambda: self._guarded("stress_absolute",
+                                                     self.stress_constraint_absolute()),
+            "deflection_absolute": lambda: self._guarded("deflection_absolute",
+                                                         self.deflection_constraint_absolute()),
         }
-        unknown = set(include) - set(MASS_PROBLEM_ROWS)
+        unknown = set(include) - set(ALL_MASS_PROBLEM_ROWS)
         if unknown:
             raise ValueError(f"unknown mass-problem rows {sorted(unknown)}")
-        return [(name, builders[name]()) for name in MASS_PROBLEM_ROWS if name in include]
+        return [(name, builders[name]()) for name in ALL_MASS_PROBLEM_ROWS if name in include]
 
     def constraints_for_mass_problem(self, delta, include=MASS_PROBLEM_ROWS):
         """The full inequality set of the mass problem at energy floor `delta`."""
@@ -933,8 +1112,12 @@ class ScaledProblem:
         """
         Every scalar row of the mass problem at `u`: its slack, whether it is
         active, and the ratios the artefacts report (`aep_over_ref`,
-        `ks_over_ks0`, `stress_ratio`, `deflection_ratio`). Evaluated
-        unguarded -- a point that cannot be evaluated raises here.
+        `ks_over_ks0`, `stress_ratio`, `deflection_ratio`), plus the
+        absolute rows with their MPa and mm (`stress_absolute`,
+        `deflection_absolute`; each row's `available` says whether it could
+        be assembled, and a row that could not carries its numbers where the
+        inputs allow and nothing where they do not). Evaluated unguarded --
+        a point that cannot be evaluated raises here.
         """
 
         aep_slack = float(self.aep_floor_constraint(delta)["fun"](u)[0])
@@ -943,6 +1126,30 @@ class ScaledProblem:
         deflection_slack = float(self.deflection_constraint()["fun"](u)[0])
         labels = self.manufacturing_row_labels()
         mfg = self.manufacturing_constraints()["fun"](u)
+        available = self.absolute_rows_available()
+
+        material = self.material_model()
+        stress_abs = {"available": available["stress_absolute"]}
+        if material.section_modulus_factor_m() is not None:
+            stress_abs["stress_mpa"] = float(self.stress_absolute_pa(u)) / 1e6
+        if available["stress_absolute"] is True:
+            allowable = self.design_allowable_stress_pa()
+            slack = float(self.stress_constraint_absolute()["fun"](u)[0])
+            stress_abs.update({"allowable_mpa": allowable / 1e6,
+                               "ultimate_mpa": float(self.design.allowable_stress_pa) / 1e6,
+                               "safety_factor": float(self.design.safety_factor),
+                               "slack": slack, "slack_mpa": slack * allowable / 1e6,
+                               "active": bool(slack < tol)})
+
+        deflection_abs = {"available": available["deflection_absolute"]}
+        if material.stiffness_factor_pa_m() is not None:
+            deflection_abs["tip_deflection_mm"] = float(self.deflection_absolute_m(u)) * 1e3
+        if available["deflection_absolute"] is True:
+            clearance = float(self.design.tip_clearance_m)
+            slack = float(self.deflection_constraint_absolute()["fun"](u)[0])
+            deflection_abs.update({"clearance_mm": clearance * 1e3, "slack": slack,
+                                   "slack_mm": slack * clearance * 1e3,
+                                   "active": bool(slack < tol)})
         return {
             "aep_floor": {"delta": float(delta), "slack": aep_slack,
                           "aep_over_ref": float(-self.fun(u)),
@@ -956,6 +1163,8 @@ class ScaledProblem:
                            "active": bool(deflection_slack < tol)},
             "manufacturing": {"rows": [labels[k] for k in range(len(labels)) if mfg[k] < tol],
                               "slack_min": float(mfg.min()) if len(mfg) else None},
+            "stress_absolute": stress_abs,
+            "deflection_absolute": deflection_abs,
         }
 
     # -- the polar-cache envelope (linear, mandatory) ------------------------

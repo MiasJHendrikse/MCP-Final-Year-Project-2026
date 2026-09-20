@@ -248,17 +248,102 @@ manufacturing:
   monotone_twist: true
   min_chord_m: 0.060
 
-# Structural inputs -- ALL TODO, and NONE of them gates the production run.
-# Every structural row is relative to x0 (material, stress proxy, deflection
-# proxy), so the laminate density, thickness and modulus cancel exactly as the
-# material allowable does in the Phase 4 constraint. They exist so that a kg
-# figure can be quoted from the same code the moment a laminate concept is
-# chosen (mass_kg = rho_lam * t_shell * shell_area), never so that a number is
-# invented here. docs/OUTSTANDING-INPUTS.md section 7.3.
+# Structural inputs -- the laminate (resolved 2026-09-20, evening) and the
+# tip clearance (still TODO). NONE of them gates the production run: every
+# row of the committed mass problem is relative to x0, so the density,
+# thickness and modulus cancel there exactly as the allowable does in the
+# Phase 4 constraint. What they add is (a) a mass in kilograms from the same
+# code (`MaterialModel.mass_kg = rho_lam * t_shell * k_P * int c dr` per
+# blade), (b) an absolute root stress in Pa and an absolute tip deflection
+# in m (`ScaledProblem.stress_absolute_pa`, `deflection_absolute_m`), and
+# (c) the absolute rows `stress_absolute` / `deflection_absolute` of the
+# mass problem, which are ADDITIONAL to the relative rows, never a
+# replacement (src/gradients/problem.py, module docstring). Provenance in
+# docs/MATERIALS-STRUCTURAL-INPUTS.md; docs/OUTSTANDING-INPUTS.md section 11.
+#
+# THE STATED CONSTRUCTION. A thin skin of ONE E-glass/epoxy laminate at
+# constant thickness around the whole section perimeter, with its fibres
+# spanwise, and nothing else: no spar cap, no web, no root insert, no
+# gelcoat (the web and bond line are in the 60 mm tip's thickness budget
+# but carry no mass or stiffness here). The three structural coefficients
+# k_P (perimeter), k_I (second moment per c^3 t) and k_Z (section modulus
+# per c^2 t) are exact for that skin from data/airfoils/sg6043.dat
+# (objective.mass.section_coefficients). These are REPRESENTATIVE LAMINATE
+# VALUES FOR THAT CONSTRUCTION, from one row of one published table --
+# not measurements of a built blade, and not a certification.
+#
+# All four laminate numbers are the E-LT-5500/EP-3 unidirectional E-glass/
+# epoxy laminate of Griffith & Ashwill (2011), "The Sandia 100-meter
+# All-glass Baseline Wind Turbine Blade: SNL100-00", SAND2011-3779, Table 19
+# (p. 38), selected there from the DOE/MSU composite-materials database:
+# VARTM, [0]_2, 54 % fibre volume. One row, so density, modulus and strength
+# belong to the same material. A skin with off-axis plies (the same table's
+# SNL Triax [+-45]_2[0]_2: E = 27.7 GPa, no tabulated strength) would deflect
+# 41.8 / 27.7 = 1.51 times more at the same thickness; a wet hand lay-up at a
+# lower fibre fraction is lighter and less stiff per unit thickness than the
+# infused laminate tabulated -- the direction of both errors is stated, their
+# size is not measured here.
 structure:
-  laminate_density_kg_m3: "TODO: no laminate concept chosen (2026-09-20); needed only to quote kg, not for any constraint"
-  shell_thickness_m: "TODO: no laminate concept chosen (2026-09-20); needed only to quote kg, not for any constraint"
+  # kg/m^3. Griffith & Ashwill (2011) p. 38: "the mass density of the
+  # E-LT-5500 uni-directional laminate is 1920 kg/m^3" (at 54 % fibre
+  # volume). Unlocks mass in kg; enters no constraint row.
+  laminate_density_kg_m3: 1920.0
 
+  # m. DESIGN DECISION tied to the 60 mm buildable-tip floor above
+  # (manufacturing.min_chord_m): a 60 mm SG6043 section is 6 mm thick, and
+  # the floor's basis was "two 2 mm skins + bond + web". The skin is that
+  # 2 mm, constant along the span and around the perimeter -- about four
+  # plies of a heavy unidirectional fabric (ply thickness of order 0.5 mm,
+  # Bir 2005, NREL/TP-500-38929, Fig. 5). Unlocks mass (m ~ t), the
+  # absolute stress (Z = k_Z c^2 t) and the absolute deflection
+  # (I = k_I c^3 t). A laminate schedule replaces this number.
+  shell_thickness_m: 0.002
+
+  # Pa. Longitudinal modulus E_L = 41.8 GPa of the same laminate (Table 19).
+  # Unlocks the absolute tip deflection delta = delta_unit / (E k_I t), where
+  # delta_unit is the unit-stiffness deflection the relative row already
+  # computes (objective.loads.tip_deflection).
+  youngs_modulus_pa: 41.8e+9
+
+  # Pa. The ULTIMATE longitudinal strength of the same laminate, compressive
+  # side: UCS_L = 702 MPa (Table 19, a 95/95 fit; the tensile UTS_L is
+  # 972 MPa, so compression governs a flapwise root, and the smaller number
+  # is used). The design allowable is this divided by safety_factor below.
+  allowable_stress_pa: 702.0e+6
+
+  # -. Combined loads x materials partial safety factor for ultimate
+  # strength, Germanischer Lloyd (2010) as tabulated in Griffith & Ashwill
+  # (2011) Tables 9 and 12 (pp. 25-26):
+  #     gamma_f = 1.35 (normal load case)
+  #     gamma_M = gamma_M0 * C1a * C2a * C3a * C4a
+  #             = 1.35 * 1.35 (ageing) * 1.1 (temperature)
+  #                    * 1.2 (WET LAMINATE WITH HAND LAY-UP)
+  #                    * 1.1 (NON POST-CURED LAMINATE)  = 2.6463
+  #     combined = 1.35 * 2.6463 = 3.5725
+  # The hand-lay-up and non-post-cured factors are chosen because that is
+  # the construction stated above; an infused, post-cured laminate is
+  # 1.35 * 1.35 * 1.1 * 1.1 * 1.0 * 1.35 = 2.977, the SNL100-00 figure.
+  # Design allowable sigma_a / SF = 702 / 3.5725 = 196.5 MPa. The loads
+  # factor is included here, so the row compares the UNFACTORED operating
+  # moment (the load set L, rated point at most) with this allowable. This
+  # is the GL/IEC 61400-1 framework the source uses; IEC 61400-2 (small
+  # turbines, the certification standard for this machine) applies its own
+  # load cases -- parked at V_e50, gusts, fatigue -- which this model does
+  # not compute, which is why the absolute row is a check and not a
+  # certification.
+  safety_factor: 3.5725
+
+  # m. The unloaded tip-to-tower clearance the absolute deflection row
+  # `tip_clearance_m - delta_tip(u) >= 0` would use. TODO: it is machine
+  # geometry -- tower diameter, hub overhang, cone and tilt -- of the same
+  # class as the nameplate (B2) and the rotor speed (B1), and no number for
+  # it can be defended from the literature (GL states the allowed remaining
+  # clearance as a percentage of the unloaded one; the unloaded one is the
+  # machine's). The row is built, tested with an injected value, and
+  # activates when this lands; until then the deflection is REPORTED in mm
+  # (delta_tip(x0) = 111.8 mm at the rated point, 2 mm skin) beside the
+  # relative row, which stays the design row.
+  tip_clearance_m: "TODO: machine geometry (tower diameter, hub overhang, cone, tilt) not specified (2026-09-20); the absolute deflection row activates when it lands; deflection is reported in mm meanwhile"
 # Sanity band for the AEP module (plan section 1.4). A result far outside this
 # indicates a bug, not a discovery. Recorded so the check reads it rather than
 # restating it.

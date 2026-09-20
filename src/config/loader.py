@@ -276,9 +276,30 @@ def load_design_rotor(filename="rotor_design.yaml"):
         monotone_chord=bool(field("manufacturing.monotone_chord")),
         monotone_twist=bool(field("manufacturing.monotone_twist")),
         min_chord_m=float(field("manufacturing.min_chord_m")),
-        laminate_density_kg_m3=field("structure.laminate_density_kg_m3"),
-        shell_thickness_m=field("structure.shell_thickness_m"),
+        laminate_density_kg_m3=_resolved_float(field("structure.laminate_density_kg_m3")),
+        shell_thickness_m=_resolved_float(field("structure.shell_thickness_m")),
+        youngs_modulus_pa=_resolved_float(field("structure.youngs_modulus_pa")),
+        allowable_stress_pa=_resolved_float(field("structure.allowable_stress_pa")),
+        safety_factor=_resolved_float(field("structure.safety_factor")),
+        tip_clearance_m=_resolved_float(field("structure.tip_clearance_m")),
     )
+
+
+def _resolved_float(value):
+    """
+    A structural input as a float, or the `Unresolved` it still is. A YAML
+    exponent without a sign (`41.8e9`) parses as a *string* under the YAML
+    1.1 resolver, so a resolved field that is not a number is a config
+    error here rather than a `TypeError` in the material model.
+    """
+
+    if isinstance(value, Unresolved):
+        return value
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ConfigError(
+            f"rotor_design.yaml: structural input {value!r} is neither a number "
+            f"nor a TODO string (write exponents with a sign, e.g. 41.8e+9)")
+    return float(value)
 
 
 #: The material proxies `objective/mass.py` knows how to evaluate.
