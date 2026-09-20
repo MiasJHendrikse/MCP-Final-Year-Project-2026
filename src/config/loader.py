@@ -272,7 +272,24 @@ def load_design_rotor(filename="rotor_design.yaml"):
         max_local_solidity=field("constraints.max_local_solidity"),
         aep_mwh_per_year_min=field("sanity.aep_mwh_per_year_min"),
         aep_mwh_per_year_max=field("sanity.aep_mwh_per_year_max"),
+        mass_model=_check_mass_model(field("objective.mass_model"), filename),
+        monotone_chord=bool(field("manufacturing.monotone_chord")),
+        monotone_twist=bool(field("manufacturing.monotone_twist")),
+        laminate_density_kg_m3=field("structure.laminate_density_kg_m3"),
+        shell_thickness_m=field("structure.shell_thickness_m"),
     )
+
+
+#: The material proxies `objective/mass.py` knows how to evaluate.
+MASS_MODELS = ("shell", "solid")
+
+
+def _check_mass_model(value, filename):
+    if value not in MASS_MODELS:
+        raise ConfigError(
+            f"{filename}: objective.mass_model must be one of {MASS_MODELS}, "
+            f"got {value!r}")
+    return str(value)
 
 
 @lru_cache(maxsize=None)

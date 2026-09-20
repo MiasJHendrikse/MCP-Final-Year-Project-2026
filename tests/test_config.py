@@ -388,6 +388,37 @@ def test_resolved_design_values_are_present():
     assert design.parameterisation.n_design_variables == 10
 
 
+def test_the_mass_problem_is_recorded():
+    """
+    The 2026-09-20 re-pitch (docs/PLAN-mass-objective-2026-09-20.md): the
+    objective is the shell material, both manufacturability rows are on, and
+    the structural inputs are TODO -- not a number, not `None`, not falsy --
+    because nothing in the production run needs them.
+    """
+
+    design = config.load_design_rotor()
+
+    assert design.mass_model == "shell"
+    assert design.monotone_chord is True
+    assert design.monotone_twist is True
+    for name in ("laminate_density_kg_m3", "shell_thickness_m"):
+        value = getattr(design, name)
+        assert not config.is_resolved(value)
+        with pytest.raises(config.UnresolvedConfigError, match=name):
+            float(value)
+        with pytest.raises(config.UnresolvedConfigError, match=name):
+            bool(value)
+
+
+def test_an_unknown_mass_model_is_rejected():
+    rotor_yaml = _load_raw("rotor_design.yaml")
+    rotor_yaml["objective"]["mass_model"] = "hollow"
+
+    with _temporary_config({"rotor_design.yaml": rotor_yaml}):
+        with pytest.raises(config.ConfigError, match="mass_model"):
+            config.load_design_rotor()
+
+
 def test_polar_cache_metadata_matches_the_committed_cache():
     """
     `polars_s809.yaml` describes the cache that is actually on disk.

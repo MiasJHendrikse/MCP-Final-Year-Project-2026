@@ -178,6 +178,60 @@ parameterisation:
 constraints:
   max_local_solidity: 0.5
 
+# ---------------------------------------------------------------------------
+# The mass problem -- docs/PLAN-mass-objective-2026-09-20.md (adopted 2026-09-20)
+# ---------------------------------------------------------------------------
+# The objective is blade MATERIAL, not energy: minimise the material proxy
+# subject to AEP >= AEP(x0), the Phase 4 load cap, a root-stress proxy, a
+# tip-deflection proxy and the manufacturability rows below. x0 -- the
+# committed Schmitz baseline at design_tsr -- is the reference for every
+# relative row (MJ's decision 2026-09-20: the reference lambda stays 6.5; a
+# Schmitz designed and tracked at 6.0 scores +0.16 % on this machine, which
+# the report states and prices off the energy-material exchange-rate sweep).
+#
+# mass_model selects the material proxy (src/objective/mass.py):
+#   shell   m = rho_lam * t_shell * k_P * int c dr   -- a thin skin of constant
+#           laminate thickness, how a hand-laid small blade is built. k_P is
+#           the section perimeter per unit chord, exact from the airfoil
+#           coordinates (SG6043: 2.0485). THE OBJECTIVE. Linear in the design
+#           vector. Self-consistent with the two structural proxies, which
+#           assume the same shell: Z ~ c^2 t (root stress), I ~ c^3 t
+#           (deflection).
+#   solid   m = rho * k_A * int c^2 dr -- a solid or t/c-scaled section; k_A
+#           the section area per unit chord squared (SG6043: 0.0685). The
+#           literature's "blade volume" proxy. REPORTED beside the shell
+#           figure, never optimised (the scratch runs of 2026-09-19 showed the
+#           c^2 proxy is the one a wavy planform games).
+# Both are exact geometry; neither says whether the blade survives its loads,
+# which is what the relative stress and deflection rows are for. The
+# headline is a percentage of x0's material and is independent of density.
+objective:
+  mass_model: shell
+
+# Manufacturability (plan section 7.2, amended 2026-09-20): the chord and
+# twist CONTROL POINTS are non-increasing from root to tip. For a B-spline
+# that implies a non-increasing curve (variation-diminishing property), so
+# these four + four linear rows with a constant Jacobian are the whole
+# manufacturability set. Needed: without them the mass objective moves area
+# between control points regardless of shape (scratch: 281/45/165/56/54 mm at
+# the -2 % energy floor). The root cut-out at 0.15 R sits beyond the physical
+# chord peak, so monotone-from-the-hub is the realistic shape, not a
+# restriction. They cost 0.06 % of the material saving at delta = 0.
+manufacturing:
+  monotone_chord: true
+  monotone_twist: true
+
+# Structural inputs -- ALL TODO, and NONE of them gates the production run.
+# Every structural row is relative to x0 (material, stress proxy, deflection
+# proxy), so the laminate density, thickness and modulus cancel exactly as the
+# material allowable does in the Phase 4 constraint. They exist so that a kg
+# figure can be quoted from the same code the moment a laminate concept is
+# chosen (mass_kg = rho_lam * t_shell * shell_area), never so that a number is
+# invented here. docs/OUTSTANDING-INPUTS.md section 7.3.
+structure:
+  laminate_density_kg_m3: "TODO: no laminate concept chosen (2026-09-20); needed only to quote kg, not for any constraint"
+  shell_thickness_m: "TODO: no laminate concept chosen (2026-09-20); needed only to quote kg, not for any constraint"
+
 # Sanity band for the AEP module (plan section 1.4). A result far outside this
 # indicates a bug, not a discovery. Recorded so the check reads it rather than
 # restating it.

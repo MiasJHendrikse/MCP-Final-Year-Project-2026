@@ -106,6 +106,13 @@ class DesignRotorConfig:
     tip-speed ratio `lambda(V) = min(design_tsr, Omega_max R / V)`; `None`
     is no ceiling, the pre-2026-09-19 objective. `max_local_solidity` is the
     station solidity cap (plan 7.4), resolved the same day.
+
+    The mass problem (2026-09-20, `docs/PLAN-mass-objective-2026-09-20.md`):
+    `mass_model` selects the material proxy (`"shell"`, the objective, or
+    `"solid"`, reported only); `monotone_chord` / `monotone_twist` switch the
+    manufacturability rows; `laminate_density_kg_m3` and `shell_thickness_m`
+    are `Unresolved` until a laminate concept exists and are needed only to
+    quote a mass in kg -- every constraint row is relative and cancels them.
     """
 
     name: str
@@ -123,6 +130,11 @@ class DesignRotorConfig:
     max_local_solidity: float
     aep_mwh_per_year_min: float
     aep_mwh_per_year_max: float
+    mass_model: str
+    monotone_chord: bool
+    monotone_twist: bool
+    laminate_density_kg_m3: "float | Unresolved"
+    shell_thickness_m: "float | Unresolved"
 
     @property
     def max_tip_speed_ms(self):
