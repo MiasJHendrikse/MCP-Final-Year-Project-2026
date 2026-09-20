@@ -391,9 +391,7 @@ def test_resolved_design_values_are_present():
 def test_the_mass_problem_is_recorded():
     """
     The 2026-09-20 re-pitch (docs/PLAN-mass-objective-2026-09-20.md): the
-    objective is the shell material, both manufacturability rows are on, and
-    the structural inputs are TODO -- not a number, not `None`, not falsy --
-    because nothing in the production run needs them.
+    objective is the shell material and both manufacturability rows are on.
     """
 
     design = config.load_design_rotor()
@@ -403,13 +401,72 @@ def test_the_mass_problem_is_recorded():
     assert design.monotone_twist is True
     assert design.min_chord_m == pytest.approx(0.060)      # the buildable-tip floor, 2026-09-20
     assert design.min_chord_m > design.parameterisation.chord_min_m   # a row, not the box
-    for name in ("laminate_density_kg_m3", "shell_thickness_m"):
-        value = getattr(design, name)
-        assert not config.is_resolved(value)
-        with pytest.raises(config.UnresolvedConfigError, match=name):
-            float(value)
-        with pytest.raises(config.UnresolvedConfigError, match=name):
-            bool(value)
+
+
+def test_the_laminate_is_recorded_with_its_source():
+    """
+    The structural inputs resolved 2026-09-20 (evening): one laminate, the
+    E-LT-5500/EP-3 row of Griffith & Ashwill (2011) Table 19, a 2 mm skin
+    tied to the 60 mm tip, and the GL hand-lay-up safety factor
+    (docs/MATERIALS-STRUCTURAL-INPUTS.md). Pinned so an edit has to restate
+    its basis, as for the bounds.
+    """
+
+    design = config.load_design_rotor()
+
+    assert design.laminate_density_kg_m3 == pytest.approx(1920.0)
+    assert design.shell_thickness_m == pytest.approx(0.002)
+    assert design.youngs_modulus_pa == pytest.approx(41.8e9)
+    assert design.allowable_stress_pa == pytest.approx(702.0e6)
+    # gamma_f * gamma_M0 * C1a * C2a * C3a(hand lay-up) * C4a(non post-cured)
+    assert design.safety_factor == pytest.approx(1.35 * 1.35 * 1.35 * 1.1 * 1.2 * 1.1, abs=5e-5)
+    assert design.design_allowable_stress_pa == pytest.approx(702.0e6 / 3.5725, rel=1e-12)
+    # A 2 mm skin on the 60 mm floor: two skins fit inside the 10 % section.
+    assert 2.0 * design.shell_thickness_m < 0.10 * design.min_chord_m
+    for name in ("laminate_density_kg_m3", "shell_thickness_m", "youngs_modulus_pa",
+                 "allowable_stress_pa", "safety_factor"):
+        assert isinstance(getattr(design, name), float), name
+
+
+def test_the_tip_clearance_stays_todo_and_behaves_like_it():
+    """
+    `tip_clearance_m` is machine geometry with no defensible number yet: not
+    a number, not `None`, not falsy, and the derived allowable it would gate
+    is untouched by it. The `Unresolved` mechanism is what the absolute
+    deflection row relies on to refuse assembly.
+    """
+
+    design = config.load_design_rotor()
+
+    value = design.tip_clearance_m
+    assert not config.is_resolved(value)
+    with pytest.raises(config.UnresolvedConfigError, match="tip_clearance_m"):
+        float(value)
+    with pytest.raises(config.UnresolvedConfigError, match="tip_clearance_m"):
+        bool(value)
+    assert config.is_resolved(design.design_allowable_stress_pa)
+
+
+def test_a_structural_input_that_is_neither_number_nor_todo_is_rejected():
+    """`41.8e9` without an exponent sign is a YAML string, not a float; caught at load."""
+
+    rotor_yaml = _load_raw("rotor_design.yaml")
+    rotor_yaml["structure"]["youngs_modulus_pa"] = "41.8e9"
+
+    with _temporary_config({"rotor_design.yaml": rotor_yaml}):
+        with pytest.raises(config.ConfigError, match="exponent"):
+            config.load_design_rotor()
+
+
+def test_a_reopened_structural_input_comes_back_unresolved():
+    rotor_yaml = _load_raw("rotor_design.yaml")
+    rotor_yaml["structure"]["laminate_density_kg_m3"] = "TODO: laminate re-opened"
+
+    with _temporary_config({"rotor_design.yaml": rotor_yaml}):
+        design = config.load_design_rotor()
+        assert not config.is_resolved(design.laminate_density_kg_m3)
+        with pytest.raises(config.UnresolvedConfigError, match="re-opened"):
+            float(design.laminate_density_kg_m3)
 
 
 def test_an_unknown_mass_model_is_rejected():

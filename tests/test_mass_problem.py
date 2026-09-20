@@ -14,6 +14,7 @@ Author: MJ Hendrikse
 Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
 """
 
+import dataclasses
 import json
 import math
 import os
@@ -21,15 +22,19 @@ import os
 import numpy as np
 import pytest
 
+import config
 from design import BladeParameterisation, DesignBounds
 from gradients import ScaledProblem, central_difference
-from gradients.problem import FAILED_SLACK, MASS_PROBLEM_ROWS
+from gradients.problem import (ABSOLUTE_ROWS, ALL_MASS_PROBLEM_ROWS, FAILED_SLACK,
+                               MASS_PROBLEM_ROWS)
 from objective import WeibullResource
+from objective.mass import section_coefficients
 from polars.interpolant import PolarDomainError
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(_HERE, ".."))
 XC_PATH = os.path.join(ROOT, "verification", "load_constraint", "result_eps0.json")
+XM_PATH = os.path.join(ROOT, "verification", "mass_optimisation", "result_delta0.json")
 
 H_STAR_GLOBAL = 3.162277660168379e-06
 
@@ -53,6 +58,12 @@ def u0(problem):
 def u_c(problem):
     with open(XC_PATH, encoding="utf-8") as handle:
         return problem.scaled(np.array(json.load(handle)["x_c"], dtype=float))
+
+
+@pytest.fixture(scope="module")
+def u_m(problem):
+    with open(XM_PATH, encoding="utf-8") as handle:
+        return problem.scaled(np.array(json.load(handle)["x_m"], dtype=float))
 
 
 def _tier3(problem, constraint, u, label):
@@ -186,6 +197,153 @@ def test_stress_jacobian_matches_fd_at_x0(problem, u0):
 
 def test_stress_taylor_remainder_is_second_order(problem, u0):
     _taylor(problem, problem.stress_constraint(), u0)
+
+
+# ---------------------------------------------------------------------------
+# the absolute rows (2026-09-20, evening)
+# ---------------------------------------------------------------------------
+
+def test_absolute_stress_is_the_ks_moment_over_the_thin_shell_section_modulus(problem, u0, u_c):
+    """
+    `sigma = KS M_ref / (k_Z c0^2 t)` with the recorded 2 mm skin: 22.6 MPa
+    at `x0`, against a 196.5 MPa design allowable -- slack by a factor of
+    nine at the operating loads (problem.py, "which rows are the design
+    rows"). `x_c`'s fatter root carries less.
+    """
+
+    design = config.load_design_rotor()
+    k_z = section_coefficients().section_modulus
+    for u in (u0, u_c):
+        c0 = float(problem.physical(u)[0])
+        expected = problem.moment_ks(u) * problem.m_ref / (k_z * c0 ** 2 * design.shell_thickness_m)
+        assert problem.stress_absolute_pa(u) == pytest.approx(expected, rel=1e-12)
+    assert problem.stress_absolute_pa(u0) / 1e6 == pytest.approx(22.588, abs=2e-3)
+    assert problem.stress_absolute_pa(u_c) < problem.stress_absolute_pa(u0)
+    assert problem.design_allowable_stress_pa() / 1e6 == pytest.approx(196.50, abs=1e-2)
+    assert problem.stress_absolute_pa(u_c) / problem.stress_absolute_pa(u0) == pytest.approx(
+        problem.stress_ratio(u_c), rel=1e-12)     # the same functional, constants carried
+
+
+def test_absolute_stress_row_is_the_inequality_over_its_allowable(problem, u0):
+    g = float(problem.stress_constraint_absolute()["fun"](u0)[0])
+    sigma = problem.stress_absolute_pa(u0)
+    allowable = problem.design_allowable_stress_pa()
+    assert g == pytest.approx(1.0 - sigma / allowable, rel=1e-12)
+    assert 0.88 < g < 0.89
+    slacks = problem.mass_problem_slacks(u0, 0.0)["stress_absolute"]
+    assert slacks["available"] is True and not slacks["active"]
+    assert slacks["stress_mpa"] == pytest.approx(sigma / 1e6, rel=1e-12)
+    assert slacks["slack_mpa"] == pytest.approx((allowable - sigma) / 1e6, rel=1e-9)
+
+
+def test_absolute_stress_jacobian_matches_fd_at_x0_and_x_m(problem, u0, u_m):
+    _tier3(problem, problem.stress_constraint_absolute(), u0, "absolute stress at x0")
+    _tier3(problem, problem.stress_constraint_absolute(), u_m, "absolute stress at x_m")
+
+
+def test_absolute_stress_taylor_remainder_is_second_order(problem, u0):
+    _taylor(problem, problem.stress_constraint_absolute(), u0)
+
+
+def test_absolute_stress_jacobian_is_the_relative_one_scaled(problem, u_c):
+    """One chain rule, two constants: `M_ref / (k_Z t sigma_design)`."""
+
+    design = config.load_design_rotor()
+    scale = problem.m_ref / (section_coefficients().section_modulus * design.shell_thickness_m
+                             * problem.design_allowable_stress_pa())
+    relative = problem.stress_constraint()["jac"](u_c)
+    absolute = problem.stress_constraint_absolute()["jac"](u_c)
+    assert np.allclose(absolute, scale * relative, rtol=1e-12, atol=0.0)
+
+
+def test_absolute_deflection_is_the_unit_deflection_over_e_k_i_t(problem, u0, u_c):
+    """
+    `delta_tip = delta_ref D / (E k_I t)`: 111.8 mm at `x0`'s rated point
+    with the 2 mm E-glass skin (the KS aggregate; the rated point alone is
+    `delta_ref / (E k_I t)` = 111.79 mm), 85 mm for `x_c`.
+    """
+
+    design = config.load_design_rotor()
+    factor = design.youngs_modulus_pa * section_coefficients().second_moment * design.shell_thickness_m
+    assert problem.deflection_absolute_m(u0) == pytest.approx(
+        problem.delta_ref * problem.D0 / factor, rel=1e-12)
+    assert problem.deflection_absolute_m(u0) * 1e3 == pytest.approx(111.84, abs=1e-2)
+    assert problem.delta_ref / factor * 1e3 == pytest.approx(111.79, abs=1e-2)
+    assert problem.deflection_absolute_m(u_c) * 1e3 == pytest.approx(85.2, abs=0.1)
+    slacks = problem.mass_problem_slacks(u0, 0.0)["deflection_absolute"]
+    assert slacks["tip_deflection_mm"] == pytest.approx(111.84, abs=1e-2)
+
+
+def test_absolute_deflection_row_refuses_to_assemble_while_the_clearance_is_todo(problem):
+    available = problem.absolute_rows_available()
+    assert available["stress_absolute"] is True
+    assert available["deflection_absolute"].startswith("TODO: tip_clearance_m")
+    with pytest.raises(config.UnresolvedConfigError, match="tip_clearance_m"):
+        problem.deflection_constraint_absolute()
+    with pytest.raises(config.UnresolvedConfigError, match="tip_clearance_m"):
+        problem.mass_problem_rows(0.0, include=("deflection_absolute",))
+    slacks = problem.mass_problem_slacks(problem.u0, 0.0)["deflection_absolute"]
+    assert slacks["available"].startswith("TODO") and "slack" not in slacks
+
+
+@pytest.fixture(scope="module")
+def problem_with_clearance():
+    """A problem whose design carries an INJECTED 150 mm clearance -- a test value, not a decision."""
+
+    parameterisation = BladeParameterisation()
+    bounds = DesignBounds.from_config(n_chord=parameterisation.n_chord,
+                                      n_twist=parameterisation.n_twist)
+    problem = ScaledProblem(parameterisation, bounds, WeibullResource.from_config())
+    problem.design = dataclasses.replace(problem.design, tip_clearance_m=0.150)
+    problem.set_reference(problem.scaled(problem.reference_design()))
+    return problem
+
+
+def test_absolute_deflection_row_with_an_injected_clearance(problem_with_clearance, u0, u_m):
+    """
+    With a clearance supplied the row assembles, its slack is
+    `1 - delta_tip / clearance`, its Jacobian passes Tier 3 at `x0` and
+    `x_m`, and `ALL_MASS_PROBLEM_ROWS` assembles in order.
+    """
+
+    p = problem_with_clearance
+    assert p.absolute_rows_available()["deflection_absolute"] is True
+    row = p.deflection_constraint_absolute()
+    g = float(row["fun"](u0)[0])
+    assert g == pytest.approx(1.0 - p.deflection_absolute_m(u0) / 0.150, rel=1e-12)
+    assert 0.25 < g < 0.26
+    _tier3(p, row, u0, "absolute deflection at x0")
+    _tier3(p, row, u_m, "absolute deflection at x_m")
+    _taylor(p, row, u0)
+    scale = p.delta_ref / (p.material_model().stiffness_factor_pa_m() * 0.150)
+    assert np.allclose(row["jac"](u_m), scale * p.deflection_constraint()["jac"](u_m),
+                       rtol=1e-12, atol=0.0)
+
+    rows = p.mass_problem_rows(0.0, include=ALL_MASS_PROBLEM_ROWS)
+    assert [label for label, _c in rows] == list(ALL_MASS_PROBLEM_ROWS)
+    slacks = p.mass_problem_slacks(u0, 0.0)["deflection_absolute"]
+    assert slacks["clearance_mm"] == 150.0 and not slacks["active"]
+    assert slacks["slack_mm"] == pytest.approx(150.0 - slacks["tip_deflection_mm"], rel=1e-9)
+
+
+def test_absolute_rows_are_additional_and_slack_at_the_committed_optimum(problem, u_m):
+    """
+    `MASS_PROBLEM_ROWS` is the committed relative set, unchanged; the
+    absolute stress row joins by name and is slack at `x_m` (the operating
+    loads do not size this root), so the committed optimum is unchanged by
+    it -- the reason the relative rows stay the design rows.
+    """
+
+    assert MASS_PROBLEM_ROWS == ("envelope", "solidity", "manufacturing", "aep_floor",
+                                 "moment", "stress", "deflection")
+    assert ABSOLUTE_ROWS == ("stress_absolute", "deflection_absolute")
+    assert ALL_MASS_PROBLEM_ROWS == MASS_PROBLEM_ROWS + ABSOLUTE_ROWS
+    rows = problem.mass_problem_rows(0.0, include=MASS_PROBLEM_ROWS + ("stress_absolute",))
+    assert [label for label, _c in rows][-1] == "stress_absolute"
+    assert len(problem.constraints_for_mass_problem(0.0)) == 7      # the default is the committed set
+    g = float(dict(rows)["stress_absolute"]["fun"](u_m)[0])
+    assert g > 0.88
+    assert problem.mass_kg(u_m) == pytest.approx(1.6216, abs=5e-4)
 
 
 # ---------------------------------------------------------------------------
