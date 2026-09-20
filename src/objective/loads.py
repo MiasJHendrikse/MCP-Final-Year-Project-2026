@@ -77,11 +77,7 @@ def root_bending_moment(stations, chords, air_density, n_blades, r_hub):
     """
 
     radii = [station["r"] for station in stations]
-    lever_arms = [r - r_hub for r in radii]
-    load = [
-        0.5 * air_density * station["w"] ** 2 * chord * station["Cn"] * arm
-        for station, chord, arm in zip(stations, chords, lever_arms)
-    ]
+    load = [p * (r - r_hub) for p, r in zip(normal_load(stations, chords, air_density), radii)]
     return sum(0.5 * (load[i] + load[i + 1]) * (radii[i + 1] - radii[i])
                for i in range(len(radii) - 1))
 

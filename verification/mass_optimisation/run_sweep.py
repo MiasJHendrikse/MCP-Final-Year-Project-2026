@@ -75,8 +75,7 @@ def solve(delta, include, u_start, label, names):
     record = C.blade_record(problem, u_m, delta, label, u0=u0)
     kkt = C.kkt_report(problem, u_m, delta, include, names)
     s = record["slacks"]
-    worst = min(s["aep_floor"]["slack"], s["moment"]["slack"], s["stress"]["slack"],
-                s["deflection"]["slack"], s["manufacturing"]["slack_min"])
+    worst = C.worst_slack(s)
     # Rows outside `include` are reported (their slack at this optimum says
     # what removing them bought) but do not count towards feasibility.
     counted = [s["aep_floor"]["slack"]]

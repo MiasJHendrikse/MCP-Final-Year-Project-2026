@@ -53,10 +53,8 @@ def starts(problem):
 
 
 def feasible(record, tol=FEASIBILITY_TOL):
-    s = record["slacks"]
-    worst = min(s["aep_floor"]["slack"], s["moment"]["slack"], s["stress"]["slack"],
-                s["deflection"]["slack"], s["manufacturing"]["slack_min"])
-    return bool(worst >= -tol), float(worst)
+    worst = C.worst_slack(record["slacks"])
+    return bool(worst >= -tol), worst
 
 
 def run_start(label, u_start, names):

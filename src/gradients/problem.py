@@ -205,6 +205,10 @@ class ScaledProblem:
         self._deflection_cache = None
         self._deflection_cache_key = None
         self.evaluation_failures = []
+        # `(u bytes, error)` of the last trial point whose forward load solve
+        # failed: the moment, stress and deflection rows share that solve, so
+        # the second and third row re-raise instead of repeating it.
+        self._load_failure = None
 
     # -- variables ----------------------------------------------------------
 
@@ -430,14 +434,25 @@ class ScaledProblem:
         key = (float(rho), u.tobytes())
         if key == self._moment_cache_key:
             return self._moment_cache
+        self._raise_if_failed(key[1])
         system = self._system_for(rho)
         state = self._shared_load_state(key[1])
         if state is None:
             self.n_moment_solves += 1
-        result = system.gradient(self.physical(u), state=state)
+        try:
+            result = system.gradient(self.physical(u), state=state)
+        except (PolarDomainError, RuntimeError) as error:
+            self._load_failure = (key[1], error)
+            raise
         self._moment_cache_key = key
         self._moment_cache = result
         return result
+
+    def _raise_if_failed(self, u_key):
+        """Re-raise the remembered failure of the forward load solve at this `u`."""
+
+        if self._load_failure is not None and self._load_failure[0] == u_key:
+            raise self._load_failure[1]
 
     def moment_state(self, u):
         """The cached moment-adjoint result at `u` (default stiffness)."""
@@ -755,10 +770,15 @@ class ScaledProblem:
         system = self._deflection_system()
         if key == self._deflection_cache_key:
             return self._deflection_cache
+        self._raise_if_failed(key)
         state = self._shared_load_state(key)
         if state is None:
             self.n_deflection_solves += 1
-        result = system.gradient(self.physical(u), state=state)
+        try:
+            result = system.gradient(self.physical(u), state=state)
+        except (PolarDomainError, RuntimeError) as error:
+            self._load_failure = (key, error)
+            raise
         self._deflection_cache_key = key
         self._deflection_cache = result
         return result

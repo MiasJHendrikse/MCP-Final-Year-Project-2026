@@ -320,3 +320,42 @@ def test_guard_reports_a_violation_and_logs_but_never_a_stale_jacobian(problem):
     assert len(problem.evaluation_failures) == n_before + 4
     with pytest.raises(PolarDomainError):
         problem.mass_problem_slacks(bad, 0.0)  # unguarded, by design
+
+
+def test_a_failed_load_solve_is_remembered_not_repeated_by_the_next_row(problem, u_c):
+    """Review 2026-09-20: the three state rows share one forward solve; when
+    it fails at a trial point, the second and third row re-raise the remembered
+    failure instead of running the same failing solve again."""
+
+    bad = np.ones(problem.n)
+    problem._load_failure = None  # the guard test above already failed at this point
+    rows = dict(problem.mass_problem_rows(0.0))
+    before = (problem.n_moment_solves, problem.n_deflection_solves)
+    for label in ("moment", "stress", "deflection"):
+        g = rows[label]["fun"](bad)
+        assert float(g[0]) == -FAILED_SLACK, label
+    with pytest.raises(PolarDomainError):
+        rows["deflection"]["jac"](bad)
+    assert (problem.n_moment_solves, problem.n_deflection_solves) == (before[0] + 1, before[1])
+
+    # A different point is not poisoned by the remembered failure.
+    good = u_c + 1e-6 * np.random.default_rng(7).normal(size=problem.n)
+    assert float(rows["moment"]["fun"](good)[0]) > -FAILED_SLACK
+    assert problem.n_moment_solves == before[0] + 2
+
+
+def test_run_mass_slsqp_rejects_an_unknown_row_name():
+    """Review 2026-09-20: a mistyped `--rows` token used to be dropped silently."""
+
+    import importlib
+    import sys
+    here = os.path.join(ROOT, "verification", "mass_optimisation")
+    sys.path.insert(0, here)
+    try:
+        runner = importlib.import_module("run_mass_slsqp")
+    finally:
+        sys.path.remove(here)
+    assert runner.parse_rows("envelope, solidity,aep_floor") == ("envelope", "solidity", "aep_floor")
+    assert runner.parse_rows(",".join(MASS_PROBLEM_ROWS)) == tuple(MASS_PROBLEM_ROWS)
+    with pytest.raises(ValueError, match="solidty"):
+        runner.parse_rows("envelope,solidty,aep_floor")

@@ -184,6 +184,14 @@ def loads_at(problem, d, with_spanwise=False):
     return record
 
 
+def worst_slack(slacks):
+    """The worst slack over the five mass-problem rows of a `blade_record`'s `slacks`."""
+
+    return float(min(slacks["aep_floor"]["slack"], slacks["moment"]["slack"],
+                     slacks["stress"]["slack"], slacks["deflection"]["slack"],
+                     slacks["manufacturing"]["slack_min"]))
+
+
 def blade_record(problem, u, delta, label, u0=None):
     """
     Everything the artefacts quote for one blade: AEP and its ratio to
@@ -280,11 +288,12 @@ class Recorder:
 
     def _record(self, u, values):
         problem = self.problem
+        mass = float(problem.mass(u))
         record = {
             "k": len(self.iterates),
             "u": [float(x) for x in u],
-            "mass": float(problem.mass(u)),
-            "shell_pct_vs_x0": float(100.0 * (problem.mass(u) - 1.0)),
+            "mass": mass,
+            "shell_pct_vs_x0": float(100.0 * (mass - 1.0)),
             "row_slack_min": {label: float(np.min(v)) for label, v in values.items()},
             "wall_time_s": time.perf_counter() - self.started,
         }

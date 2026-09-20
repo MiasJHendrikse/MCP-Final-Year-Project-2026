@@ -82,6 +82,20 @@ def optimise_with_escalation(delta, start, include, args):
             margin, margin_raised = 0.10, True
 
 
+def parse_rows(text):
+    """
+    The `--rows` subset in `MASS_PROBLEM_ROWS` order. Every token must be a
+    known row: a mistyped one used to be dropped silently, and the run then
+    solved a looser problem under the full problem's label (review 2026-09-20).
+    """
+
+    tokens = [t.strip() for t in text.split(",") if t.strip()]
+    unknown = [t for t in tokens if t not in MASS_PROBLEM_ROWS]
+    if unknown:
+        raise ValueError(f"unknown --rows {unknown}; known rows are {list(MASS_PROBLEM_ROWS)}")
+    return tuple(r for r in MASS_PROBLEM_ROWS if r in tokens)
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--delta", type=float, default=0.0,
@@ -93,7 +107,7 @@ def main(argv=None):
     parser.add_argument("--ftol", type=float, default=C.SLSQP_FTOL)
     parser.add_argument("--tag", default=None, help="output tag (default: the delta)")
     args = parser.parse_args(argv)
-    include = tuple(r for r in MASS_PROBLEM_ROWS if r in args.rows.split(","))
+    include = parse_rows(args.rows)
 
     problem, u0, result, recorder, wall, margin_raised, domain_errors = \
         optimise_with_escalation(args.delta, args.start, include, args)
