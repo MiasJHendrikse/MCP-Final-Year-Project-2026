@@ -42,7 +42,8 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _HERE)
 
 import _common as C  # noqa: E402
-from gradients.problem import DEFAULT_ENVELOPE_MARGIN, MASS_PROBLEM_ROWS  # noqa: E402
+from gradients.problem import (ALL_MASS_PROBLEM_ROWS, DEFAULT_ENVELOPE_MARGIN,  # noqa: E402
+                               MASS_PROBLEM_ROWS)
 from polars.interpolant import PolarDomainError  # noqa: E402
 
 
@@ -90,10 +91,10 @@ def parse_rows(text):
     """
 
     tokens = [t.strip() for t in text.split(",") if t.strip()]
-    unknown = [t for t in tokens if t not in MASS_PROBLEM_ROWS]
+    unknown = [t for t in tokens if t not in ALL_MASS_PROBLEM_ROWS]
     if unknown:
-        raise ValueError(f"unknown --rows {unknown}; known rows are {list(MASS_PROBLEM_ROWS)}")
-    return tuple(r for r in MASS_PROBLEM_ROWS if r in tokens)
+        raise ValueError(f"unknown --rows {unknown}; known rows are {list(ALL_MASS_PROBLEM_ROWS)}")
+    return tuple(r for r in ALL_MASS_PROBLEM_ROWS if r in tokens)
 
 
 def main(argv=None):

@@ -399,6 +399,9 @@ def kkt_report(problem, u, delta, include, names, tol=ACTIVE_TOL):
         "moment": lambda: problem.moment_constraint(0.0),
         "stress": lambda: problem.stress_constraint(),
         "deflection": lambda: problem.deflection_constraint(),
+        # The absolute rows (2026-09-20, evening; `verification/absolute_material/`).
+        "stress_absolute": lambda: problem.stress_constraint_absolute(),
+        "deflection_absolute": lambda: problem.deflection_constraint_absolute(),
     }
     slacks = {}
     for name, builder in scalar.items():

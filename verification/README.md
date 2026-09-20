@@ -23,6 +23,7 @@ it was produced, and what would make it wrong.
 | `adjoint_optimisation/` | **re-run 2026-09-19** | B5: adjoint-driven SLSQP, and its agreement with A4 |
 | `load_constraint/` | **new 2026-09-19** | Phase 4: the root-moment KS constraint -- Tiers 1-3, the `eps = 0` constrained optimum (`x_c`, the energy optimum -- the Phase 5 production optimum until the 2026-09-20 re-pitch; now the reference blade the mass optimum is set against), and the 0/2/5/10 % Pareto |
 | `mass_optimisation/` | **new 2026-09-20, re-run that afternoon under the 60 mm tip floor** | Phase 5: the AEP-constrained minimum-material blade -- `x_m` at `delta = 0` (-3.38 % shell material at equal energy; -5.27 % within 0.5 %), the 10-start agreement, the 0/0.25/0.5/1/2 % energy-floor front with KKT exchange rates, the ablation of the stress, deflection, monotone and moment rows, Tiers 1-3 of the stress and deflection Jacobians at `x0` and `x_m`, the `x0 / x_c / x_m` table, and the cross-evaluation under other resources and ceilings |
+| `absolute_material/` | **new 2026-09-20 (evening)** | the recorded laminate under `x0 / x_c / x_m`: shell mass 1.678 / 1.782 / 1.622 kg per blade, the thin-shell root stress 22.6 MPa against a 196.5 MPa design allowable, the tip deflection 111.8 mm; Tier 3 of the absolute rows at the new constants; and the measurement that adding the absolute stress row leaves `x_m` unchanged while *replacing* the relative row by it returns the `no stress` ablation optimum (-4.53 %, root stress 1.70 x) |
 | `cost_scaling/` | **new 2026-09-19** | Phase 4 Step 3: wall time of `J`, the FD, tangent, adjoint and moment-adjoint gradients against `n = 10 ... 160`, with the `t = a n^p` fits and the forward-solve counts |
 | `gradient_verification/` | **re-run 2026-09-19** | Tier 3 (adjoint vs the FD noise floor) and Tier 4 (attribution of what is left); **one red variable, reported and accepted** |
 | `fd_optimisation_multistart/` | **re-run 2026-09-19** | that A4's gain is not an artefact of the starting point |
@@ -54,6 +55,9 @@ alphabetical list:
     mass_optimisation     result_delta*.json, multistart_delta0.json, → consumes baseline/x0.json, load_constraint/result_eps0.json (x_c),
                           pareto.json, ablation.json, checks.json,     the multistart spread and fd_step_size/sweep.json's h*; runs AFTER
                           reference_blades.json, cross_evaluation.json load_constraint (2026-09-20)
+    absolute_material      result.json, absolute_material.png  → consumes baseline/x0.json, load_constraint/result_eps0.json,
+                                                                 mass_optimisation/result_delta0.json + ablation.json and
+                                                                 fd_step_size/sweep.json; runs AFTER mass_optimisation (2026-09-20 evening)
     cost_scaling           scaling.json, scaling.png          → reads only h* (fd_step_size) and AEP(x0) (baseline);
                                                                  independent of every optimisation artefact
     aep_optimisation_experiment  (port only)
