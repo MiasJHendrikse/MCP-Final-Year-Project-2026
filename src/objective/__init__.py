@@ -36,6 +36,9 @@ from objective.loads import (
     root_bending_moment,
     root_moment,
     root_moments,
+    spanwise_moments,
+    tip_deflection,
+    tip_deflection_at,
 )
 from objective.mass import MaterialModel, section_coefficients
 from objective.weibull import WeibullResource
@@ -59,5 +62,8 @@ __all__ = [
     "root_moments",
     "sanity_band",
     "section_coefficients",
+    "spanwise_moments",
+    "tip_deflection",
+    "tip_deflection_at",
     "wind_speed_bins",
 ]

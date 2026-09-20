@@ -25,9 +25,11 @@ Author: MJ Hendrikse
 Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
 """
 
+from adjoint.deflection import DeflectionGradientResult, DeflectionSystem
 from adjoint.kernels import StationPartials, station_partials
 from adjoint.loads import MomentGradientResult, RootMomentSystem
 from adjoint.system import BEMSystem, ForwardState, GradientResult
 
-__all__ = ["BEMSystem", "ForwardState", "GradientResult", "MomentGradientResult",
-           "RootMomentSystem", "StationPartials", "station_partials"]
+__all__ = ["BEMSystem", "DeflectionGradientResult", "DeflectionSystem", "ForwardState",
+           "GradientResult", "MomentGradientResult", "RootMomentSystem", "StationPartials",
+           "station_partials"]

@@ -723,3 +723,124 @@ of that budget — its rated moment is **+0.020 %** above `x0`'s while `KS`
 equals `KS0` to `5e-8`. Second, for the same reason the Pareto steps are
 `ε` in KS; the rated-point moment reductions they buy are 1.997 / 5.037 /
 10.089 %.
+
+## 11. A third right-hand side: static tip deflection and its KS aggregate
+
+**Added 2026-09-20 (the mass problem, Step 2;
+`docs/PLAN-mass-objective-2026-09-20.md`).** Under a material objective the
+optimiser thins the blade; a root-moment cap does not stop that (a thinner
+blade carries *less* moment) and a root-stress proxy holds only the root
+section. The constraint that fights a thin outer blade is stiffness: for a
+thin shell of constant laminate thickness the second moment falls as `c³`
+while the load falls roughly as `c`. This section adds the static flapwise
+tip deflection as a third functional over the Phase 4 load set `L`, on the
+same residual, the same diagonal `∂R/∂φ`, the same `dR/dd`, and the same
+station partials — nothing in §1–§10 changes, and the kernel is untouched.
+
+### 11.1 From the station load to the tip deflection
+
+At station `i` of operating point `b`, §10.1's integrand `m` carries the hub
+arm `r_i − r_hub`. Dividing by that station constant gives the arm-free
+normal load per blade,
+
+    q_{b,i} = m_{b,i} / arm_i,      arm_i = r_i − r_hub  ≥ 0.034 m > 0
+
+and, because `m` and each of `m_φ, m_c, m_θ` carry the same factor, its
+partials are `m`'s divided by `arm_i` — exact, no new kernel code. The
+flapwise moment at station `k` is the trapezoid rule on `[r_k, R]`:
+
+    M_{b,k} = Σ_i W_{k,i} q_{b,i},     W_{k,i} = t_i (r_i − r_k) for i > k, 0 otherwise
+
+`W` is a constant `25 × 25` matrix: the interior trapezoid weights of the
+sub-grid from `r_k` outward are the full-grid `t_i` for `i > k`, and the
+`i = k` term has zero arm. With `r_k → r_hub` the same rule is exactly
+§10.2's root moment (`tests/test_deflection.py::test_w_with_the_hub_arm_is_the_root_moment`).
+
+The unit-load (Euler–Bernoulli) tip deflection of a cantilever with
+`EI(r) = E k_I t_shell c(r)³` — a thin shell of constant laminate thickness
+`t_shell`, `k_I` the section's perimeter second moment per unit `c³ t` — is
+
+    δ_b = ∫ M(r) (R − r) / (E I(r)) dr  →  δ_b = Σ_k G_k M_{b,k} / c_k³,   G_k = t_k (R − r_k)
+
+per unit `E k_I t_shell`. The common factor is never applied: the constraint
+is relative (`D(u) ≤ D(x0)`), so `E`, `k_I`, `t_shell` cancel exactly as the
+material allowable does in §10, and `δ_b` is not a metre. The segment
+`[r_hub, r_0]` (34 mm) is outside the station grid, as it is for the root
+moment. Transposed onto the loads,
+
+    δ_b = Σ_i A_i(c) q_{b,i},     A_i(c) = Σ_k G_k W_{k,i} / c_k³
+
+`A_i` is a flexibility-weighted arm: the deflection the unit load at station
+`i` produces through every inboard section's stiffness. The aggregate and
+its normalisation are §10.2's, with the rated-point value at `x0` as the
+reference:
+
+    δ_ref = δ_rated(x0) = 30776.559398053847  (per unit E k_I t_shell)
+    D     = KS_ρ(δ / δ_ref),   ρ = 100,   D(x0) = 1.0004420795243203
+
+At `x0` the rated point carries softmax weight **0.957** (0.043 at 10.5 m/s),
+the same split as the moment, and `δ_b/δ_ref` rises monotonically over `L`
+from 0.107 at 3.5 m/s to 1 at 11 m/s.
+
+### 11.2 The partials and the adjoint
+
+With `w_b` the softmax weights,
+
+    ∂D/∂φ_{b,i}      = (w_b / δ_ref) · A_i · m_φ_{b,i} / arm_i
+    ∂D/∂c_j|explicit = Σ_b (w_b / δ_ref) [ A_j · m_c_{b,j} / arm_j  −  3 G_j M_{b,j} / c_j⁴ ]
+    ∂D/∂θ_j|explicit = Σ_b (w_b / δ_ref) · A_j · m_θ_{b,j} / arm_j
+
+The second term of `∂D/∂c_j` is the stiffness path — the chord at station
+`j` enters `1/c_j³` in front of that station's own moment `M_{b,j}`; the
+sum over `i` of `q_{b,i} ∂A_i/∂c_j` collapses to it because `Σ_i W_{j,i} q_{b,i}`
+is `M_{b,j}`. Everything else is the load path §10 already has. The adjoint
+is §8's equation with this right-hand side:
+
+    ψ_{b,i} = −(∂D/∂φ_{b,i}) / (∂R_{b,i}/∂φ_{b,i})                (225 divisions)
+    dD/dd   = N_cᵀ ∂D/∂c + N_θᵀ ∂D/∂θ + Σ_{b,i} ψ_{b,i} ∂R_{b,i}/∂d
+
+and the constraint SLSQP sees is `g(u) = D(x0) − D(u) ≥ 0` with Jacobian
+`−(dD/dd) ⊙ span`, zero-slack at `x0` exactly as the moment row is. At `x0`
+the chord entries of `dD/dd` are negative except at the tip control point
+(more chord inboard stiffens the blade more than it loads it; more chord at
+the tip loads the whole cantilever) and the twist entries are negative
+(more twist, less lift, less deflection) — the signs the physics requires.
+
+### 11.3 Implementation and tiers
+
+`src/adjoint/deflection.py` is `DeflectionSystem(RootMomentSystem)`: it adds
+`W`, `G`, `arm`, `loads_from_m`, `spanwise_moments_from_q`,
+`flexibility_arms`, `deflections`, `D`, `dD_dx`, `dD_dd`, and overrides
+`tangent` and `gradient` (`DeflectionGradientResult`); the parent's moment
+functional stays callable on the same instance and the same state, and
+`gradient(d, state=…)` accepts the moment row's forward state so the two
+rows share one 9-point solve. `src/objective/loads.py` is the forward twin
+(`normal_load`, `spanwise_moments`, `tip_deflection`, `tip_deflection_at`)
+from the solver's own station records through a plain sub-grid loop.
+
+Measured at `src` commit of Step 2 (`tests/test_deflection.py`, both at
+`x0` and at the ±2 % / ±0.5° perturbation of §10.5):
+
+| check | at `x0` |
+|---|---|
+| forward twin vs system, every point of `L` | 2.2e-16 relative |
+| `W` with the hub arm vs `RootMomentSystem.moments_from_m` | 1e-14 relative |
+| Tier 1 worst mixed `∂D/∂φ` (225 complex steps of `D`) | 1.22e-15 |
+| Tier 1 worst mixed `∂D/∂d` (10 complex steps of `D`) | 8.45e-16 |
+| Tier 2 tangent − adjoint, unit `v` | 0.0 |
+
+Tier 3 (the wrapped constraint's Jacobian against central FD at `h*`) is
+Step 3's, with the stress row's, in `tests/test_mass_problem.py` and the
+production artefact's `checks.json`.
+
+### 11.4 What the deflection model is, and is not
+
+One Euler–Bernoulli cantilever, one section, one shell of constant thickness,
+static, out-of-plane loads at the B3-independent points, no centrifugal
+stiffening, no gravity, no twist–bend coupling, no shear deformation, no
+tower-clearance allowable (the absolute form needs `E`, `k_I`, `t_shell` and
+a clearance, all `TODO`). It is a *proxy* whose purpose is to stop a material
+minimiser trading stiffness it does not see; the report states it as such
+beside the root-stress proxy `KS_ρ(M̂)/c_0²`. Buckling and fatigue are not
+modelled, for the reasons `docs/PROPOSAL-mass-objective-2026-09-19.md` §4.6
+gives.
