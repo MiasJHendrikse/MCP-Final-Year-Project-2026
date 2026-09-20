@@ -21,7 +21,8 @@ it was produced, and what would make it wrong.
 | `fd_step_size/` | **re-run 2026-09-19** | the per-variable FD step `h*_j` and the disagreement scale `ε_j` the gradient tests use |
 | `fd_optimisation/` | **re-run 2026-09-19** | A4: FD-driven SLSQP from `x0`, end to end |
 | `adjoint_optimisation/` | **re-run 2026-09-19** | B5: adjoint-driven SLSQP, and its agreement with A4 |
-| `load_constraint/` | **new 2026-09-19** | Phase 4: the root-moment KS constraint -- Tiers 1-3, the `eps = 0` constrained optimum (the Phase 5 production optimum for now), and the 0/2/5/10 % Pareto |
+| `load_constraint/` | **new 2026-09-19** | Phase 4: the root-moment KS constraint -- Tiers 1-3, the `eps = 0` constrained optimum (`x_c`, the energy optimum -- the Phase 5 production optimum until the 2026-09-20 re-pitch; now the reference blade the mass optimum is set against), and the 0/2/5/10 % Pareto |
+| `mass_optimisation/` | **new 2026-09-20** | Phase 5: the AEP-constrained minimum-material blade -- `x_m` at `delta = 0` (-4.24 % shell material at equal energy), the 10-start agreement, the 0/0.25/0.5/1/2 % energy-floor front with KKT exchange rates, the ablation of the stress, deflection, monotone and moment rows, Tiers 1-3 of the stress and deflection Jacobians at `x0` and `x_m`, the `x0 / x_c / x_m` table, and the cross-evaluation under other resources and ceilings |
 | `cost_scaling/` | **new 2026-09-19** | Phase 4 Step 3: wall time of `J`, the FD, tangent, adjoint and moment-adjoint gradients against `n = 10 ... 160`, with the `t = a n^p` fits and the forward-solve counts |
 | `gradient_verification/` | **re-run 2026-09-19** | Tier 3 (adjoint vs the FD noise floor) and Tier 4 (attribution of what is left); **one red variable, reported and accepted** |
 | `fd_optimisation_multistart/` | **re-run 2026-09-19** | that A4's gain is not an artefact of the starting point |
@@ -30,7 +31,7 @@ it was produced, and what would make it wrong.
 | `representation_study/` | populated 2026-09-10, **not re-run** | the choice of blade parameterisation and control-point count; a geometric comparison, unaffected by the bounds or the power model |
 | `aep_optimisation_experiment/` | **port, not a re-run** | the 2026-09-19 experiment behind inputs B1 and O4 (the 300 rpm ceiling and the 0.30 m chord cap), frozen as a record |
 
-Statuses are current as of 2026-09-19.
+Statuses are current as of 2026-09-20.
 
 ## Re-run order
 
@@ -50,6 +51,9 @@ alphabetical list:
     load_constraint       checks.json, result_eps*.json,      → consumes adjoint_optimisation/result.json's u* and the
                           pareto.json                            baseline; runs AFTER adjoint_optimisation
     cross_evaluate_xstar   cross_evaluate_xstar.json          → consumes the adjoint x* and evaluates it under 5 ceilings
+    mass_optimisation     result_delta*.json, multistart_delta0.json, → consumes baseline/x0.json, load_constraint/result_eps0.json (x_c),
+                          pareto.json, ablation.json, checks.json,     the multistart spread and fd_step_size/sweep.json's h*; runs AFTER
+                          reference_blades.json, cross_evaluation.json load_constraint (2026-09-20)
     cost_scaling           scaling.json, scaling.png          → reads only h* (fd_step_size) and AEP(x0) (baseline);
                                                                  independent of every optimisation artefact
     aep_optimisation_experiment  (port only)

@@ -1,0 +1,700 @@
+{
+ "problem": "minimise shell material k_P int c dr subject to AEP >= (1 - delta) AEP(x0), the Phase 4 moment cap, the root-stress and tip-deflection proxies, monotone chord and twist control points, the envelope and solidity",
+ "command": "python verification/mass_optimisation/run_sweep.py",
+ "generated": "2026-09-20T10:41:02",
+ "src_commit": "fafa07ae24f94d8979705a9b8ea4f56c6a661185",
+ "delta": 0.0,
+ "cases": [
+  {
+   "label": "full",
+   "delta": 0.0,
+   "rows": [
+    "envelope",
+    "solidity",
+    "manufacturing",
+    "aep_floor",
+    "moment",
+    "stress",
+    "deflection"
+   ],
+   "warm_started": false,
+   "success": true,
+   "status": 0,
+   "message": "Optimization terminated successfully",
+   "nit": 22,
+   "u_m": [
+    0.8811020334941614,
+    0.42054881882031153,
+    0.30943781503629764,
+    0.10482957139494269,
+    2.15708212188015e-17,
+    0.685441941981644,
+    0.28346174501437094,
+    0.18951171907799863,
+    0.08642367382879503,
+    0.005930704257302411
+   ],
+   "x_m": [
+    0.2696810185410112,
+    0.15223994879917946,
+    0.1239066428342559,
+    0.07173154070571039,
+    0.045000000000000005,
+    0.4077325075573279,
+    0.148145022856241,
+    0.08747474331406166,
+    0.020903388379452124,
+    -0.031076703338563626
+   ],
+   "control_points": {
+    "chord_mm": [
+     269.68101854101116,
+     152.23994879917944,
+     123.9066428342559,
+     71.73154070571039,
+     45.00000000000001
+    ],
+    "twist_deg": [
+     23.36135185332083,
+     8.488084565531727,
+     5.0119336058859485,
+     1.1976759316654162,
+     -1.7805639424798108
+    ]
+   },
+   "mass": 0.9576227601853461,
+   "shell_pct_vs_x0": -4.2377239814653915,
+   "solid_pct_vs_x0": -8.532289067715404,
+   "aep_mwh_per_yr": 10.247707391798489,
+   "aep_pct_vs_x0": -1.1938228183794308e-10,
+   "energy_given_up_pct": 1.1938228183794308e-10,
+   "KS_over_KS0": 0.9561840027062832,
+   "stress_ratio": 0.999999999997367,
+   "deflection_ratio": 0.999999999997951,
+   "root_chord_m": 0.2696810185410112,
+   "slacks": {
+    "aep_floor": {
+     "delta": 0.0,
+     "slack": -1.1938228183794308e-12,
+     "aep_over_ref": 0.9999999999988062,
+     "active": true
+    },
+    "moment": {
+     "slack": 0.04383508917005918,
+     "ks_over_ks0": 0.9561840027062832,
+     "active": false
+    },
+    "stress": {
+     "slack": 3.463185294094728e-11,
+     "stress_ratio": 0.999999999997367,
+     "active": true
+    },
+    "deflection": {
+     "slack": 2.049915792667889e-12,
+     "deflection_ratio": 0.999999999997951,
+     "active": true
+    },
+    "manufacturing": {
+     "rows": [],
+     "slack_min": 0.026731540705710377
+    }
+   },
+   "worst_slack_all_rows": -1.1938228183794308e-12,
+   "feasible_for_its_rows": true,
+   "active_rows": [
+    "aep_floor",
+    "stress",
+    "deflection",
+    "lower:chord_4"
+   ],
+   "multipliers": {
+    "aep_floor": 14.540222849185891,
+    "stress": 0.0037399841106971685,
+    "deflection": 0.1550664461456884,
+    "lower:chord_4": 0.07290211115780236
+   },
+   "exchange_rate_pct_material_per_pct_energy": 14.540222849185891,
+   "kkt_residual": 2.3172815595225257e-06,
+   "reynolds_min": 58380.346419891386,
+   "post_check_uncapped_within": true,
+   "n_evaluation_failures": 0,
+   "wall_time_s": 17.203997499998877,
+   "saving_gain_vs_full_pct_points": 0.0
+  },
+  {
+   "label": "no deflection",
+   "delta": 0.0,
+   "rows": [
+    "envelope",
+    "solidity",
+    "manufacturing",
+    "aep_floor",
+    "moment",
+    "stress"
+   ],
+   "warm_started": false,
+   "success": true,
+   "status": 0,
+   "message": "Optimization terminated successfully",
+   "nit": 15,
+   "u_m": [
+    0.8874208787439184,
+    0.40078214101252274,
+    0.29487515226728556,
+    0.12219640294963806,
+    0.006284622554144055,
+    0.6823118514260114,
+    0.28323277769693944,
+    0.16732323948484043,
+    0.10580729900778381,
+    0.0
+   ],
+   "x_m": [
+    0.2712923240796992,
+    0.1471994459581933,
+    0.12019316382815781,
+    0.0761600827521577,
+    0.04660257875130673,
+    0.40571118327231726,
+    0.14799716221420137,
+    0.07314604839231093,
+    0.033420787352247815,
+    -0.03490658503988659
+   ],
+   "control_points": {
+    "chord_mm": [
+     271.2923240796992,
+     147.19944595819328,
+     120.19316382815781,
+     76.1600827521577,
+     46.60257875130673
+    ],
+    "twist_deg": [
+     23.24553850276242,
+     8.47961277478676,
+     4.190959860939096,
+     1.9148700632880011,
+     -2.0
+    ]
+   },
+   "mass": 0.9517559202696324,
+   "shell_pct_vs_x0": -4.8244079730367595,
+   "solid_pct_vs_x0": -10.164658158018192,
+   "aep_mwh_per_yr": 10.24770739179786,
+   "aep_pct_vs_x0": -1.255218151641202e-10,
+   "energy_given_up_pct": 1.255218151641202e-10,
+   "KS_over_KS0": 0.9676442629249653,
+   "stress_ratio": 0.9999999999963983,
+   "deflection_ratio": 1.0642193397308377,
+   "root_chord_m": 0.2712923240796992,
+   "slacks": {
+    "aep_floor": {
+     "delta": 0.0,
+     "slack": -1.255218151641202e-12,
+     "aep_over_ref": 0.9999999999987448,
+     "active": true
+    },
+    "moment": {
+     "slack": 0.03236983539001914,
+     "ks_over_ks0": 0.9676442629249653,
+     "active": false
+    },
+    "stress": {
+     "slack": 4.737366054996528e-11,
+     "stress_ratio": 0.9999999999963983,
+     "active": true
+    },
+    "deflection": {
+     "slack": -0.06424772978599802,
+     "deflection_ratio": 1.0642193397308377,
+     "active": true
+    },
+    "manufacturing": {
+     "rows": [],
+     "slack_min": 0.02700628213003549
+    }
+   },
+   "worst_slack_all_rows": -0.06424772978599802,
+   "feasible_for_its_rows": true,
+   "active_rows": [
+    "aep_floor",
+    "stress",
+    "lower:twist_4"
+   ],
+   "multipliers": {
+    "aep_floor": 26.407421986715626,
+    "stress": 0.005139453425665618,
+    "lower:twist_4": 0.006272671431315721
+   },
+   "exchange_rate_pct_material_per_pct_energy": 26.407421986715626,
+   "kkt_residual": 3.045375510640949e-06,
+   "reynolds_min": 60692.50718419199,
+   "post_check_uncapped_within": true,
+   "n_evaluation_failures": 0,
+   "wall_time_s": 12.379164399999354,
+   "saving_gain_vs_full_pct_points": 0.586683991571368
+  },
+  {
+   "label": "no stress",
+   "delta": 0.0,
+   "rows": [
+    "envelope",
+    "solidity",
+    "manufacturing",
+    "aep_floor",
+    "moment",
+    "deflection"
+   ],
+   "warm_started": false,
+   "success": true,
+   "status": 0,
+   "message": "Optimization terminated successfully",
+   "nit": 23,
+   "u_m": [
+    0.6100949326325144,
+    0.5610519798375659,
+    0.2521700591922368,
+    0.11066752155696706,
+    0.0,
+    0.5733939476248265,
+    0.34742221516459126,
+    0.16923476193033835,
+    0.08179604071562044,
+    0.014360154924308081
+   ],
+   "x_m": [
+    0.20057420782129115,
+    0.1880682548585793,
+    0.10930336509402037,
+    0.0732202179970266,
+    0.045,
+    0.3353750699513757,
+    0.18944889228030218,
+    0.07438045572710028,
+    0.01791499330668128,
+    -0.025633201612437425
+   ],
+   "control_points": {
+    "chord_mm": [
+     200.57420782129114,
+     188.0682548585793,
+     109.30336509402038,
+     73.22021799702661,
+     45.0
+    ],
+    "twist_deg": [
+     19.215576062118583,
+     10.854621961089878,
+     4.261686191422519,
+     1.0264535064779563,
+     -1.468674267800601
+    ]
+   },
+   "mass": 0.9434595215475546,
+   "shell_pct_vs_x0": -5.654047845244536,
+   "solid_pct_vs_x0": -13.609100138504804,
+   "aep_mwh_per_yr": 10.24770739180778,
+   "aep_pct_vs_x0": -2.87214696470528e-11,
+   "energy_given_up_pct": 2.87214696470528e-11,
+   "KS_over_KS0": 0.9549895595597385,
+   "stress_ratio": 1.8055425952356552,
+   "deflection_ratio": 1.0000000000005278,
+   "root_chord_m": 0.20057420782129115,
+   "slacks": {
+    "aep_floor": {
+     "delta": 0.0,
+     "slack": -2.87214696470528e-13,
+     "aep_over_ref": 0.9999999999997128,
+     "active": true
+    },
+    "moment": {
+     "slack": 0.04503005276945815,
+     "ks_over_ks0": 0.9549895595597385,
+     "active": false
+    },
+    "stress": {
+     "slack": -10.595425863755025,
+     "stress_ratio": 1.8055425952356552,
+     "active": true
+    },
+    "deflection": {
+     "slack": -5.280220705117245e-13,
+     "deflection_ratio": 1.0000000000005278,
+     "active": true
+    },
+    "manufacturing": {
+     "rows": [],
+     "slack_min": 0.012505952962711842
+    }
+   },
+   "worst_slack_all_rows": -10.595425863755025,
+   "feasible_for_its_rows": true,
+   "active_rows": [
+    "aep_floor",
+    "deflection",
+    "lower:chord_4"
+   ],
+   "multipliers": {
+    "aep_floor": 11.286028425439529,
+    "deflection": 0.22517751460465046,
+    "lower:chord_4": 0.15180516659037832
+   },
+   "exchange_rate_pct_material_per_pct_energy": 11.286028425439529,
+   "kkt_residual": 5.952718495930939e-07,
+   "reynolds_min": 54986.46032484291,
+   "post_check_uncapped_within": true,
+   "n_evaluation_failures": 0,
+   "wall_time_s": 19.009167799998977,
+   "saving_gain_vs_full_pct_points": 1.4163238637791444
+  },
+  {
+   "label": "no stress, no deflection",
+   "delta": 0.0,
+   "rows": [
+    "envelope",
+    "solidity",
+    "manufacturing",
+    "aep_floor",
+    "moment"
+   ],
+   "warm_started": false,
+   "success": true,
+   "status": 0,
+   "message": "Optimization terminated successfully",
+   "nit": 16,
+   "u_m": [
+    0.5528275749336473,
+    0.5528275749336474,
+    0.20583111192851258,
+    0.15191510659342877,
+    8.702359374231101e-18,
+    0.5696343197968693,
+    0.353505187659091,
+    0.12425358385537663,
+    0.11954373879273039,
+    0.0
+   ],
+   "x_m": [
+    0.18597103160808004,
+    0.1859710316080801,
+    0.09748693354177071,
+    0.08373835218132433,
+    0.045,
+    0.3329472082342198,
+    0.1933771045187813,
+    0.045332878350243515,
+    0.04229139311697042,
+    -0.03490658503988659
+   ],
+   "control_points": {
+    "chord_mm": [
+     185.97103160808004,
+     185.9710316080801,
+     97.48693354177071,
+     83.73835218132433,
+     45.0
+    ],
+    "twist_deg": [
+     19.076469832484165,
+     11.079691943386369,
+     2.5973826026489357,
+     2.423118335331025,
+     -2.0
+    ]
+   },
+   "mass": 0.924140173373323,
+   "shell_pct_vs_x0": -7.585982662667701,
+   "solid_pct_vs_x0": -18.649735274198232,
+   "aep_mwh_per_yr": 10.247707391808813,
+   "aep_pct_vs_x0": -1.8629542353210127e-11,
+   "energy_given_up_pct": 1.8629542353210127e-11,
+   "KS_over_KS0": 0.9717703606896044,
+   "stress_ratio": 2.137136858392402,
+   "deflection_ratio": 1.129430229075076,
+   "root_chord_m": 0.18597103160808004,
+   "slacks": {
+    "aep_floor": {
+     "delta": 0.0,
+     "slack": -1.8629542353210127e-13,
+     "aep_over_ref": 0.9999999999998137,
+     "active": true
+    },
+    "moment": {
+     "slack": 0.02824193976721945,
+     "ks_over_ks0": 0.9717703606896044,
+     "active": false
+    },
+    "stress": {
+     "slack": -14.956936295237512,
+     "stress_ratio": 2.137136858392402,
+     "active": true
+    },
+    "deflection": {
+     "slack": -0.12948744752917807,
+     "deflection_ratio": 1.129430229075076,
+     "active": true
+    },
+    "manufacturing": {
+     "rows": [
+      "monotone chord_0-chord_1"
+     ],
+     "slack_min": -2.7755575615628914e-17
+    }
+   },
+   "worst_slack_all_rows": -14.956936295237512,
+   "feasible_for_its_rows": true,
+   "active_rows": [
+    "monotone chord_0-chord_1",
+    "aep_floor",
+    "lower:chord_4",
+    "lower:twist_4"
+   ],
+   "multipliers": {
+    "monotone chord_0-chord_1": 0.014404508904942527,
+    "aep_floor": 29.64672231380497,
+    "lower:chord_4": 0.06788645862000024,
+    "lower:twist_4": 0.004586150618605253
+   },
+   "exchange_rate_pct_material_per_pct_energy": 29.64672231380497,
+   "kkt_residual": 1.6893092826313054e-06,
+   "reynolds_min": 51342.51259582941,
+   "post_check_uncapped_within": true,
+   "n_evaluation_failures": 0,
+   "wall_time_s": 13.056534700001066,
+   "saving_gain_vs_full_pct_points": 3.348258681202309
+  },
+  {
+   "label": "no monotone",
+   "delta": 0.0,
+   "rows": [
+    "envelope",
+    "solidity",
+    "aep_floor",
+    "moment",
+    "stress",
+    "deflection"
+   ],
+   "warm_started": false,
+   "success": true,
+   "status": 0,
+   "message": "Optimization terminated successfully",
+   "nit": 21,
+   "u_m": [
+    0.8811020401599909,
+    0.42054863495006484,
+    0.30943804904591005,
+    0.10482951675084108,
+    5.219281438145072e-17,
+    0.6854420712344178,
+    0.283461759584094,
+    0.18951160884575563,
+    0.08642396908590433,
+    0.005930382444155414
+   ],
+   "x_m": [
+    0.2696810202407977,
+    0.15223990191226655,
+    0.12390670250670706,
+    0.07173152677146448,
+    0.04500000000000001,
+    0.40773259102512727,
+    0.14814503226495762,
+    0.08747467212918514,
+    0.02090357904817392,
+    -0.031076911156426305
+   ],
+   "control_points": {
+    "chord_mm": [
+     269.6810202407977,
+     152.23990191226656,
+     123.90670250670706,
+     71.73152677146447,
+     45.000000000000014
+    ],
+    "twist_deg": [
+     23.36135663567346,
+     8.488085104611478,
+     5.011929527292959,
+     1.1976868561784602,
+     -1.7805758495662498
+    ]
+   },
+   "mass": 0.9576227602019268,
+   "shell_pct_vs_x0": -4.237723979807317,
+   "solid_pct_vs_x0": -8.532292228302651,
+   "aep_mwh_per_yr": 10.247707391810723,
+   "aep_pct_vs_x0": 0.0,
+   "energy_given_up_pct": -0.0,
+   "KS_over_KS0": 0.956184014762364,
+   "stress_ratio": 0.9999999999999992,
+   "deflection_ratio": 1.0000000000000016,
+   "root_chord_m": 0.2696810202407977,
+   "slacks": {
+    "aep_floor": {
+     "delta": 0.0,
+     "slack": 0.0,
+     "aep_over_ref": 1.0,
+     "active": true
+    },
+    "moment": {
+     "slack": 0.04383507710872525,
+     "ks_over_ks0": 0.956184014762364,
+     "active": false
+    },
+    "stress": {
+     "slack": 1.0658141036401503e-14,
+     "stress_ratio": 0.9999999999999992,
+     "active": true
+    },
+    "deflection": {
+     "slack": -1.5543122344752192e-15,
+     "deflection_ratio": 1.0000000000000016,
+     "active": true
+    },
+    "manufacturing": {
+     "rows": [],
+     "slack_min": 0.026731526771464464
+    }
+   },
+   "worst_slack_all_rows": -1.5543122344752192e-15,
+   "feasible_for_its_rows": true,
+   "active_rows": [
+    "aep_floor",
+    "stress",
+    "deflection",
+    "lower:chord_4"
+   ],
+   "multipliers": {
+    "aep_floor": 14.540171115344844,
+    "stress": 0.00373998464226928,
+    "deflection": 0.1550668834900503,
+    "lower:chord_4": 0.07290343564093531
+   },
+   "exchange_rate_pct_material_per_pct_energy": 14.540171115344844,
+   "kkt_residual": 5.609270896460213e-09,
+   "reynolds_min": 58380.34468232593,
+   "post_check_uncapped_within": true,
+   "n_evaluation_failures": 0,
+   "wall_time_s": 16.260973599999488,
+   "saving_gain_vs_full_pct_points": -1.658074566535106e-09
+  },
+  {
+   "label": "no moment cap",
+   "delta": 0.0,
+   "rows": [
+    "envelope",
+    "solidity",
+    "manufacturing",
+    "aep_floor",
+    "stress",
+    "deflection"
+   ],
+   "warm_started": false,
+   "success": true,
+   "status": 0,
+   "message": "Optimization terminated successfully",
+   "nit": 22,
+   "u_m": [
+    0.8811020334941614,
+    0.42054881882031153,
+    0.30943781503629764,
+    0.10482957139494269,
+    2.15708212188015e-17,
+    0.685441941981644,
+    0.28346174501437094,
+    0.18951171907799863,
+    0.08642367382879503,
+    0.005930704257302411
+   ],
+   "x_m": [
+    0.2696810185410112,
+    0.15223994879917946,
+    0.1239066428342559,
+    0.07173154070571039,
+    0.045000000000000005,
+    0.4077325075573279,
+    0.148145022856241,
+    0.08747474331406166,
+    0.020903388379452124,
+    -0.031076703338563626
+   ],
+   "control_points": {
+    "chord_mm": [
+     269.68101854101116,
+     152.23994879917944,
+     123.9066428342559,
+     71.73154070571039,
+     45.00000000000001
+    ],
+    "twist_deg": [
+     23.36135185332083,
+     8.488084565531727,
+     5.0119336058859485,
+     1.1976759316654162,
+     -1.7805639424798108
+    ]
+   },
+   "mass": 0.9576227601853461,
+   "shell_pct_vs_x0": -4.2377239814653915,
+   "solid_pct_vs_x0": -8.532289067715404,
+   "aep_mwh_per_yr": 10.247707391798489,
+   "aep_pct_vs_x0": -1.1938228183794308e-10,
+   "energy_given_up_pct": 1.1938228183794308e-10,
+   "KS_over_KS0": 0.9561840027062832,
+   "stress_ratio": 0.999999999997367,
+   "deflection_ratio": 0.999999999997951,
+   "root_chord_m": 0.2696810185410112,
+   "slacks": {
+    "aep_floor": {
+     "delta": 0.0,
+     "slack": -1.1938228183794308e-12,
+     "aep_over_ref": 0.9999999999988062,
+     "active": true
+    },
+    "moment": {
+     "slack": 0.04383508917005918,
+     "ks_over_ks0": 0.9561840027062832,
+     "active": false
+    },
+    "stress": {
+     "slack": 3.463185294094728e-11,
+     "stress_ratio": 0.999999999997367,
+     "active": true
+    },
+    "deflection": {
+     "slack": 2.049915792667889e-12,
+     "deflection_ratio": 0.999999999997951,
+     "active": true
+    },
+    "manufacturing": {
+     "rows": [],
+     "slack_min": 0.026731540705710377
+    }
+   },
+   "worst_slack_all_rows": -1.1938228183794308e-12,
+   "feasible_for_its_rows": true,
+   "active_rows": [
+    "aep_floor",
+    "stress",
+    "deflection",
+    "lower:chord_4"
+   ],
+   "multipliers": {
+    "aep_floor": 14.540222849185891,
+    "stress": 0.0037399841106971685,
+    "deflection": 0.1550664461456884,
+    "lower:chord_4": 0.07290211115780236
+   },
+   "exchange_rate_pct_material_per_pct_energy": 14.540222849185891,
+   "kkt_residual": 2.3172815595225257e-06,
+   "reynolds_min": 58380.346419891386,
+   "post_check_uncapped_within": true,
+   "n_evaluation_failures": 0,
+   "wall_time_s": 16.165132500000254,
+   "saving_gain_vs_full_pct_points": 0.0
+  }
+ ],
+ "same_saving_tol_pct_points": 1e-06,
+ "saving_never_shrinks_when_a_row_is_removed": true,
+ "removing_both_proxies_saves_at_least_either": true
+}
