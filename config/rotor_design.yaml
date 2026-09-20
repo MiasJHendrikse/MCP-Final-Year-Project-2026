@@ -217,9 +217,36 @@ objective:
 # the -2 % energy floor). The root cut-out at 0.15 R sits beyond the physical
 # chord peak, so monotone-from-the-hub is the realistic shape, not a
 # restriction. They cost 0.06 % of the material saving at delta = 0.
+#
+# min_chord_m (2026-09-20, afternoon, MJ's decision -- "decision 6" in
+# docs/PLAN-mass-objective-2026-09-20.md): the BUILDABLE-TIP FLOOR of the mass
+# problem, five linear rows c_i - min_chord_m >= 0 on the chord control points
+# beside the monotone rows. It is deliberately NOT the box bound
+# parameterisation.bounds.chord_min_m (0.045 m): the box sets the scaling of
+# the design variables, and every committed Phase 1-4 gradient and
+# optimisation artefact (h*_j, eps_j, the red test's FD reference, x*, x_c)
+# was measured in that scaling -- moving the box would invalidate all of them
+# (the 2026-09-19 chord_max_m change re-ran the whole chain). A row leaves
+# them untouched and states the same thing.
+#   Why 0.060: the 45 mm box floor was grounded on 2026-09-13 as "SG6043 10 %
+#   t/c -> ~4.5 mm laminate minimum", which is the thickness of the WHOLE
+#   section -- a 45 mm chord is 4.5 mm thick in total, with no room for two
+#   skins, a bond line and a web -- and the first mass optimum sat on it
+#   (-4.24 % shell with a 45 mm tip and a 6:1 taper). 60 mm is a 6 mm
+#   section (two 2 mm skins + bond + web) and stays BELOW the Schmitz x0 tip
+#   (67 mm), so x0 and every reference measured from it are unchanged and the
+#   comparison stays fair. Measured alternatives (misc/blade_shape_experiment,
+#   scratch, journal 2026-09-20 afternoon): 80 mm is infeasible at delta = 0
+#   by 0.002 % and saves 0.8 % at delta = 0.5 % against an unfloored Schmitz
+#   (a fair 80 mm study would re-fit x0 under the same floor); a taper-ratio
+#   row and chord-convexity rows were slack at every floored optimum and are
+#   not added. Phase 4's x_c (tip 47.7 mm) predates the floor and is kept as
+#   the energy reference, evaluated only. A laminate concept replaces this
+#   number.
 manufacturing:
   monotone_chord: true
   monotone_twist: true
+  min_chord_m: 0.060
 
 # Structural inputs -- ALL TODO, and NONE of them gates the production run.
 # Every structural row is relative to x0 (material, stress proxy, deflection

@@ -797,8 +797,9 @@ class ScaledProblem:
         row `c_i - c_{i+1}` for chord, `theta_i - theta_{i+1}` for twist, per
         `manufacturing.monotone_chord` / `monotone_twist` in config. Non-
         increasing control points give a non-increasing B-spline (variation
-        diminishing), so these linear rows are the whole manufacturability
-        set. Empty (0 x n) when both are off.
+        diminishing), so with the min-chord floor (`min_chord_rows`) these
+        linear rows are the whole manufacturability set. Empty (0 x n) when
+        both are off.
         """
 
         n_c = self.parameterisation.n_chord
@@ -819,15 +820,39 @@ class ScaledProblem:
         matrix = np.vstack(rows) if rows else np.zeros((0, self.n))
         return matrix, labels
 
+    def min_chord_rows(self):
+        """
+        The buildable-tip floor `c_i - min_chord_m >= 0` on every chord
+        control point (`manufacturing.min_chord_m`, 2026-09-20): `(matrix,
+        rhs, labels)` with `matrix = [I 0]` and `rhs = min_chord_m`. A row
+        rather than the box bound so the Phase 1-4 scaling of `u` stays as
+        committed. Empty when the floor is at or below the box bound.
+        """
+
+        n_c = self.parameterisation.n_chord
+        floor = float(self.design.min_chord_m)
+        if floor <= self.bounds.chord_min_m:
+            return np.zeros((0, self.n)), np.zeros(0), []
+        matrix = np.zeros((n_c, self.n))
+        matrix[np.arange(n_c), np.arange(n_c)] = 1.0
+        return matrix, np.full(n_c, floor), [f"min chord chord_{i}" for i in range(n_c)]
+
     def manufacturing_row_labels(self):
-        return self.manufacturing_rows()[1]
+        return self.manufacturing_rows()[1] + self.min_chord_rows()[2]
 
     def manufacturing_constraints(self):
-        """SciPy inequality `D (lo + u span) >= 0`; constant Jacobian `D span`."""
+        """
+        SciPy inequality `A (lo + u span) - b >= 0` over the monotone rows
+        (`b = 0`) and the min-chord rows (`b = min_chord_m`), in that order;
+        constant Jacobian `A span`.
+        """
 
-        matrix, _labels = self.manufacturing_rows()
+        monotone, _labels = self.manufacturing_rows()
+        floor, rhs, _floor_labels = self.min_chord_rows()
+        matrix = np.vstack([monotone, floor])
+        b = np.concatenate([np.zeros(monotone.shape[0]), rhs])
         jac = matrix * self.bounds.span()[None, :]
-        offset = matrix @ self.bounds.lower()
+        offset = matrix @ self.bounds.lower() - b
 
         return {
             "type": "ineq",
@@ -896,7 +921,7 @@ class ScaledProblem:
         moment = self.moment_active(u, 0.0, tol=tol)
         stress_slack = float(self.stress_constraint()["fun"](u)[0])
         deflection_slack = float(self.deflection_constraint()["fun"](u)[0])
-        _matrix, labels = self.manufacturing_rows()
+        labels = self.manufacturing_row_labels()
         mfg = self.manufacturing_constraints()["fun"](u)
         return {
             "aep_floor": {"delta": float(delta), "slack": aep_slack,

@@ -1,8 +1,8 @@
 """
 Phase 5 (2026-09-20) -- multi-start of the mass problem at delta = 0.
 
-Starts: `x0` (the production start), `x_c` (the Phase 4 energy optimum, which
-is feasible for the mass problem with AEP slack +0.146 %), and the eight
+Starts: `x0` (the production start), `x_c` (the Phase 4 energy optimum,
+AEP slack +0.146 %, below the 60 mm tip floor it predates), and the eight
 committed random starts of `verification/fd_optimisation_multistart/starts.json`
 (drawn for the energy problem, so most are infeasible for the mass problem
 and SLSQP has to find the feasible set first). A start whose first

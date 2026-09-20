@@ -33,7 +33,7 @@ import sys
 import time
 
 import numpy as np
-from scipy.optimize import Bounds, minimize
+from scipy.optimize import Bounds, minimize, nnls
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.abspath(os.path.join(_HERE, "..", ".."))
@@ -57,13 +57,15 @@ MULTISTART_PATH = os.path.join(REPO_ROOT, "verification", "fd_optimisation_multi
                                "results.json")
 SWEEP_PATH = os.path.join(REPO_ROOT, "verification", "fd_step_size", "sweep.json")
 
-BOUNDS_LABEL = ("under the configured bounds (chord_max_m = 0.30 m, resolved "
-                "2026-09-19; chord_min_m, twist_min, twist_max grounded 2026-09-13)")
+BOUNDS_LABEL = ("under the configured bounds (chord_max_m = 0.30 m, resolved 2026-09-19; "
+                "chord_min_m, twist_min, twist_max grounded 2026-09-13) and the 60 mm "
+                "buildable-tip floor of the mass problem (manufacturing.min_chord_m, 2026-09-20)")
 LAW_LABEL = ("lambda(V) = min(6.5, Omega_max R / V), Omega_max = 300 rpm "
              "(V_c = 9.67 m/s), fixed rating 3822.189755449124 W")
 PROBLEM_LABEL = ("minimise shell material k_P int c dr subject to AEP >= (1 - delta) AEP(x0), "
                  "the Phase 4 moment cap, the root-stress and tip-deflection proxies, "
-                 "monotone chord and twist control points, the envelope and solidity")
+                 "monotone chord and twist control points, the 60 mm min-chord floor, "
+                 "the envelope and solidity")
 
 #: The energy floors of the sweep; `0.0` is the production optimum.
 DELTAS = (0.0, 0.0025, 0.005, 0.01, 0.02)
@@ -95,7 +97,10 @@ def load_x0():
 
 
 def load_xc():
-    """The Phase 4 `eps = 0` optimum `x_c` -- the energy-optimal blade."""
+    """The Phase 4 `eps = 0` optimum `x_c` -- the energy-optimal blade. Its tip
+    (47.7 mm) predates the 60 mm min-chord row of 2026-09-20: inside the box,
+    infeasible for that row; evaluated as it is, and a legitimate (infeasible)
+    start."""
 
     return np.array(load_json(XC_PATH)["x_c"], dtype=float)
 
@@ -347,10 +352,16 @@ def run_mass_slsqp(problem, u_start, delta, include=MASS_PROBLEM_ROWS,
 def kkt_report(problem, u, delta, include, names, tol=ACTIVE_TOL):
     """
     SciPy's SLSQP does not expose multipliers, so estimate them: the
-    least-squares coefficients of `grad mass` on the active row normals
-    (every row written `g >= 0`, bounds as `+e_j` / `-e_j`) are the
-    multipliers, all >= 0 at a minimiser; the residual after projection is
-    zero at a KKT point up to the solver tolerance.
+    NON-NEGATIVE least-squares coefficients of `grad mass` on the active row
+    normals (every row written `g >= 0`, bounds as `+e_j` / `-e_j`) are the
+    multipliers; the residual after projection is zero at a KKT point up to
+    the solver tolerance. NNLS rather than plain least squares because the
+    active set can be degenerate -- with the 60 mm floor two tip control
+    points sit on their min-chord rows AND their monotone row is tight, so
+    `e_3`, `e_4` and `e_3 - e_4` are dependent and a plain fit can return a
+    spurious negative coefficient. With NNLS the sign condition holds by construction
+    and the residual alone is the KKT test; `all_multipliers_nonnegative` is
+    kept for the record and is always True.
 
     Both the objective and the AEP row are fractions of `x0`'s, so the AEP
     row's multiplier IS the exchange rate at the margin: material fraction
@@ -406,7 +417,7 @@ def kkt_report(problem, u, delta, include, names, tol=ACTIVE_TOL):
     g = np.asarray(problem.mass_jac(u), dtype=float)
     if rows:
         A = np.vstack(rows)
-        multipliers, *_ = np.linalg.lstsq(A.T, g, rcond=None)
+        multipliers, _rnorm = nnls(A.T, g)
         projection = A.T @ multipliers
     else:
         multipliers = np.zeros(0)
@@ -421,6 +432,7 @@ def kkt_report(problem, u, delta, include, names, tol=ACTIVE_TOL):
         "n_active_rows": len(labels),
         "scalar_row_slacks": slacks,
         "multipliers": by_row,
+        "multiplier_method": "nnls",
         "all_multipliers_nonnegative": bool(np.all(multipliers >= -1e-12)),
         "aep_floor_multiplier": exchange,
         "exchange_rate_pct_material_per_pct_energy": exchange,
@@ -603,3 +615,91 @@ def plot_blade(problem, blades, delta, path, title_extra=""):
 STYLE_X0 = {"ls": "-", "color": "#888888", "lw": 1.6}
 STYLE_XC = {"ls": "--", "color": "#d1495b", "lw": 1.6}
 STYLE_XM = {"ls": "-", "color": "#1f5fbf", "lw": 2.4}
+
+
+# ---------------------------------------------------------------------------
+# rendered blades (2026-09-20, MJ): the surface the BEM sees, plus a
+# cylindrical root and a rounded tip that are DRAWN ONLY
+# ---------------------------------------------------------------------------
+
+AIRFOIL_PATH = os.path.join(REPO_ROOT, "data", "airfoils", "sg6043.dat")
+PITCH_AXIS_FRACTION = 0.30
+#: The cosmetic root: a cylinder from the flange radius, blending into the
+#: SG6043 section by r_hub (0.30 m, the 15 % cut-out). Outside the station
+#: grid, outside the material proxy, outside every constraint.
+RENDER_ROOT = {"r_flange_m": 0.10, "r_cylinder_end_m": 0.16, "cylinder_diameter_m": 0.09,
+               "tip_rounding_m": 0.06}
+
+
+def _smoothstep(x):
+    x = np.clip(x, 0.0, 1.0)
+    return x * x * (3.0 - 2.0 * x)
+
+
+def blade_surface(problem, d, n_span=90):
+    """
+    `(X, Y, Z)` arrays (span x section points) of the blade `d`: the SG6043
+    section scaled by the station chord and rotated by the station twist
+    about the pitch axis (30 % chord), with the cosmetic root cylinder and
+    tip rounding of `RENDER_ROOT` applied. Metres.
+    """
+
+    p = problem.parameterisation
+    coords = np.loadtxt(AIRFOIL_PATH, skiprows=1)
+    airfoil = np.column_stack([coords[:, 0] - PITCH_AXIS_FRACTION, coords[:, 1]])
+    theta = np.linspace(0.0, 2.0 * np.pi, len(coords))
+    circle = np.column_stack([0.5 * np.cos(theta), 0.5 * np.sin(theta)])
+    r_hub = float(p.radius_m * problem.design.root_fraction)
+    root = RENDER_ROOT
+    r = np.concatenate([np.linspace(root["r_flange_m"], r_hub, 25, endpoint=False),
+                        np.linspace(r_hub, p.radii[-1], n_span)])
+    chord_st, twist_st = p.chord(d), p.twist(d)
+    chord = np.interp(r, p.radii, chord_st, left=chord_st[0])
+    twist = np.interp(r, p.radii, twist_st, left=twist_st[0])
+    X, Y, Z = [], [], []
+    tip_start = p.radii[-1] - root["tip_rounding_m"]
+    for ri, ci, ti in zip(r, chord, twist):
+        s = _smoothstep((ri - root["r_cylinder_end_m"]) / (r_hub - root["r_cylinder_end_m"]))
+        section = (1.0 - s) * circle * root["cylinder_diameter_m"] + s * airfoil * ci
+        if ri > tip_start:
+            section = section * (0.15 + 0.85 * math.sqrt(max(0.0, 1.0 - ((ri - tip_start) / root["tip_rounding_m"]) ** 2)))
+        tw = s * ti
+        X.append(np.full(len(section), ri))
+        Y.append(section[:, 0] * np.cos(tw) - section[:, 1] * np.sin(tw))
+        Z.append(section[:, 0] * np.sin(tw) + section[:, 1] * np.cos(tw))
+    return np.array(X), np.array(Y), np.array(Z)
+
+
+def render_blades(problem, blades, path):
+    """
+    Three views (isometric, edge-on, top) of each blade in `blades`
+    (`(label, style, blade_record)`), one row per blade, with the cosmetic
+    root and tip rounding. The caption says they are cosmetic.
+    """
+
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    R = float(problem.parameterisation.radius_m)
+    fig = plt.figure(figsize=(16, 2.7 * len(blades)))
+    for k, (label, style, record) in enumerate(blades):
+        X, Y, Z = blade_surface(problem, np.array(record["x"], dtype=float))
+        for j, (elev, azim) in enumerate([(25, -60), (0, -90), (90, -90)]):
+            ax = fig.add_subplot(len(blades), 3, 3 * k + j + 1, projection="3d")
+            ax.plot_surface(X, Y, Z, color=style["color"], alpha=0.75, lw=0, rstride=1, cstride=1, shade=True)
+            for i in range(0, X.shape[0], 5):
+                ax.plot(X[i], Y[i], Z[i], color="k", lw=0.25, alpha=0.5)
+            ax.set_box_aspect((2.0, 0.55, 0.55))
+            ax.view_init(elev=elev, azim=azim)
+            ax.set_xlim(0, R); ax.set_ylim(-0.12, 0.25); ax.set_zlim(-0.12, 0.12)
+            ax.set_axis_off()
+            if j == 0:
+                ax.set_title(label, fontsize=10, loc="left")
+    fig.suptitle("Rendered blades -- isometric / edge-on (twist) / top view. The root cylinder "
+                 f"(r < {RENDER_ROOT['r_cylinder_end_m']:.2f} m), its transition to the section by "
+                 f"r_hub, and the tip rounding are DRAWN ONLY: outside the BEM grid, the material "
+                 "proxy and every constraint.", fontsize=9)
+    fig.tight_layout()
+    fig.savefig(path, dpi=130)
+    plt.close(fig)

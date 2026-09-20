@@ -110,7 +110,9 @@ class DesignRotorConfig:
     The mass problem (2026-09-20, `docs/PLAN-mass-objective-2026-09-20.md`):
     `mass_model` selects the material proxy (`"shell"`, the objective, or
     `"solid"`, reported only); `monotone_chord` / `monotone_twist` switch the
-    manufacturability rows; `laminate_density_kg_m3` and `shell_thickness_m`
+    manufacturability rows and `min_chord_m` is the buildable-tip floor on
+    the chord control points (a row of the mass problem, not the box bound,
+    so the Phase 1-4 scaling is untouched); `laminate_density_kg_m3` and `shell_thickness_m`
     are `Unresolved` until a laminate concept exists and are needed only to
     quote a mass in kg -- every constraint row is relative and cancels them.
     """
@@ -133,6 +135,7 @@ class DesignRotorConfig:
     mass_model: str
     monotone_chord: bool
     monotone_twist: bool
+    min_chord_m: float
     laminate_density_kg_m3: "float | Unresolved"
     shell_thickness_m: "float | Unresolved"
 

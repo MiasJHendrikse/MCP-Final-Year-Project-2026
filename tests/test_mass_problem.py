@@ -204,8 +204,33 @@ def test_manufacturing_rows_are_the_control_point_differences(problem, u0):
     constraint = problem.manufacturing_constraints()
     d = problem.physical(u0)
     expected = np.concatenate([d[:5][:-1] - d[:5][1:], d[5:][:-1] - d[5:][1:]])
-    assert np.allclose(constraint["fun"](u0), expected, rtol=1e-14, atol=1e-16)
-    assert np.array_equal(constraint["jac"](u0), matrix * problem.bounds.span()[None, :])
+    values = constraint["fun"](u0)
+    assert np.allclose(values[:8], expected, rtol=1e-14, atol=1e-16)
+    assert np.array_equal(constraint["jac"](u0)[:8], matrix * problem.bounds.span()[None, :])
+
+
+def test_min_chord_floor_is_a_row_on_every_chord_control_point(problem, u0):
+    """`manufacturing.min_chord_m` (0.060, 2026-09-20) as rows `c_i - 0.060 >= 0`:
+    Schmitz clears it by 7 mm at the tip; a 50 mm tip violates it; the box
+    bound (0.045) is untouched so the Phase 1-4 scaling is the committed one."""
+
+    matrix, rhs, labels = problem.min_chord_rows()
+    assert matrix.shape == (5, problem.n) and np.array_equal(rhs, np.full(5, 0.060))
+    assert labels == [f"min chord chord_{i}" for i in range(5)]
+    assert problem.bounds.chord_min_m == pytest.approx(0.045)
+    assert problem.manufacturing_row_labels()[8:] == labels
+
+    d = problem.physical(u0)
+    values = problem.manufacturing_constraints()["fun"](u0)
+    assert values.shape == (13,)
+    assert np.allclose(values[8:], d[:5] - 0.060, rtol=1e-14, atol=1e-16)
+    assert values[12] == pytest.approx(0.067 - 0.060, abs=1e-3)      # Schmitz tip 67 mm
+
+    thin = d.copy()
+    thin[4] = 0.050
+    assert problem.manufacturing_constraints()["fun"](problem.scaled(thin))[12] < 0.0
+    slacks = problem.mass_problem_slacks(problem.scaled(thin), 0.0)
+    assert "min chord chord_4" in slacks["manufacturing"]["rows"]
 
 
 def test_schmitz_is_strictly_monotone_and_a_wavy_blade_is_not(problem, u0):
@@ -241,15 +266,20 @@ def test_ablation_drops_rows_without_reordering(problem):
 
 
 def test_the_energy_optimum_is_feasible_for_the_mass_problem(problem, u_c):
-    """`x_c` (the counter-example) satisfies every row at `delta = 0`: the moment
-    cap is active (Phase 4), the stress and deflection rows are slack."""
+    """`x_c` (the counter-example) satisfies every state row at `delta = 0`: the
+    moment cap is active (Phase 4), the stress and deflection rows are slack,
+    the monotone rows are slack. The one row it violates is the 60 mm
+    min-chord floor of 2026-09-20 (its tip is 47.7 mm, from the 45 mm box it
+    was optimised under): recorded, not patched -- it is the energy
+    reference, evaluated as it is."""
 
     slacks = problem.mass_problem_slacks(u_c, 0.0)
     assert not slacks["aep_floor"]["active"] and slacks["aep_floor"]["slack"] > 0.0
     assert slacks["moment"]["active"]
     assert slacks["stress"]["slack"] > 0.0 and slacks["stress"]["stress_ratio"] < 0.9
     assert slacks["deflection"]["slack"] > 0.0 and 0.7 < slacks["deflection"]["deflection_ratio"] < 0.8
-    assert slacks["manufacturing"]["rows"] == []
+    assert slacks["manufacturing"]["rows"] == ["min chord chord_4"]
+    assert slacks["manufacturing"]["slack_min"] == pytest.approx(0.0477 - 0.060, abs=1e-3)
     report = problem.active_set(u_c, mass_delta=0.0)
     assert report["mass_problem"]["moment"]["active"]
 

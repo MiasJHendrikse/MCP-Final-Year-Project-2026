@@ -275,6 +275,7 @@ def load_design_rotor(filename="rotor_design.yaml"):
         mass_model=_check_mass_model(field("objective.mass_model"), filename),
         monotone_chord=bool(field("manufacturing.monotone_chord")),
         monotone_twist=bool(field("manufacturing.monotone_twist")),
+        min_chord_m=float(field("manufacturing.min_chord_m")),
         laminate_density_kg_m3=field("structure.laminate_density_kg_m3"),
         shell_thickness_m=field("structure.shell_thickness_m"),
     )

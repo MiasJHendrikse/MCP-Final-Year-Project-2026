@@ -13,7 +13,9 @@ front in `pareto.png`, so the front's slope and the adjoint's multiplier
 check each other.
 
 **Ablation at delta = 0.** The full row set, then without the deflection
-row, without the stress row, without both, and without the monotone rows.
+row, without the stress row, without both, without the manufacturing block
+(the monotone rows and the 60 mm min-chord rows together -- the 45 mm box
+result reappears there), and without the moment cap.
 Removing rows can only enlarge the feasible set, so the saving must grow
 (or stay) as rows are removed -- the check that says which row is doing the
 work, and the table the report's "what makes the number defensible"
@@ -53,7 +55,7 @@ ABLATIONS = (
     ("no stress", tuple(r for r in MASS_PROBLEM_ROWS if r != "stress")),
     ("no stress, no deflection", tuple(r for r in MASS_PROBLEM_ROWS
                                        if r not in ("stress", "deflection"))),
-    ("no monotone", tuple(r for r in MASS_PROBLEM_ROWS if r != "manufacturing")),
+    ("no manufacturing (monotone + min chord)", tuple(r for r in MASS_PROBLEM_ROWS if r != "manufacturing")),
     ("no moment cap", tuple(r for r in MASS_PROBLEM_ROWS if r != "moment")),
 )
 FEASIBILITY_TOL = 1e-6

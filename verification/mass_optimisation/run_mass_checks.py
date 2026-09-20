@@ -31,7 +31,8 @@ its JSON through the forward path only, confirming the recorded AEP, root
 moment and tip deflection to 1e-10 (plan, Verification 5).
 
 Outputs, next to this script: `checks.json`, `reference_blades.json`,
-`reference_blades.png`.
+`reference_blades.png`, `blades_rendered.png` (the three blades drawn with a
+cosmetic root cylinder and tip rounding, labelled as such).
 
 Run from the repo root (about three minutes):
 
@@ -63,6 +64,7 @@ RESULT_PATH = os.path.join(_HERE, "result_delta0.json")
 CHECKS_PATH = os.path.join(_HERE, "checks.json")
 TABLE_PATH = os.path.join(_HERE, "reference_blades.json")
 FIGURE_PATH = os.path.join(_HERE, "reference_blades.png")
+RENDER_PATH = os.path.join(_HERE, "blades_rendered.png")
 
 H = 1e-30
 SQRT10 = math.sqrt(10.0)
@@ -368,6 +370,9 @@ def main(argv=None):
     reevaluation = reevaluate_from_json(problem, artefact)
     wall = time.perf_counter() - started
     plot(table, FIGURE_PATH)
+    C.render_blades(problem, [("x0 (fitted Schmitz)", C.STYLE_X0, table[0]),
+                              ("x_c (energy optimum, Phase 4)", C.STYLE_XC, table[1]),
+                              ("x_m (mass optimum, delta = 0)", C.STYLE_XM, table[2])], RENDER_PATH)
 
     checks = {
         "problem": C.PROBLEM_LABEL,
@@ -423,7 +428,7 @@ def main(argv=None):
           f"({ {k: v['rel_error'] for k, v in reevaluation.items() if isinstance(v, dict)} })")
     print(f"Tier 3 all pass: {checks['all_tier3_pass']}; failures {checks['tier3_failures']}; "
           f"Taylor all pass: {checks['all_taylor_pass']}  ({wall:.0f} s)")
-    print(f"wrote {CHECKS_PATH}\n      {TABLE_PATH}\n      {FIGURE_PATH}")
+    print(f"wrote {CHECKS_PATH}\n      {TABLE_PATH}\n      {FIGURE_PATH}\n      {RENDER_PATH}")
     return checks
 
 

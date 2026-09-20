@@ -401,6 +401,8 @@ def test_the_mass_problem_is_recorded():
     assert design.mass_model == "shell"
     assert design.monotone_chord is True
     assert design.monotone_twist is True
+    assert design.min_chord_m == pytest.approx(0.060)      # the buildable-tip floor, 2026-09-20
+    assert design.min_chord_m > design.parameterisation.chord_min_m   # a row, not the box
     for name in ("laminate_density_kg_m3", "shell_thickness_m"):
         value = getattr(design, name)
         assert not config.is_resolved(value)
