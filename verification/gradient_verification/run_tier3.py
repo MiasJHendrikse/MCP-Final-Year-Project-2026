@@ -35,9 +35,9 @@ Outputs, next to this script: `tier3.json`, `adjoint_x0.json` (the
 reference file for `run_sweep.py --reference`), `v_curve_vs_adjoint.png`,
 `tier3_agreement.png`, and `README.md` (by hand, from the JSON).
 
-Provisional bounds: `chord_max_m = 0.45 m` is a placeholder pending the
-hub-radius / root-attachment decision; the scaling and every gradient here
-are under provisional bounds.
+Bounds: the configured set (`DesignBounds.from_config()`), grounded
+2026-09-19 -- `chord_max_m = 0.30 m`. The scaling and every gradient here
+are stated under those bounds; the 0.45 m placeholder is retired.
 
 Run from the repo root (about 1.5 min):
 
@@ -61,12 +61,10 @@ import numpy as np
 _HERE = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.abspath(os.path.join(_HERE, "..", ".."))
 sys.path.insert(0, os.path.join(REPO_ROOT, "src"))
-sys.path.insert(0, os.path.join(REPO_ROOT, "tests"))
 
 from design import BladeParameterisation, DesignBounds  # noqa: E402
 from gradients import ScaledProblem, central_difference  # noqa: E402
 from objective import WeibullResource  # noqa: E402
-from test_parameterisation import PROVISIONAL_BOUNDS  # noqa: E402
 
 X0_PATH = os.path.join(REPO_ROOT, "verification", "baseline", "x0.json")
 SWEEP_PATH = os.path.join(REPO_ROOT, "verification", "fd_step_size", "sweep.json")
@@ -79,8 +77,8 @@ ADJOINT_X0_PATH = os.path.join(_HERE, "adjoint_x0.json")
 VCURVE_PATH = os.path.join(_HERE, "v_curve_vs_adjoint.png")
 AGREEMENT_PATH = os.path.join(_HERE, "tier3_agreement.png")
 
-PROVISIONAL_LABEL = ("under provisional bounds (chord_max_m = 0.45 m provisional; "
-                     "chord_min_m, twist_min, twist_max grounded)")
+BOUNDS_LABEL = ("under the configured bounds (chord_max_m = 0.30 m, resolved "
+                "2026-09-19; chord_min_m, twist_min, twist_max grounded 2026-09-13)")
 
 SQRT10 = math.sqrt(10.0)
 EPS_FACTOR = 3.0           # |adj - FD| <= EPS_FACTOR * eps_j
@@ -88,7 +86,15 @@ REL_TRIPWIRE = 1e-3        # gross-error tripwire on |adj - FD| / |FD|
 TAYLOR_STEPS = (1e-2, 1e-3, 1e-4)
 TAYLOR_MIN_RATIO = 30.0
 TAYLOR_DRAWS = 3
-MID_ITERATE = 13  # nit / 2 of the fixed-rating A4 run (27 iterations); was 17 of 34
+#: The mid-run iterate Tier 3 checks is `nit // 2` of the committed A4 run,
+#: read from `fd_optimisation/result.json` (35 iterations -> 17 today; the
+#: 27-iteration run before the 300 rpm law gave 13). `MID_ITERATE_TODAY` pins
+#: what the committed `tier3.json` was produced at.
+MID_ITERATE_TODAY = 17
+
+
+def mid_iterate_from_result():
+    return int(load_json(RESULT_PATH)["nit"]) // 2
 
 
 def load_x0():
@@ -104,8 +110,8 @@ def load_json(path):
 
 def build_problem():
     parameterisation = BladeParameterisation()
-    bounds = DesignBounds(n_chord=parameterisation.n_chord,
-                          n_twist=parameterisation.n_twist, **PROVISIONAL_BOUNDS)
+    bounds = DesignBounds.from_config(n_chord=parameterisation.n_chord,
+                          n_twist=parameterisation.n_twist)
     return ScaledProblem(parameterisation, bounds, WeibullResource.from_config())
 
 
@@ -280,7 +286,7 @@ def plot_agreement(points, names, path):
         ax.set_xticklabels(names, rotation=45, ha="right", fontsize=8)
         ax.grid(True, axis="y", color="#dddddd", lw=0.6)
         ax.legend(fontsize=8, frameon=False)
-    fig.suptitle("Tier 3: adjoint vs central FD at h*_j -- " + PROVISIONAL_LABEL, fontsize=10)
+    fig.suptitle("Tier 3: adjoint vs central FD at h*_j -- " + BOUNDS_LABEL, fontsize=10)
     fig.tight_layout()
     fig.savefig(path, dpi=150)
     plt.close(fig)
@@ -292,8 +298,14 @@ def plot_agreement(points, names, path):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    parser.add_argument("--mid-iterate", type=int, default=MID_ITERATE)
+    parser.add_argument("--mid-iterate", type=int, default=None,
+                        help="default: nit // 2 of fd_optimisation/result.json")
     args = parser.parse_args(argv)
+    if args.mid_iterate is None:
+        args.mid_iterate = mid_iterate_from_result()
+        assert args.mid_iterate == MID_ITERATE_TODAY, (
+            f"nit // 2 is {args.mid_iterate}, the committed tier3.json was produced "
+            f"at {MID_ITERATE_TODAY}: fd_optimisation/result.json moved")
 
     problem = build_problem()
     names = variable_names(problem.parameterisation)
@@ -328,7 +340,7 @@ def main(argv=None):
             "label": "adjoint",
             "description": "Discrete-adjoint gradient of fun(u) = J(u)/|J(u0)| at x0, "
                            "for run_sweep.py --reference.",
-            "provisional_bounds": PROVISIONAL_LABEL,
+            "bounds_label": BOUNDS_LABEL,
             "gradient_mwh_per_u": x0_point["adjoint_mwh_per_u"],
             "gradient_scaled": x0_point["adjoint_scaled"],
             "J0_mwh_per_yr": J0,
@@ -340,8 +352,8 @@ def main(argv=None):
         "description": "Tier 3: discrete-adjoint gradient vs central FD at h*_j at three "
                        "points, with the FD noise floor as the acceptance scale, plus the "
                        "whole-chain Taylor-remainder test.",
-        "provisional_bounds": PROVISIONAL_LABEL,
-        "bounds": {k: float(v) for k, v in PROVISIONAL_BOUNDS.items()},
+        "bounds_label": BOUNDS_LABEL,
+        "bounds": problem.bounds.as_record(),
         "command": "python verification/gradient_verification/run_tier3.py",
         "generated": datetime.datetime.now().isoformat(timespec="seconds"),
         "variables": names,

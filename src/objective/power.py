@@ -22,10 +22,28 @@ The bin count and the quadrature are properties of the *objective*, not tuning
 knobs: changing either changes J, so they are constants here rather than
 arguments, and any study that varies them has to say so.
 
-Operating strategy (plan step 1.5)
------------------------------------
-Below rated: fixed tip-speed ratio at the design value, lambda = 6.5. Rotor
-speed tracks the wind.
+Operating strategy (plan step 1.5, revised 2026-09-19)
+--------------------------------------------------------
+Variable speed with a maximum rotor speed:
+
+    lambda(V) = min( lambda_design, Omega_max R / V )
+
+Below `V_c = Omega_max R / lambda_design` the rotor tracks the wind at the
+design tip-speed ratio, lambda = 6.5. Above `V_c` the rotor speed is pinned
+at `Omega_max` (`operating.max_rotor_speed_rpm`, 300 rpm, V_c = 9.67 m/s)
+and lambda falls as 1/V. `max_rotor_speed_rpm: null` is no ceiling -- the
+pre-2026-09-19 law, lambda = 6.5 at every bin, kept as the control case and
+pinned bit-for-bit by `tests/test_operating_law_control.py`.
+
+Why this is the one structural change to the objective: with lambda fixed
+at every bin AEP is a fixed convex combination of `Cp(6.5, Re_b; d)` and the
+optimum is a Cp-at-one-TSR optimum, of which the polar-consistent Schmitz
+blade is the analytic maximiser (`docs/AEP_GAIN_AUDIT.md` section 1.1). A
+ceiling is the machine fact (outstanding input B1) that gives the objective
+a TSR dimension; 300 rpm is a provisional value with a stated basis, in the
+config with its reasons. The schedule is a function of `V` alone -- it does
+not depend on the design -- so it is a fixed per-bin constant to every
+derivative (`adjoint.system.BEMSystem` carries one `Omega_b` per bin).
 
 Above rated: **simple power limiting at the generator rating**,
 
@@ -71,6 +89,37 @@ from config import load_design_rotor, load_site
 BIN_WIDTH_MS = 1.0
 
 
+def tsr_schedule(v_inf, design_tsr, max_tip_speed_ms):
+    """
+    `lambda(V) = min(lambda_design, V_tip,max / V)`; `None` is no ceiling.
+
+    The operating law, as a scalar function so every caller (the objective,
+    the adjoint system, the baseline reference, the post-checks) evaluates
+    the same thing.
+    """
+
+    if max_tip_speed_ms is None:
+        return float(design_tsr)
+    return float(min(float(design_tsr), float(max_tip_speed_ms) / float(v_inf)))
+
+
+def operating_points(design=None):
+    """
+    The objective's operating points: `[(V_b, lambda_b)]` at the 17 bin
+    midpoints, with the per-bin tip-speed ratio from the configured ceiling.
+
+    The single source of the schedule. `objective.power.power_per_bin`,
+    `adjoint.system.BEMSystem`, `gradients.ScaledProblem` and the baseline
+    reference all read it, so they cannot disagree about which lambda a bin
+    runs at.
+    """
+
+    design = design or load_design_rotor()
+    _edges, midpoints, _width = wind_speed_bins()
+    vtip = design.max_tip_speed_ms
+    return [(float(v), tsr_schedule(float(v), design.design_tsr, vtip)) for v in midpoints]
+
+
 def wind_speed_bins():
     """
     (edges, midpoints, width) for the operating range.
@@ -109,13 +158,22 @@ def power_per_bin(geometry, tip_speed_ratio=None):
     """
     P(V) at every bin midpoint, with the rated-power limit applied.
 
+    Parameters
+    ----------
+    tip_speed_ratio : float or None
+        `None` (the objective) runs the configured operating law,
+        `operating_points()`. A number overrides it with a *fixed* lambda at
+        every bin, ceiling ignored -- what the representation study and the
+        smoothness gate use to sweep lambda, and what "no ceiling" means when
+        a study wants it explicitly.
+
     Returns
     -------
     dict
-        `midpoints`, `power_w` (limited), `power_unlimited_w`, `rated_power_w`
-        (the configured rating, the same number for every design),
-        `limited` (bool per bin), `converged` (bool per bin), and
-        `all_converged`.
+        `midpoints`, `tsr` and `rpm` (per bin), `power_w` (limited),
+        `power_unlimited_w`, `rated_power_w` (the configured rating, the
+        same number for every design), `limited` (bool per bin),
+        `converged` (bool per bin), and `all_converged`.
 
     Notes
     -----
@@ -129,25 +187,32 @@ def power_per_bin(geometry, tip_speed_ratio=None):
 
     design = load_design_rotor()
     site = load_site()
-    tip_speed_ratio = design.design_tsr if tip_speed_ratio is None else tip_speed_ratio
     air = (site.air_density, site.kinematic_viscosity)
 
     rated_power = float(design.rated_power_w)
+    radius = float(design.radius_m)
 
-    _edges, midpoints, _width = wind_speed_bins()
+    if tip_speed_ratio is None:
+        points = operating_points(design)
+    else:
+        _edges, midpoints, _width = wind_speed_bins()
+        points = [(float(v), float(tip_speed_ratio)) for v in midpoints]
 
     unlimited, converged = [], []
-    for v_inf in midpoints:
-        power, result = aerodynamic_power(geometry, float(v_inf),
-                                          tip_speed_ratio, *air)
+    for v_inf, tsr in points:
+        power, result = aerodynamic_power(geometry, v_inf, tsr, *air)
         unlimited.append(power)
         converged.append(result["converged"])
 
     unlimited = np.array(unlimited)
     limited = np.minimum(unlimited, rated_power)
+    tsr_per_bin = np.array([tsr for _v, tsr in points])
+    midpoints = np.array([v for v, _tsr in points])
 
     return {
         "midpoints": midpoints,
+        "tsr": tsr_per_bin,
+        "rpm": tsr_per_bin * midpoints / radius * 60.0 / (2.0 * math.pi),
         "power_w": limited,
         "power_unlimited_w": unlimited,
         "rated_power_w": rated_power,

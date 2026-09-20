@@ -35,6 +35,8 @@ from objective import (
     sanity_band,
     wind_speed_bins,
 )
+from objective.power import operating_points, tsr_schedule
+from objective.power import operating_points, tsr_schedule
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 WIND_RESOURCE_PATH = os.path.abspath(os.path.join(
@@ -152,6 +154,62 @@ def test_power_rises_monotonically_below_rated(powers):
 
 def test_every_bin_converges(powers):
     assert powers["all_converged"], "a bin failed to converge at x0"
+
+
+# ---------------------------------------------------------------------------
+# The operating law: lambda_b = min(6.5, Omega_max R / V_b)  (2026-09-19)
+# ---------------------------------------------------------------------------
+
+def test_the_schedule_is_the_design_tsr_below_v_c_and_omega_max_above(powers):
+    """
+    Below `V_c = Omega_max R / lambda_design` every bin runs the design
+    TSR; above it the rotor speed is pinned at the ceiling and lambda falls
+    as 1/V. At 300 rpm and R = 2 m, V_c = 9.67 m/s: bins 3.5-9.5 at 6.5,
+    bins 10.5-19.5 at 300 rpm.
+    """
+
+    design = load_design_rotor()
+    omega_max = design.max_rotor_speed_rpm * 2.0 * math.pi / 60.0
+    v_c = omega_max * design.radius_m / design.design_tsr
+    assert v_c == pytest.approx(9.67, abs=5e-3)
+
+    for v, tsr, rpm in zip(powers["midpoints"], powers["tsr"], powers["rpm"]):
+        if v < v_c:
+            assert tsr == design.design_tsr
+            assert rpm < design.max_rotor_speed_rpm
+        else:
+            assert tsr == pytest.approx(omega_max * design.radius_m / v)
+            assert rpm == pytest.approx(design.max_rotor_speed_rpm)
+    assert np.all(powers["rpm"] <= design.max_rotor_speed_rpm + 1e-9)
+    assert list(powers["tsr"][:7]) == [6.5] * 7
+    assert np.all(powers["tsr"][7:] < 6.5)
+
+
+def test_operating_points_are_what_power_per_bin_ran(powers):
+    points = operating_points()
+    assert [v for v, _lam in points] == list(powers["midpoints"])
+    assert [lam for _v, lam in points] == list(powers["tsr"])
+
+
+def test_tsr_schedule_is_the_stated_law():
+    assert tsr_schedule(5.0, 6.5, None) == 6.5
+    assert tsr_schedule(5.0, 6.5, 62.8) == 6.5            # 62.8/5 = 12.6 > 6.5
+    assert tsr_schedule(12.0, 6.5, 62.8) == pytest.approx(62.8 / 12.0)
+    assert tsr_schedule(62.8 / 6.5, 6.5, 62.8) == pytest.approx(6.5)
+
+
+def test_only_the_first_bin_above_v_c_is_uncapped_at_x0(powers):
+    """
+    At x0 under 300 rpm, the 10.5 m/s bin is the only bin that is both
+    below the design TSR and uncapped -- the whole reason the ceiling moves
+    the optimiser's gain by only +0.026 % (0.121 -> 0.147 %).
+    """
+
+    below_design_tsr = powers["tsr"] < 6.5
+    uncapped = ~powers["limited"]
+    both = below_design_tsr & uncapped
+    assert list(powers["midpoints"][both]) == [10.5]
+    assert int(powers["limited"].sum()) == 9
 
 
 # ---------------------------------------------------------------------------

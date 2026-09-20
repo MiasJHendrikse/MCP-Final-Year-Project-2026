@@ -25,8 +25,8 @@ the luck of the draw rather than the operator; the bound is the scale on
 which round-off of the operator application actually lives. Failure here is
 a bug: fix, never loosen.
 
-Bounds are provisional (`chord_max_m = 0.45 m` is a placeholder); they enter
-only through `BEMSystem`'s constructor.
+Bounds enter only through `BEMSystem`'s constructor (the scaling chain),
+from `DesignBounds.from_config()`.
 
 Author: MJ Hendrikse
 Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
@@ -42,7 +42,6 @@ import pytest
 from adjoint import BEMSystem
 from design import BladeParameterisation, DesignBounds
 from objective import WeibullResource
-from test_parameterisation import PROVISIONAL_BOUNDS
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 X0_PATH = os.path.abspath(os.path.join(_HERE, "..", "verification", "baseline", "x0.json"))
@@ -54,8 +53,8 @@ N_DRAWS = 8
 @pytest.fixture(scope="module")
 def system():
     parameterisation = BladeParameterisation()
-    bounds = DesignBounds(n_chord=parameterisation.n_chord,
-                          n_twist=parameterisation.n_twist, **PROVISIONAL_BOUNDS)
+    bounds = DesignBounds.from_config(n_chord=parameterisation.n_chord,
+                          n_twist=parameterisation.n_twist)
     return BEMSystem(parameterisation, bounds, WeibullResource.from_config())
 
 

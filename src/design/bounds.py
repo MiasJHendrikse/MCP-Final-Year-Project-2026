@@ -1,20 +1,19 @@
 """
 Design-variable bounds and the scaling to O(1) (plan sections 4.4, 7.1).
 
-The bounds themselves are NOT here. `config/rotor_design.yaml` carries them as
-`TODO`, and plan section 7.1 commits only to the fact that chord and twist
-bounds exist and are applied to the *scaled* variables -- it selects no
-numbers, and no study has. Inventing a manufacturability envelope would be the
-failure mode ground rule 3 forbids: a number with no basis silently
-constraining every optimisation result downstream. See
-`docs/OUTSTANDING-INPUTS.md`.
-
-What is here is the mechanism, built so it works the moment real values land
-and raises loudly until then -- the same shape Task 1 gave air density and
-viscosity. `DesignBounds.from_config()` raises `UnresolvedConfigError` today;
-`DesignBounds(...)` with explicit numbers works now, which is what lets the
-representation study and the smoothness gate run over a stated provisional
-range without that range leaking into the committed configuration.
+The bounds live in `config/rotor_design.yaml` (`parameterisation.bounds`)
+with their basis written beside them, and `DesignBounds.from_config()` reads
+them. Resolved 2026-09-19: three of the four were grounded on 2026-09-13
+(`chord_min_m` from the laminate minimum, the twist range from the Schmitz
+baseline with margin) and `chord_max_m = 0.30 m` was decided on the local
+solidity at the root cut-out (sigma = 0.48), the commercial c/R range and the
+measured insensitivity of the result to it (docs/OUTSTANDING-INPUTS.md
+section 2). Until then the file carried `TODO` and `from_config()` raised
+`UnresolvedConfigError`; a provisional set (`chord_max_m = 0.45` as a
+placeholder with no basis) lived in `tests/test_parameterisation.py` so
+bounds-dependent work could proceed without the placeholder leaking into
+config. That mechanism is kept -- a `TODO` in the YAML still raises here --
+and the placeholder is retired.
 
 Scaling, and why it is not cosmetic
 ------------------------------------
@@ -86,9 +85,9 @@ class DesignBounds:
         Raises
         ------
         config.unresolved.UnresolvedConfigError
-            While the bounds are still `TODO`, which is the current state. The
-            error names the field, so a caller that reaches here gets told what
-            is missing rather than a plausible number.
+            If any bound is `TODO` in the YAML (none is, since 2026-09-19).
+            The error names the field, so a caller that reaches here gets
+            told what is missing rather than a plausible number.
         """
 
         design = load_design_rotor()
@@ -139,6 +138,18 @@ class DesignBounds:
             np.full(self.n_chord, self.chord_max_m),
             np.full(self.n_twist, self.twist_max_rad),
         ])
+
+    def as_record(self):
+        """The four bounds as a JSON-ready dict, twist in both rad and deg."""
+
+        return {
+            "chord_min_m": float(self.chord_min_m),
+            "chord_max_m": float(self.chord_max_m),
+            "twist_min_rad": float(self.twist_min_rad),
+            "twist_max_rad": float(self.twist_max_rad),
+            "twist_min_deg": math.degrees(self.twist_min_rad),
+            "twist_max_deg": math.degrees(self.twist_max_rad),
+        }
 
     def span(self):
         """`upper - lower`, the constant chain-rule factor for the scaling."""

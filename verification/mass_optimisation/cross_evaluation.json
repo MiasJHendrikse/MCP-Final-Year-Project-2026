@@ -1,0 +1,360 @@
+{
+ "problem": "minimise shell material k_P int c dr subject to AEP >= (1 - delta) AEP(x0), the Phase 4 moment cap, the root-stress and tip-deflection proxies, monotone chord and twist control points, the 60 mm min-chord floor, the envelope and solidity",
+ "description": "Phase 5 (2026-09-20) -- cross-evaluation of `x0`, `x_c` and `x_m` under other\nresources and other rotor-speed ceilings. No optimisation: three fixed\nblades, evaluated.",
+ "command": "python verification/mass_optimisation/run_cross_evaluation.py",
+ "generated": "2026-09-20T12:25:08",
+ "src_commit": "41d3ccabda7a4fade9cd40b38a4643d817dce66d",
+ "bounds_label": "under the configured bounds (chord_max_m = 0.30 m, resolved 2026-09-19; chord_min_m, twist_min, twist_max grounded 2026-09-13) and the 60 mm buildable-tip floor of the mass problem (manufacturing.min_chord_m, 2026-09-20)",
+ "law_label": "lambda(V) = min(6.5, Omega_max R / V), Omega_max = 300 rpm (V_c = 9.67 m/s), fixed rating 3822.189755449124 W",
+ "resource_band_is_an_assumption": "c from the log-law cross-check band of verification/wind_resource/README.md; k +/- ~0.25 around the extrapolated 1.709. Plan 1.3's sensitivity band is not chosen; this does not choose it.",
+ "c_band_ms": [
+  7.049,
+  7.633
+ ],
+ "k_band": [
+  1.5,
+  2.0
+ ],
+ "ceilings_ms": [
+  null,
+  62.83185307179586,
+  60.0,
+  55.0,
+  50.0
+ ],
+ "blades": {
+  "x0": [
+   0.27579071642734754,
+   0.18161320987881632,
+   0.09713355431852173,
+   0.07864351363070732,
+   0.06700234064946949,
+   0.4281306164915448,
+   0.16975885372514066,
+   0.0705030380285644,
+   0.01746444725446997,
+   0.010223752012068798
+  ],
+  "x_c": [
+   0.3,
+   0.1817031858821067,
+   0.12615859869774054,
+   0.07844018116176658,
+   0.04765410592188968,
+   0.42351273097805675,
+   0.18553041426115,
+   0.0911846873111666,
+   0.038873650378984,
+   -0.033878003576217716
+  ],
+  "x_m": [
+   0.27140554738445705,
+   0.14972484700406918,
+   0.13521161796606934,
+   0.06,
+   0.060000000000000026,
+   0.41278678692065734,
+   0.14114857495003766,
+   0.10887309147829,
+   -0.0005087577346618646,
+   -0.002121276106961806
+  ]
+ },
+ "sources": {
+  "x0": "verification/baseline/x0.json",
+  "x_c": "verification/load_constraint/result_eps0.json (x_c)",
+  "x_m": "verification/mass_optimisation/result_delta0.json (x_m)"
+ },
+ "resources": {
+  "central": {
+   "k": 1.709226,
+   "c_ms": 7.273759,
+   "mean_wind_speed_ms": 6.48761199291103,
+   "x0": {
+    "aep_mwh": 10.247707391810723,
+    "all_converged": true
+   },
+   "x_c": {
+    "aep_mwh": 10.262719339465379,
+    "all_converged": true
+   },
+   "x_m": {
+    "aep_mwh": 10.247707391796055,
+    "all_converged": true
+   },
+   "x_c_pct_vs_x0": 0.14649079136133114,
+   "x_m_pct_vs_x0": -1.4312995233467518e-10
+  },
+  "k=1.5, c=7.049": {
+   "k": 1.5,
+   "c_ms": 7.049,
+   "mean_wind_speed_ms": 6.363451570011131,
+   "x0": {
+    "aep_mwh": 9.795997436223088,
+    "all_converged": true
+   },
+   "x_c": {
+    "aep_mwh": 9.809242938183987,
+    "all_converged": true
+   },
+   "x_m": {
+    "aep_mwh": 9.795962261485272,
+    "all_converged": true
+   },
+   "x_c_pct_vs_x0": 0.1352134077936773,
+   "x_m_pct_vs_x0": -0.0003590725502378156
+  },
+  "k=1.5, c=7.633": {
+   "k": 1.5,
+   "c_ms": 7.633,
+   "mean_wind_speed_ms": 6.8906548210944765,
+   "x0": {
+    "aep_mwh": 10.920526957752987,
+    "all_converged": true
+   },
+   "x_c": {
+    "aep_mwh": 10.934901866765285,
+    "all_converged": true
+   },
+   "x_m": {
+    "aep_mwh": 10.919903233806517,
+    "all_converged": true
+   },
+   "x_c_pct_vs_x0": 0.13163200885735193,
+   "x_m_pct_vs_x0": -0.0057114821371051505
+  },
+  "k=2, c=7.049": {
+   "k": 2.0,
+   "c_ms": 7.049,
+   "mean_wind_speed_ms": 6.247013597516492,
+   "x0": {
+    "aep_mwh": 9.421810616110813,
+    "all_converged": true
+   },
+   "x_c": {
+    "aep_mwh": 9.437166898942015,
+    "all_converged": true
+   },
+   "x_m": {
+    "aep_mwh": 9.422883790812252,
+    "all_converged": true
+   },
+   "x_c_pct_vs_x0": 0.1629865368440342,
+   "x_m_pct_vs_x0": 0.011390323422588722
+  },
+  "k=2, c=7.633": {
+   "k": 2.0,
+   "c_ms": 7.633,
+   "mean_wind_speed_ms": 6.764570121980902,
+   "x0": {
+    "aep_mwh": 11.03325955309919,
+    "all_converged": true
+   },
+   "x_c": {
+    "aep_mwh": 11.051082076384565,
+    "all_converged": true
+   },
+   "x_m": {
+    "aep_mwh": 11.033072459536518,
+    "all_converged": true
+   },
+   "x_c_pct_vs_x0": 0.1615345238603405,
+   "x_m_pct_vs_x0": -0.0016957233877512579
+  }
+ },
+ "ceilings": {
+  "none": {
+   "vtip_max_ms": null,
+   "v_c_ms": null,
+   "x0": {
+    "aep_mwh": 10.270157412075502,
+    "all_converged": true,
+    "rated_point": {
+     "tsr_rated": 6.5,
+     "root_bending_moment_nm": 206.69624003590948,
+     "tip_deflection_per_unit_stiffness": 36046.259937020426
+    }
+   },
+   "x_c": {
+    "aep_mwh": 10.276647942759874,
+    "all_converged": true,
+    "rated_point": {
+     "tsr_rated": 6.5,
+     "root_bending_moment_nm": 203.85139587091703,
+     "tip_deflection_per_unit_stiffness": 27347.06780413278
+    }
+   },
+   "x_m": {
+    "aep_mwh": 10.278830217711581,
+    "all_converged": true,
+    "rated_point": {
+     "tsr_rated": 6.5,
+     "root_bending_moment_nm": 201.55260354496386,
+     "tip_deflection_per_unit_stiffness": 36436.5364313974
+    }
+   },
+   "x_c_pct_vs_x0": 0.06319796692444424,
+   "x_c_moment_pct_vs_x0": -1.376340549057986,
+   "x_c_deflection_pct_vs_x0": -24.13341120018211,
+   "x_m_pct_vs_x0": 0.08444666705771375,
+   "x_m_moment_pct_vs_x0": -2.4885002697930148,
+   "x_m_deflection_pct_vs_x0": 1.0827100926943833
+  },
+  "300 rpm": {
+   "vtip_max_ms": 62.83185307179586,
+   "v_c_ms": 9.666438934122441,
+   "x0": {
+    "aep_mwh": 10.247707391810723,
+    "all_converged": true,
+    "rated_point": {
+     "tsr_rated": 5.711986642890533,
+     "root_bending_moment_nm": 177.3755406092969,
+     "tip_deflection_per_unit_stiffness": 30776.559398053847
+    }
+   },
+   "x_c": {
+    "aep_mwh": 10.262719339465379,
+    "all_converged": true,
+    "rated_point": {
+     "tsr_rated": 5.711986642890533,
+     "root_bending_moment_nm": 177.41050026048148,
+     "tip_deflection_per_unit_stiffness": 23430.486967902398
+    }
+   },
+   "x_m": {
+    "aep_mwh": 10.247707391796055,
+    "all_converged": true,
+    "rated_point": {
+     "tsr_rated": 5.711986642890533,
+     "root_bending_moment_nm": 171.74370408145842,
+     "tip_deflection_per_unit_stiffness": 30767.987282345763
+    }
+   },
+   "x_c_pct_vs_x0": 0.14649079136133114,
+   "x_c_moment_pct_vs_x0": 0.019709397961231723,
+   "x_c_deflection_pct_vs_x0": -23.86905025717715,
+   "x_m_pct_vs_x0": -1.4312995233467518e-10,
+   "x_m_moment_pct_vs_x0": -3.1750919594058735,
+   "x_m_deflection_pct_vs_x0": -0.027852742072997927
+  },
+  "60 m/s": {
+   "vtip_max_ms": 60.0,
+   "v_c_ms": 9.23076923076923,
+   "x0": {
+    "aep_mwh": 10.210635002812783,
+    "all_converged": true,
+    "rated_point": {
+     "tsr_rated": 5.454545454545454,
+     "root_bending_moment_nm": 166.20492000774448,
+     "tip_deflection_per_unit_stiffness": 28821.9160346816
+    }
+   },
+   "x_c": {
+    "aep_mwh": 10.237398465573074,
+    "all_converged": true,
+    "rated_point": {
+     "tsr_rated": 5.454545454545454,
+     "root_bending_moment_nm": 166.64018370142492,
+     "tip_deflection_per_unit_stiffness": 21915.191802271183
+    }
+   },
+   "x_m": {
+    "aep_mwh": 10.200460223247036,
+    "all_converged": true,
+    "rated_point": {
+     "tsr_rated": 5.454545454545454,
+     "root_bending_moment_nm": 160.4161685379453,
+     "tip_deflection_per_unit_stiffness": 28675.185289534988
+    }
+   },
+   "x_c_pct_vs_x0": 0.26211359776271426,
+   "x_c_moment_pct_vs_x0": 0.26188375991527124,
+   "x_c_deflection_pct_vs_x0": -23.963445817063345,
+   "x_m_pct_vs_x0": -0.09964884224089587,
+   "x_m_moment_pct_vs_x0": -3.4829001870278153,
+   "x_m_deflection_pct_vs_x0": -0.5090943467118914
+  },
+  "55 m/s": {
+   "vtip_max_ms": 55.0,
+   "v_c_ms": 8.461538461538462,
+   "x0": {
+    "aep_mwh": 9.976817787949578,
+    "all_converged": true,
+    "rated_point": {
+     "tsr_rated": 5.0,
+     "root_bending_moment_nm": 146.20276749187354,
+     "tip_deflection_per_unit_stiffness": 25293.40764086152
+    }
+   },
+   "x_c": {
+    "aep_mwh": 10.060138118803726,
+    "all_converged": true,
+    "rated_point": {
+     "tsr_rated": 5.0,
+     "root_bending_moment_nm": 146.39979169660447,
+     "tip_deflection_per_unit_stiffness": 19119.28250421765
+    }
+   },
+   "x_m": {
+    "aep_mwh": 9.93253769032252,
+    "all_converged": true,
+    "rated_point": {
+     "tsr_rated": 5.0,
+     "root_bending_moment_nm": 140.51013796840778,
+     "tip_deflection_per_unit_stiffness": 24996.735805068285
+    }
+   },
+   "x_c_pct_vs_x0": 0.8351393462832091,
+   "x_c_moment_pct_vs_x0": 0.13476092697211062,
+   "x_c_deflection_pct_vs_x0": -24.41001712505343,
+   "x_m_pct_vs_x0": -0.4438298720914835,
+   "x_m_moment_pct_vs_x0": -3.8936537393399084,
+   "x_m_deflection_pct_vs_x0": -1.172921577059316
+  },
+  "50 m/s": {
+   "vtip_max_ms": 50.0,
+   "v_c_ms": 7.6923076923076925,
+   "x0": {
+    "aep_mwh": 9.429005086436103,
+    "all_converged": true,
+    "rated_point": {
+     "tsr_rated": 4.545454545454546,
+     "root_bending_moment_nm": 126.61363094122345,
+     "tip_deflection_per_unit_stiffness": 21810.55019017791
+    }
+   },
+   "x_c": {
+    "aep_mwh": 9.649845064872684,
+    "all_converged": true,
+    "rated_point": {
+     "tsr_rated": 4.545454545454546,
+     "root_bending_moment_nm": 126.73620528347138,
+     "tip_deflection_per_unit_stiffness": 16439.789228215843
+    }
+   },
+   "x_m": {
+    "aep_mwh": 9.255472446901342,
+    "all_converged": true,
+    "rated_point": {
+     "tsr_rated": 4.545454545454546,
+     "root_bending_moment_nm": 121.20974314038624,
+     "tip_deflection_per_unit_stiffness": 21505.015961838973
+    }
+   },
+   "x_c_pct_vs_x0": 2.3421344713692616,
+   "x_c_moment_pct_vs_x0": 0.09680975210704101,
+   "x_c_deflection_pct_vs_x0": -24.62460100791367,
+   "x_m_pct_vs_x0": -1.840413044048439,
+   "x_m_moment_pct_vs_x0": -4.2680142419624705,
+   "x_m_deflection_pct_vs_x0": -1.400855208487728
+  }
+ },
+ "x_m_aep_pct_vs_x0_range_over_resources": [
+  -0.0057114821371051505,
+  0.011390323422588722
+ ],
+ "x_m_aep_pct_vs_x0_range_over_ceilings": [
+  -1.840413044048439,
+  0.08444666705771375
+ ]
+}

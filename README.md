@@ -34,19 +34,34 @@ record of every session is in `docs/journal/Session Notes/`.
 ## Pipeline
 
 XFOIL polars → BEM solver → objective function → finite-difference gradients →
-discrete adjoint → SLSQP optimisation → structural constraint → STEP export.
+discrete adjoint → structural constraints (three adjoint rows) → SLSQP
+minimum-material optimisation at fixed energy.
+
+**Re-pitched 2026-09-20.** Under the settled operating law the verified
+energy optimum beats the polar-consistent Schmitz blade by **+0.147 %** and
+carries +6.2 % material for it; annual energy is a plateau in the blade. The
+production problem is therefore *minimise blade material subject to AEP ≥
+Schmitz's, the root-moment cap, a root-stress proxy, a tip-deflection proxy
+and monotone chord/twist* — the verified objective adjoint as the energy-floor
+Jacobian, the moment adjoint as the cap and stress rows, and one new sibling
+adjoint (deflection). Result: **−3.4 % shell material at exactly Schmitz's
+energy, −5.3 % within 0.5 % of it**, with a 60 mm buildable-tip floor
+(`verification/mass_optimisation/`); the plan and its cut list are
+`docs/PLAN-mass-objective-2026-09-20.md`. Title unchanged; research question
+rewritten in `docs/journal/PROJECT_PLAN.md`, Framing.
 
 Phase numbering follows the plan rewrite of 2026-08-23:
 
 | Phase | | Status |
 |---|---|---|
 | **0** | Tooling, solver, cross-validation | complete |
-| **1** | Objective function (AEP, parameterisation, baseline, smoothness gate) | complete (2026-09-13), bounds provisional |
+| **1** | Objective function (AEP, parameterisation, baseline, smoothness gate) | complete (2026-09-13); bounds decided 2026-09-19 (`chord_max_m = 0.30 m`, in `config/`) |
 | **2** | Finite-difference gradient path | complete (2026-09-13) — `verification/fd_*` |
 | **3** | Discrete adjoint | complete (2026-09-13) — Tiers 1–4 verified, `verification/gradient_verification/`, `docs/adjoint_derivation.md` |
-| **4** | Structural constraint and cost scaling | **next** |
-| **5** | Production runs and results | gated on three machine facts — `docs/AEP_GAIN_AUDIT.md` §5 |
-| **6** | Report | |
+| **4** | Structural constraint and cost scaling | complete (2026-09-19) — relative root-moment KS constraint, `verification/load_constraint/`; scaling law, `verification/cost_scaling/` |
+| **5** | Production runs and results — **re-pitched to minimum-material design 2026-09-20** | **run (2026-09-20)** — `verification/mass_optimisation/`: `x_m` at −3.38 % shell / −7.28 % solid material at AEP(x₀) (−5.27 % / −9.67 % within 0.5 %), 60 mm tip floor, ten starts agree, δ ∈ {0 … 2 %} front with KKT exchange rates, ablation, Tiers 1–3 at `x₀` and `x_m`, rendered blades, cross-evaluation. The energy optimum `x_c` (`verification/load_constraint/result_eps0.json`, +0.147 %) is now the comparison blade |
+| **6** | Report | next — the results are all committed; Phase 6 is the only remaining work |
+| **7** | Optional (STEP export, DE, UI) | **cut 2026-09-20** |
 
 The forward BEM solver is Phase **0**, not Phase 1, and the adjoint is Phase
 **3**. Dates and exit criteria for each are in
@@ -85,6 +100,10 @@ src/
     weibull.py       WeibullResource; bin masses from the CDF
     height_extrapolation.py  Weibull k, c between heights (Justus & Mikhail)
     objective.py     AEP, the unit-weighted surrogate, J, the sanity band
+    loads.py         the load set L, root moment, spanwise moments, tip
+                     deflection (forward twins of the adjoint functionals), KS
+    mass.py          the material proxies: shell k_P int c dr (the Phase 5
+                     objective, exact gradient) and solid k_A int c^2 dr (reported)
   xfoil/        Polar generation and lookup.
     xfoil_runner.py       XFOIL subprocess wrapper
     build_polar_cache.py  sweep Re, write data/polars/<airfoil>/
@@ -126,13 +145,32 @@ tests/            pytest suite: the machine-checkable Phase 1 exit criteria.
   golden/         Task 0 regression snapshot: Cp(lambda), spanwise a/a'/phi
   golden_reference.py, generate_golden.py   the snapshot's loader and writer
   test_invariants.py  AST-checked import rules (e.g. bem/ must not import xfoil)
+  test_loads.py       Phase 4: the root-moment integrand, its adjoint, the KS
+                      constraint on ScaledProblem (Tiers 1-3 at x0)
+  test_mass.py, test_deflection.py, test_mass_problem.py   Phase 5: the
+                      material proxies, the deflection adjoint (Tiers 1-3), and
+                      the mass problem's rows, assembly, shared solve and guard
+  test_operating_law_control.py  the pre-law numbers pinned bit-for-bit
 verification/     Versioned report figures — committed evidence, not scratch.
+                  verification/README.md is the index and the re-run order.
   polar_interpolant/     C1 interpolant vs the bilinear staircase
   phase_vi/              solver residual histories across the envelope
+  wind_resource/         the 20 m Weibull fit behind AEP
   representation_study/  control-point count, justified against Schmitz
   baseline/              the Schmitz baseline blade and x0.json, the design
                          vector every later phase starts from
   smoothness_gate/       plan step 1.8: is J smooth enough to differentiate
+  spline_fit_error/      the projection error of the baseline's spline
+  fd_step_size/          the per-variable FD step h*_j and scale eps_j
+  fd_optimisation/, fd_optimisation_multistart/   A4: FD-driven SLSQP, and its starts
+  gradient_verification/ Tiers 3-4: adjoint vs FD, and what is left
+  adjoint_optimisation/  B5: adjoint-driven SLSQP, agreement with A4
+  load_constraint/       Phase 4: the root-moment KS constraint, Pareto 0-10 %
+  cost_scaling/          Phase 4: gradient wall time vs n = 10..160
+  mass_optimisation/     Phase 5: the minimum-material blade x_m, multi-start,
+                         the energy-floor front, ablation, checks, cross-evaluation
+  aep_gain_audit/, aep_optimisation_experiment/   frozen records behind
+                         docs/AEP_GAIN_AUDIT.md and the B1/O4 decisions
 results/          Generated plots and polars. results/_archive/ is scratch
                   (gitignored) — the XFOIL scripts write raw output there.
 misc/             Gitignored. Scratch for things written for MJ rather than for
@@ -213,23 +251,31 @@ Two working directories, and it matters which:
 pytest          # from the repo root
 ```
 
-**351 passed, 5 xfailed, ~7 s.** The five `xfail`s carry a documented physical
-reason (the `validate_polars` checks a cache is known to fail — see
-`tests/test_polar_cache.py`, where each carries its explanation); nothing
-errors, and there is no known-failing test.
+**510 passed, 5 xfailed, 1 failed, ~85 s** (2026-09-19). The five `xfail`s
+carry a documented physical reason (the `validate_polars` checks a cache is
+known to fail — see `tests/test_polar_cache.py`, where each carries its
+explanation). The one failure is deliberate and unchanged:
+`tests/test_adjoint_gradient.py::test_adjoint_agrees_with_the_committed_fd_reference_at_x0`
+on `chord_4`, ratio 16.302328995917193 — the adjoint is not the suspect, the
+acceptance scale `eps_j` is; see `verification/gradient_verification/README.md`
+("One failure, and what it is"). A different ratio, variable or second failure
+is a regression.
 
-**Three tests are designed to fail later, on purpose.** Where an external input
+**One test is designed to fail later, on purpose.** Where an external input
 is still missing, the mechanism around it is built and tested, and a test
 asserts that it *still raises*:
 
 | test | file | fails when |
 |---|---|---|
-| `test_bounds_from_config_still_raise` | `test_parameterisation.py` | the manufacturability bounds land |
-| `test_feasibility_reports_that_it_was_not_checked` | `test_baseline.py` | ″ |
 | `test_gwa_area_is_still_unresolved_and_behaves_like_it` | `test_config.py` | a Global Wind Atlas *area* extraction is done |
 
-Three more of these were retired on 2026-09-13 when the wind resource landed.
-**One of them did not fire, and could not have** — it asserted against a
+Two more were retired on 2026-09-19 when the bounds landed in `config/`
+(`test_bounds_from_config_still_raise` is now
+`test_bounds_from_config_carry_the_decided_values`;
+`test_feasibility_reports_that_it_was_not_checked` is now
+`test_x0_is_feasible_against_the_configured_bounds`), and three on 2026-09-13
+when the wind resource landed.
+**One of the 2026-09-13 three did not fire, and could not have** — it asserted against a
 hard-coded string in `baseline.py` rather than against the thing that actually
 changes state. A guard has to be attached to the mechanism, not to a
 description of it; see the 2026-09-13 journal entry.
@@ -387,8 +433,8 @@ Status of the exit criteria:
 
 | exit criterion | state |
 |---|---|
-| AEP of the baseline blade in the sanity band | **done** — 10.27 MWh/yr, inside the 8–12 MWh/yr band. The band was revised from 4–6 on 2026-09-13; see `config/rotor_design.yaml` |
-| Feasibility of `x0` against the bounds | **checked against provisional bounds** — zero violations; `chord_max_m = 0.45 m` is a placeholder until the hub radius and root attachment are decided |
+| AEP of the baseline blade in the sanity band | **done** — 10.25 MWh/yr (10.2477 under the 300 rpm law, 2026-09-19), inside the 8–12 MWh/yr band. The band was revised from 4–6 on 2026-09-13; see `config/rotor_design.yaml` |
+| Feasibility of `x0` against the bounds | **done** — checked against the configured bounds (`chord_max_m = 0.30 m`, `max_local_solidity 0.5`, decided 2026-09-19; the 0.45 m placeholder is retired), zero violations |
 | Everything else in Phase 1 | done |
 
 The mechanism around each hole is complete and tested; nothing anywhere

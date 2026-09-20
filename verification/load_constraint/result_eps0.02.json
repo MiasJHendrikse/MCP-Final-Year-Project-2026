@@ -1,0 +1,288 @@
+{
+ "description": "Constrained SLSQP with the root-moment KS constraint at eps = 0.02.",
+ "bounds_label": "under the configured bounds (chord_max_m = 0.30 m, resolved 2026-09-19; chord_min_m, twist_min, twist_max grounded 2026-09-13)",
+ "law_label": "lambda(V) = min(6.5, Omega_max R / V), Omega_max = 300 rpm (V_c = 9.67 m/s), fixed rating 3822.189755449124 W",
+ "command": "python verification/load_constraint/run_constrained_slsqp.py --eps 0.02",
+ "generated": "2026-09-19T19:12:58",
+ "src_commit": "7f209edfff5c276ad21dbbed26644ff12b378e0c",
+ "bounds": {
+  "chord_min_m": 0.045,
+  "chord_max_m": 0.3,
+  "twist_min_rad": -0.03490658503988659,
+  "twist_max_rad": 0.6108652381980153,
+  "twist_min_deg": -2.0,
+  "twist_max_deg": 35.0
+ },
+ "eps": 0.02,
+ "rho": 100.0,
+ "m_ref_nm": 177.3755406092969,
+ "KS0": 1.0004357284444418,
+ "KS_c": 0.9804269921726398,
+ "KS_reduction": 0.020008736271801997,
+ "KS_reduction_over_eps_ks0": 1.0000010846730352,
+ "envelope_margin": 0.05,
+ "envelope_margin_raised": false,
+ "domain_errors": [],
+ "slsqp_options": {
+  "ftol": 1e-08,
+  "maxiter": 200
+ },
+ "success": true,
+ "status": 0,
+ "message": "Optimization terminated successfully",
+ "nit": 39,
+ "nfev": 39,
+ "njev": 39,
+ "objective_evaluations_total": 42,
+ "adjoint_evaluations_total": 78,
+ "moment_solves_total": 39,
+ "callback_extra_evaluations": 76,
+ "wall_time_s": 34.41126830000576,
+ "J0_mwh_per_yr": -10.247707391810723,
+ "aep_x0_mwh_per_yr": 10.247707391810723,
+ "aep_optimum_mwh_per_yr": 10.260624128129047,
+ "aep_star_unconstrained_mwh_per_yr": 10.262736459224527,
+ "delta_aep_pct_vs_x0": 0.12604513209116827,
+ "aep_cost_pct_vs_unconstrained": 0.02058253277644693,
+ "expected_gain_pct_eps0": [
+  0.1,
+  0.14666
+ ],
+ "expected_cost_pct_eps10": [
+  0.3,
+  3.0
+ ],
+ "within_expected_cost_band_eps10": null,
+ "suspected_defect": null,
+ "u_c": [
+  1.0,
+  0.5331118167061215,
+  0.27755126541912617,
+  0.13031477766671876,
+  0.0,
+  0.7129116078777591,
+  0.3407674648231531,
+  0.17589323510518656,
+  0.10621304112618121,
+  0.0034928654045502977
+ ],
+ "x_c": [
+  0.3,
+  0.18094351326006097,
+  0.11577557268187717,
+  0.07823026830501328,
+  0.045,
+  0.42547164378679814,
+  0.18515144201911862,
+  0.07868031008920268,
+  0.03368280417980971,
+  -0.032650990979265555
+ ],
+ "x0": [
+  0.27579071642734754,
+  0.18161320987881632,
+  0.09713355431852173,
+  0.07864351363070732,
+  0.06700234064946949,
+  0.4281306164915448,
+  0.16975885372514066,
+  0.0705030380285644,
+  0.01746444725446997,
+  0.010223752012068798
+ ],
+ "u0": [
+  0.9050616330484218,
+  0.5357380779561424,
+  0.2044453110530264,
+  0.13193534757140124,
+  0.08628368882144896,
+  0.7170291190621502,
+  0.31693150955214194,
+  0.16323044653748878,
+  0.08109835457324237,
+  0.06988588759675475
+ ],
+ "u_star_unconstrained": [
+  1.0,
+  0.5277338221376442,
+  0.3347971425492882,
+  0.12500190972519176,
+  0.015911127015218053,
+  0.7121783001317474,
+  0.3355716072486181,
+  0.20541130640944885,
+  0.11090849079713094,
+  0.004139963650640923
+ ],
+ "x_star_unconstrained": [
+  0.3,
+  0.17957212464509925,
+  0.1303732713500685,
+  0.0768754869799239,
+  0.0490573373888806,
+  0.4249980943066617,
+  0.18179610359992668,
+  0.09774224881382254,
+  0.036714993274740725,
+  -0.03223311316507356
+ ],
+ "fun_c": -1.0012604513209118,
+ "gradient_c_scaled": [
+  -0.0002502592554694029,
+  -0.003502540344516655,
+  -0.009748155338717392,
+  -0.020453871685810407,
+  -0.012374022949549044,
+  0.00017189325716048716,
+  0.0020504420965809325,
+  0.004890088286155966,
+  0.007668952639145397,
+  0.0041326760046245655
+ ],
+ "gradient_c_mwh_per_u": [
+  -0.002564583622142848,
+  -0.0358930085786186,
+  -0.09989624352109339,
+  -0.20960529206582734,
+  -0.12680536644652926,
+  0.0017615118020059457,
+  0.0210123306296123,
+  0.05011219387664752,
+  0.07858918264761663,
+  0.04235045444054997
+ ],
+ "moment_row": {
+  "row": "moment",
+  "eps": 0.02,
+  "rho": 100.0,
+  "KS": 0.9804269921726398,
+  "KS0": 1.0004357284444418,
+  "slack": 2.17029131610591e-08,
+  "active": true
+ },
+ "active_set": {
+  "bounds_lower": [
+   4
+  ],
+  "bounds_upper": [
+   0
+  ],
+  "envelope": [],
+  "solidity": [],
+  "envelope_tightest": {
+   "row": "floor r=1.9660",
+   "slack_m": 0.014240417677433944
+  },
+  "solidity_tightest": {
+   "row": "solidity r=0.3340",
+   "slack": 0.09097675570584002
+  },
+  "sigma_max": 0.4090232442941598,
+  "sigma_cap": 0.5,
+  "moment": {
+   "row": "moment",
+   "eps": 0.02,
+   "rho": 100.0,
+   "KS": 0.9804269921726398,
+   "KS0": 1.0004357284444418,
+   "slack": 2.17029131610591e-08,
+   "active": true
+  },
+  "moment_tightest": {
+   "row": "moment",
+   "slack": 2.17029131610591e-08
+  }
+ },
+ "kkt": {
+  "active_rows": [
+   "moment",
+   "upper:chord_0",
+   "lower:chord_4"
+  ],
+  "n_active_rows": 3,
+  "multipliers_scaled": {
+   "moment": 0.019858557480909617,
+   "upper:chord_0": 3.871279870817186e-05,
+   "lower:chord_4": 0.0030860592312225714
+  },
+  "all_multipliers_nonnegative": true,
+  "moment_multiplier_scaled": 0.019858557480909617,
+  "moment_shadow_price_mwh_per_yr_per_unit_ks": 0.2035046862878156,
+  "gradient_norm_scaled": 0.027979866529945874,
+  "projection_norm_onto_active_normals": 0.02797986619904514,
+  "residual_norm_after_projection": 4.303151849261534e-06,
+  "free_variables": [
+   "chord_1",
+   "chord_2",
+   "chord_3",
+   "twist_0",
+   "twist_1",
+   "twist_2",
+   "twist_3",
+   "twist_4"
+  ],
+  "gradient_norm_on_free_variables": 0.025093701548051274
+ },
+ "loads": {
+  "x0": {
+   "v_ms": 11.0,
+   "tsr": 5.711986642890533,
+   "rpm": 300.0,
+   "Cp": 0.45155448951516847,
+   "Ct": 0.7029184701175049,
+   "rotor_thrust_n": 517.5120777930912,
+   "root_bending_moment_nm": 177.3755406092969,
+   "converged": true,
+   "root_bending_moment_pct_vs_x0": 0.0,
+   "rotor_thrust_pct_vs_x0": 0.0
+  },
+  "x_star_unconstrained": {
+   "v_ms": 11.0,
+   "tsr": 5.711986642890533,
+   "rpm": 300.0,
+   "Cp": 0.45933858181839005,
+   "Ct": 0.7153400653466775,
+   "rotor_thrust_n": 526.657271481741,
+   "root_bending_moment_nm": 177.91902797868377,
+   "converged": true,
+   "root_bending_moment_pct_vs_x0": 0.30640491215414567,
+   "rotor_thrust_pct_vs_x0": 1.7671459432693881
+  },
+  "x_c": {
+   "v_ms": 11.0,
+   "tsr": 5.711986642890533,
+   "rpm": 300.0,
+   "Cp": 0.4547888674274748,
+   "Ct": 0.701040474635208,
+   "rotor_thrust_n": 516.1294347335527,
+   "root_bending_moment_nm": 173.83271688645,
+   "converged": true,
+   "root_bending_moment_pct_vs_x0": -1.9973575334440552,
+   "rotor_thrust_pct_vs_x0": -0.26717116737347
+  }
+ },
+ "post_check_optimum": {
+  "alpha_min_deg": 0.5687102114183497,
+  "alpha_max_deg": 28.40879125225941,
+  "alpha_margin_deg": -10.408791252259409,
+  "within": false,
+  "alpha_limits_deg": [
+   -8.0,
+   18.0
+  ],
+  "uncapped": {
+   "alpha_min_deg": 0.5687102114183497,
+   "alpha_max_deg": 6.815336837883478,
+   "alpha_margin_deg": 8.568710211418349,
+   "within": true
+  },
+  "n_uncapped_points": 8,
+  "reynolds_min": 59246.585777779204,
+  "reynolds_max": 338998.2527466212,
+  "reynolds_limits": [
+   40000.0,
+   1000000.0
+  ],
+  "all_converged": true
+ }
+}

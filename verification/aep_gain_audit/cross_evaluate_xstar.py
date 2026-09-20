@@ -1,16 +1,24 @@
 """
-Cross-evaluation of the unconstrained optimum under a rotor-speed ceiling
+Cross-evaluation of the optimum under a rotor-speed ceiling
 (2026-09-19; docs/journal/CROSS_EVALUATION_ROTOR_SPEED_CEILING.md).
 
-Question: does the blade optimised WITHOUT a rotor-speed ceiling (the
+Originally: does the blade optimised WITHOUT a rotor-speed ceiling (the
 adjoint-driven SLSQP optimum x*, verification/adjoint_optimisation/) still
 beat the Schmitz baseline x0 once a ceiling is imposed? No re-optimisation;
-pure evaluation of two fixed blades under four operating strategies.
+pure evaluation of two fixed blades under several operating strategies.
+
+RE-RUN 2026-09-19 under the 300 rpm operating law (B1) and the configured
+bounds. The machine ceiling is now a config fact, so x* itself is the
+CEILING-CONSTRAINED optimum and the first case below is its own law rather
+than a counterfactual. The `none` case survives as the diagnostic it always
+was: what that same blade would do with the ceiling removed.
 
 Operating strategy per case, exactly as reoptimise.py (audit section 3.1):
 
-    lambda(V) = 6.5                          no ceiling
-    lambda(V) = min(6.5, V_tip,max / V)      ceiling at V_tip,max in {60, 55, 50} m/s
+    lambda(V) = 6.5                          no ceiling ("none")
+    lambda(V) = min(6.5, V_tip,max / V)      ceiling at V_tip,max
+                                             in {62.83 (300 rpm, config),
+                                                 60, 55, 50} m/s
 
 Above rated, power is held at the FIXED generator rating from config
 (operating.rated_power_w, the same number for every blade and every case).
@@ -20,8 +28,8 @@ context for how far x* is from the blade a ceiling actually wants.
 
     python verification/aep_gain_audit/cross_evaluate_xstar.py      # ~1 min
 
-Under provisional bounds (both blades were found in that box). Not a
-project result: the ceiling is a machine fact MJ has not yet supplied (B1).
+The 62.83 m/s case uses `design.max_tip_speed_ms` from config, never a
+hard-coded number, so this file follows the law rather than restating it.
 
 Author: MJ Hendrikse
 Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
@@ -45,7 +53,7 @@ from objective import WeibullResource  # noqa: E402
 from objective.objective import HOURS_PER_YEAR  # noqa: E402
 from objective.power import aerodynamic_power, wind_speed_bins  # noqa: E402
 
-CEILINGS = (None, 60.0, 55.0, 50.0)
+CEILINGS_MS = (60.0, 55.0, 50.0)
 OUT_PATH = os.path.join(_HERE, "cross_evaluate_xstar.json")
 
 
@@ -98,8 +106,10 @@ def main():
         return total, rows, converged
 
     results = {}
-    for vtip in CEILINGS:
-        label = "none" if vtip is None else f"{vtip:g}"
+    cases = (("none", None),
+             (f"{design.max_rotor_speed_rpm:g} rpm", float(design.max_tip_speed_ms)),
+             *((f"{c:g} m/s", c) for c in CEILINGS_MS))
+    for label, vtip in cases:
         case = {"vtip_max_ms": vtip}
         for name, x in list(blades.items()) + list(context.items()):
             aep, rows, ok = evaluate(x, vtip)
@@ -125,12 +135,19 @@ def main():
 
     record = {
         "description": __doc__.split("\n\n")[0].strip(),
-        "provisional_bounds": "both blades were found under provisional bounds (chord_max_m = 0.45 m provisional)",
+        "operating_law": ("lambda(V) = min(design_tsr, V_tip,max / V); the "
+                          "'300 rpm' case is the machine ceiling from config "
+                          "(max_tip_speed_ms)"),
+        "bounds": ("configured bounds (chord_max_m = 0.30 m, "
+                   "max_local_solidity = 0.5). x* and x0 satisfy them; the "
+                   "audit's ceiling-optimised context blades opt_60/55/50 do "
+                   "not -- they were optimised under the retired 0.45 m "
+                   "provisional cap, so they are context, not candidates"),
         "generated": datetime.datetime.now().isoformat(timespec="seconds"),
         "command": "python verification/aep_gain_audit/cross_evaluate_xstar.py",
         "rated_power_w": p_rated,
         "design_tsr": lam,
-        "ceilings_ms": [c for c in CEILINGS],
+        "ceilings_ms": [vtip for _, vtip in cases],
         "blades": {k: [float(v) for v in x] for k, x in list(blades.items()) + list(context.items())},
         "sources": {
             "x0": "verification/baseline/x0.json",

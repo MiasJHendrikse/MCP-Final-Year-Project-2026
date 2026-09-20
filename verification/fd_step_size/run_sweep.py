@@ -34,9 +34,10 @@ units as the sweep) or `gradient_mwh_per_u` (MWh/yr per unit `u`; converted
 with the sweep's own `J0`). This is how the Tier 3 adjoint is compared to the
 whole sweep later without spending another 300 evaluations.
 
-Provisional bounds: `chord_max_m = 0.45 m` is a placeholder pending the
-hub-radius / root-attachment decision; the scaling `u = (d - lo)/span` and
-therefore every gradient here is stated under provisional bounds.
+Bounds: the configured set (`DesignBounds.from_config()`), grounded
+2026-09-19 -- `chord_max_m = 0.30 m`. The scaling `u = (d - lo)/span` and
+therefore every gradient here is stated under those bounds; the 0.45 m
+placeholder is retired.
 
 Run from the repo root (about 65 s):
 
@@ -60,20 +61,18 @@ import numpy as np
 _HERE = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.abspath(os.path.join(_HERE, "..", ".."))
 sys.path.insert(0, os.path.join(REPO_ROOT, "src"))
-sys.path.insert(0, os.path.join(REPO_ROOT, "tests"))
 
 from design import BladeParameterisation, DesignBounds  # noqa: E402
 from gradients import ScaledProblem, step_size_sweep  # noqa: E402
 from gradients.finite_difference import OUT_OF_CACHE  # noqa: E402
 from objective import WeibullResource  # noqa: E402
-from test_parameterisation import PROVISIONAL_BOUNDS  # noqa: E402
 
 X0_PATH = os.path.join(REPO_ROOT, "verification", "baseline", "x0.json")
 SWEEP_PATH = os.path.join(_HERE, "sweep.json")
 FIGURE_PATH = os.path.join(_HERE, "v_curve.png")
 
-PROVISIONAL_LABEL = ("under provisional bounds (chord_max_m = 0.45 m provisional; "
-                     "chord_min_m, twist_min, twist_max grounded)")
+BOUNDS_LABEL = ("under the configured bounds (chord_max_m = 0.30 m, resolved "
+                "2026-09-19; chord_min_m, twist_min, twist_max grounded 2026-09-13)")
 
 #: 15 half-decade steps, 1e-2 down to 1e-9. Not larger than 1e-2: at h = 0.1
 #: the tip chord control point (u0 ~ 0.054) leaves the polar-cache floor.
@@ -95,8 +94,8 @@ def variable_names(parameterisation):
 
 def build_problem():
     parameterisation = BladeParameterisation()
-    bounds = DesignBounds(n_chord=parameterisation.n_chord,
-                          n_twist=parameterisation.n_twist, **PROVISIONAL_BOUNDS)
+    bounds = DesignBounds.from_config(n_chord=parameterisation.n_chord,
+                          n_twist=parameterisation.n_twist)
     return ScaledProblem(parameterisation, bounds, WeibullResource.from_config())
 
 
@@ -218,7 +217,7 @@ def plot(steps, grads, reference, names, n_chord, h_star, h_star_global,
         ax.legend(fontsize=8, frameon=False)
 
     axes[0].set_ylabel(f"|g_j(h) - {reference_label}|   [fun units per unit u]")
-    fig.suptitle("Central-FD step-size study at x0 -- " + PROVISIONAL_LABEL, fontsize=10)
+    fig.suptitle("Central-FD step-size study at x0 -- " + BOUNDS_LABEL, fontsize=10)
     fig.tight_layout()
     fig.savefig(path, dpi=150)
     plt.close(fig)
@@ -287,8 +286,8 @@ def main(argv=None):
     summary = {
         "description": "Central-FD step-size study of fun(u) = J(u)/|J(u0)| at x0, "
                        "all 10 scaled design variables, 15 half-decade steps.",
-        "provisional_bounds": PROVISIONAL_LABEL,
-        "bounds": {k: float(v) for k, v in PROVISIONAL_BOUNDS.items()},
+        "bounds_label": BOUNDS_LABEL,
+        "bounds": problem.bounds.as_record(),
         "command": "python verification/fd_step_size/run_sweep.py",
         "generated": datetime.datetime.now().isoformat(timespec="seconds"),
         "variables": names,

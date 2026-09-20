@@ -18,6 +18,8 @@ import numpy as np
 import pytest
 
 from config import load_design_rotor
+from bem.rotor import solve_rotor
+from config import load_site
 from design import build_schmitz_baseline, evaluate_baseline
 from design.schmitz import (
     DEFAULT_DESIGN_REYNOLDS,
@@ -102,20 +104,59 @@ def test_chord_requires_positive_design_cl():
 # The baseline at the design point
 # ---------------------------------------------------------------------------
 
-def test_the_blade_operates_near_its_design_angle_of_attack(baseline, performance):
+def test_the_blade_operates_near_its_design_angle_of_attack(baseline):
     """
     A Schmitz blade at its design tip-speed ratio should sit near
     alpha_design across the span -- that is what the construction is for.
 
     Inboard stations deviate most, which is expected: the wide root chord
     raises local solidity and induction there.
+
+    THIS TEST NOW SOLVES AT `lambda_design` ITSELF, which it did not have to
+    do before 2026-09-19. It used to read the artefact's `spanwise` block,
+    because that block *was* the design point (11 m/s, lambda = 6.5, 341 rpm).
+    Since B1 (300 rpm) the machine's design condition is the tip-speed ceiling
+    -- `lambda(11) = 5.71`, 300 rpm -- so the artefact evaluates there and its
+    alphas run 2.1..8.7 deg, off the construction's design point by design.
+    Reading `spanwise` here would test the schedule, not the Schmitz
+    construction, so the solve is explicit and the claim stays about the
+    blade. The artefact's own design point is pinned separately in
+    `test_the_design_point_is_the_rated_speed_on_the_schedule`.
     """
 
-    alphas = [station["alpha_deg"] for station in performance["spanwise"]]
+    design, site = load_design_rotor(), load_site()
+    geometry = baseline.to_geometry()
+    result = solve_rotor(geometry, tsr=design.design_tsr,
+                         v_inf=design.rated_wind_speed_ms,
+                         air_density=site.air_density,
+                         kinematic_viscosity=site.kinematic_viscosity)
+    alphas = [math.degrees(station["alpha"]) for station in result["stations"]]
     target = math.degrees(baseline.alpha_design_rad)
 
     assert max(alphas) == pytest.approx(target, abs=1.0)
     assert min(alphas) > target - 6.0
+
+
+def test_the_design_point_is_the_rated_speed_on_the_schedule(performance):
+    """
+    The reference design point is the machine's, not the blade's.
+
+    `baseline_reference.json` used to solve its design point at
+    `design.design_tsr` (341 rpm at 11 m/s), a rotor speed the 300 rpm
+    machine cannot reach. It is now the schedule's lambda at the rated wind
+    speed, which for this machine is the tip-speed ceiling -- so this pins
+    both the law and the reason the reference numbers moved.
+    """
+
+    design = load_design_rotor()
+    expected = design.max_tip_speed_ms / design.rated_wind_speed_ms
+    point = performance["design_point"]
+
+    assert expected < design.design_tsr, "300 rpm must actually bind at 11 m/s"
+    assert point["v_inf"] == pytest.approx(design.rated_wind_speed_ms)
+    assert point["tsr"] == pytest.approx(expected, rel=1e-12)
+    assert point["rpm"] == pytest.approx(design.max_rotor_speed_rpm, rel=1e-9)
+    assert point["converged"]
 
 
 def test_peak_cp_lands_at_the_design_tip_speed_ratio(performance):
@@ -253,21 +294,25 @@ def test_the_sanity_band_is_still_narrow_enough_to_catch_a_bug(performance):
 
 
 # ---------------------------------------------------------------------------
-# Feasibility must not read as "passed" when it was never checked
+# Feasibility is checked, and x0 passes it unclipped
 # ---------------------------------------------------------------------------
 
-def test_feasibility_reports_that_it_was_not_checked(baseline):
+def test_x0_is_feasible_against_the_configured_bounds(baseline):
     """
-    The bounds are still TODO, so the status must say so explicitly.
-
-    A baseline that was never checked must not be indistinguishable from one
-    that passed. When the manufacturability study lands this test fails
-    deliberately, which is the reminder to replace it with a real check.
+    Plan step 1.7: feasibility *recorded*. Until 2026-09-19 the bounds were
+    TODO and this test asserted `checked is False`; with `chord_max_m =
+    0.30 m` in config the check runs, and the Schmitz root control point
+    (276 mm) sits inside it -- the fairness argument of the audit's section
+    3.4 depends on the baseline being unclipped, so that is asserted, not
+    merely reported.
     """
 
-    assert baseline.feasibility["checked"] is False
-    assert "TODO" in baseline.feasibility["reason"]
-    assert baseline.feasibility["violations"] == []
+    feasibility = baseline.feasibility
+    assert feasibility["checked"] is True
+    assert feasibility["reason"] is None
+    assert feasibility["clipped"] is False
+    assert feasibility["violations"] == []
+    assert np.allclose(feasibility["clipped_vector"], baseline.design_vector)
 
 
 # ---------------------------------------------------------------------------
@@ -325,5 +370,8 @@ def test_committed_x0_records_its_construction(committed_x0):
 
     assert construction["design_reynolds"] == DEFAULT_DESIGN_REYNOLDS
     assert construction["chord_rms_fit_error_m"] < 1e-3
-    assert committed_x0["feasibility"]["checked"] is False
+    assert committed_x0["feasibility"]["checked"] is True
+    assert committed_x0["feasibility"]["reason"] is None
+    assert committed_x0["feasibility"]["clipped"] is False
+    assert committed_x0["feasibility"]["violations"] == []
     assert committed_x0["rotor"]["design_tsr"] == load_design_rotor().design_tsr

@@ -17,7 +17,6 @@ import numpy as np
 import pytest
 
 from config import load_design_rotor
-from config.unresolved import UnresolvedConfigError
 from design import BladeParameterisation, DesignBounds, basis_matrix, clamped_knots
 
 #: A plausible blade: chord tapering 0.20 -> 0.05 m, twist 25 -> -2 deg. Not a
@@ -30,30 +29,11 @@ def _design_vector(parameterisation):
     ])
 
 
-#: Provisional design-variable bounds -- MJ's decision, 2026-09-13.
-#:
-#: Three of the four are grounded and are not expected to move:
-#:   chord_min_m  0.045 m  structural: SG6043 is 10 % t/c at 32.1 % chord, so
-#:                         45 mm chord is a ~4.5 mm section -- the laminate
-#:                         minimum.
-#:   twist_min    -2 deg   Schmitz baseline tip twist (0.57 deg) with margin.
-#:   twist_max    35 deg   Schmitz baseline root twist (23.07 deg) with margin.
-#: The fourth is provisional:
-#:   chord_max_m  0.45 m   depends on the hub radius and the root-attachment
-#:                         concept, neither of which is decided. Treat as a
-#:                         placeholder that happens to be wide enough for x0
-#:                         (root control point 0.276 m), not as a limit.
-#:
-#: Still local to the test module and deliberately NOT in
-#: `config/rotor_design.yaml`: that stays TODO, and `DesignBounds.from_config()`
-#: keeps raising, until chord_max_m has a real basis. Studies that need a
-#: range construct `DesignBounds(n_chord=..., n_twist=..., **PROVISIONAL_BOUNDS)`
-#: explicitly, which is what unblocks plan steps 1.6-1.8 (bounds, x0
-#: feasibility, the `d_i` sweep ranges). See docs/OUTSTANDING-INPUTS.md §2.
-PROVISIONAL_BOUNDS = {
-    "chord_min_m": 0.045, "chord_max_m": 0.45,
-    "twist_min_rad": math.radians(-2.0), "twist_max_rad": math.radians(35.0),
-}
+# The design-variable bounds are in `config/rotor_design.yaml` since
+# 2026-09-19 (chord_max_m = 0.30 m, O4) and are read with
+# `DesignBounds.from_config()`. The provisional set that lived here from
+# 2026-09-13 (chord_max_m = 0.45 m, a placeholder with no basis) is retired;
+# `verification/aep_gain_audit/` carries its own copy as a historical record.
 
 
 # ---------------------------------------------------------------------------
@@ -301,18 +281,24 @@ def test_defaults_come_from_config():
 # Bounds and scaling
 # ---------------------------------------------------------------------------
 
-def test_bounds_from_config_still_raise():
+def test_bounds_from_config_carry_the_decided_values():
     """
-    The bounds are TODO and must stay that way until a study selects them.
-
-    This test passing is the *correct* state today. When the manufacturability
-    study lands and the config is filled in, this test fails -- deliberately --
-    and that failure is the reminder to replace it with one that checks the
-    real values.
+    The bounds were TODO until 2026-09-19; `from_config()` raised, and the
+    test in this slot asserted that it did, as the reminder to replace it
+    with a real check the day the values landed. They landed (O4, MJ's
+    decision, basis in `config/rotor_design.yaml`), so this checks the real
+    values in the units `DesignBounds` works in -- chord in metres, twist in
+    radians -- and that the control-point counts follow the config.
     """
 
-    with pytest.raises(UnresolvedConfigError, match="still TODO"):
-        DesignBounds.from_config()
+    bounds = DesignBounds.from_config()
+
+    assert bounds.chord_min_m == pytest.approx(0.045)
+    assert bounds.chord_max_m == pytest.approx(0.30)
+    assert bounds.twist_min_rad == pytest.approx(math.radians(-2.0))
+    assert bounds.twist_max_rad == pytest.approx(math.radians(35.0))
+    assert (bounds.n_chord, bounds.n_twist) == (5, 5)
+    assert bounds.n_design_variables == 10
 
 
 def test_scaling_round_trips_and_the_chain_rule_factor_is_exact():
@@ -325,7 +311,7 @@ def test_scaling_round_trips_and_the_chain_rule_factor_is_exact():
     the docstring claims.
     """
 
-    bounds = DesignBounds(n_chord=5, n_twist=5, **PROVISIONAL_BOUNDS)
+    bounds = DesignBounds.from_config(n_chord=5, n_twist=5)
 
     physical = np.concatenate([
         np.linspace(0.20, 0.05, 5), np.radians(np.linspace(25.0, -2.0, 5))])
@@ -353,7 +339,7 @@ def test_clipping_reports_what_it_moved():
     baseline has to report.
     """
 
-    bounds = DesignBounds(n_chord=3, n_twist=3, **PROVISIONAL_BOUNDS)
+    bounds = DesignBounds.from_config(n_chord=3, n_twist=3)
     physical = np.array([0.5, 0.1, 0.001,
                          math.radians(50.0), 0.0, math.radians(-20.0)])
 

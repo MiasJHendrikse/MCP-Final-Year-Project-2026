@@ -14,6 +14,12 @@ python verification/representation_study/run_study.py
 ```
 → `representation_study.json`, `representation_study.png`
 
+**Not re-run in the 2026-09-19 sweep of the optimisation artefacts.** The
+study is a geometric comparison — how well each control-point count holds the
+analytic Schmitz chord and twist — evaluated at the design point in
+`verification/baseline/`, and that blade has not changed. The bounds and the
+operating law do not enter it. Its committed output is from 2026-09-10.
+
 ## Method
 
 The reference is the **analytic Schmitz blade** for this rotor (R = 2.0 m,

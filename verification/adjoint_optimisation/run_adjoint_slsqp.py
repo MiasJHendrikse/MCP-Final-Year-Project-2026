@@ -5,13 +5,15 @@ gradient in place of central differences.
     minimise   fun(u) = J(u) / |J(u0)|,   J = -AEP [MWh/yr]
     over       u in [0, 1]^10
     subject to the polar-cache Reynolds envelope (linear, 50 rows, margin 5 %)
+               and the configured local-solidity cap (25 rows, inactive while
+               chord_max_m = 0.30 m binds first) -- `problem.constraints()`
     gradient   ScaledProblem.jac_adjoint  (discrete adjoint, Phase 3)
 
 Everything else is A4's (`verification/fd_optimisation/run_fd_slsqp.py`):
 `scipy.optimize.minimize(method="SLSQP", ftol=1e-8, maxiter=200)`, the same
-starting point `x0`, the same envelope constraint and margin escalation,
+starting point `x0`, the same constraint set and margin escalation,
 the same iterate recording, the same sanity gates on the AEP gain, the same
-provisional-bounds label. The one change is the `jac` argument.
+bounds label. The one change is the `jac` argument.
 
 The comparison with A4 is the point. the implementation plan §6 B5: the two
 optima "must agree to SLSQP's tolerance; a different optimum is a suspected
@@ -22,9 +24,11 @@ below -- SLSQP's `ftol` on `fun`, and the spread the multi-start study
 (`verification/fd_optimisation_multistart/`) measured between equally
 converged optima of this flat objective in `u`.
 
-Provisional bounds: `chord_max_m = 0.45 m` is a placeholder pending the
-hub-radius / root-attachment decision; the optimum is "under provisional
-bounds" in every artefact here.
+The summary also carries `Ct`, rotor thrust and the per-blade root bending
+moment at `x0` and at `x*`, evaluated at the Phase 4 design condition -- the
+rated wind speed at the tip-speed ceiling, `lambda(11) = 5.71` (audit
+recommendation 4). Those are the loads the root-moment constraint will be
+built on, so they are recorded next to the optimum that produces them.
 
 Run from the repo root:
 
@@ -37,6 +41,7 @@ Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
 import argparse
 import datetime
 import json
+import math
 import os
 import sys
 import time
@@ -47,14 +52,14 @@ from scipy.optimize import Bounds, minimize
 _HERE = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.abspath(os.path.join(_HERE, "..", ".."))
 sys.path.insert(0, os.path.join(REPO_ROOT, "src"))
-sys.path.insert(0, os.path.join(REPO_ROOT, "tests"))
 
-from design import BladeParameterisation, DesignBounds, clamped_knots  # noqa: E402
+from bem.rotor import solve_rotor  # noqa: E402
+from design import BladeParameterisation, DesignBounds, clamped_knots, root_bending_moment  # noqa: E402
 from gradients import ScaledProblem  # noqa: E402
 from gradients.problem import DEFAULT_ENVELOPE_MARGIN  # noqa: E402
 from objective import WeibullResource  # noqa: E402
+from objective.power import tsr_schedule  # noqa: E402
 from polars.interpolant import PolarDomainError  # noqa: E402
-from test_parameterisation import PROVISIONAL_BOUNDS  # noqa: E402
 
 X0_PATH = os.path.join(REPO_ROOT, "verification", "baseline", "x0.json")
 FD_RESULT_PATH = os.path.join(REPO_ROOT, "verification", "fd_optimisation", "result.json")
@@ -63,8 +68,8 @@ RESULT_PATH = os.path.join(_HERE, "result.json")
 ITERATES_PATH = os.path.join(_HERE, "iterates.json")
 FIGURE_PATH = os.path.join(_HERE, "optimised_blade.png")
 
-PROVISIONAL_LABEL = ("under provisional bounds (chord_max_m = 0.45 m provisional; "
-                     "chord_min_m, twist_min, twist_max grounded)")
+BOUNDS_LABEL = ("under the configured bounds (chord_max_m = 0.30 m, resolved "
+                "2026-09-19; chord_min_m, twist_min, twist_max grounded 2026-09-13)")
 
 ACTIVE_TOL = 1e-6
 ENVELOPE_ACTIVE_TOL = 1e-6
@@ -96,10 +101,43 @@ def load_json(path):
 
 def build_problem(margin):
     parameterisation = BladeParameterisation()
-    bounds = DesignBounds(n_chord=parameterisation.n_chord,
-                          n_twist=parameterisation.n_twist, **PROVISIONAL_BOUNDS)
+    bounds = DesignBounds.from_config(n_chord=parameterisation.n_chord,
+                          n_twist=parameterisation.n_twist)
     return ScaledProblem(parameterisation, bounds, WeibullResource.from_config(),
                          margin=margin)
+
+
+def loads_at(problem, d):
+    """
+    Ct, rotor thrust and per-blade root bending moment at the Phase 4 design
+    condition for design vector `d`: the rated wind speed at the tip-speed
+    ceiling, i.e. `lambda(11) = 5.71` under 300 rpm (audit recommendation 4).
+
+    Uses the forward path (`solve_rotor` + `design.baseline.root_bending_moment`)
+    rather than the adjoint, so the number is independent of the system the
+    optimum came out of.
+    """
+
+    design, site = problem.design, problem.site
+    geometry = problem.parameterisation.to_geometry(d, polar_cache=problem.polar_cache)
+    v_inf = float(design.rated_wind_speed_ms)
+    tsr = tsr_schedule(v_inf, design.design_tsr, design.max_tip_speed_ms)
+    result = solve_rotor(geometry, tsr=tsr, v_inf=v_inf,
+                         air_density=site.air_density,
+                         kinematic_viscosity=site.kinematic_viscosity)
+    area = math.pi * geometry.R ** 2
+    moment = root_bending_moment(result["stations"], geometry.chord,
+                                 site.air_density, geometry.n_blades, geometry.r_hub)
+    return {
+        "wind_speed_ms": v_inf,
+        "tsr": float(tsr),
+        "rpm": float(tsr * v_inf / geometry.R * 60.0 / (2.0 * math.pi)),
+        "Cp": float(result["Cp"]),
+        "Ct": float(result["Ct"]),
+        "rotor_thrust_n": float(result["Ct"] * 0.5 * site.air_density * v_inf ** 2 * area),
+        "root_bending_moment_nm": float(moment),
+        "converged": bool(result["converged"]),
+    }
 
 
 class Recorder:
@@ -154,7 +192,7 @@ class Recorder:
 
 
 def run(problem, u0, maxiter, ftol):
-    envelope = problem.envelope_constraint()
+    constraints = problem.constraints()
     recorder = Recorder(problem)
 
     value0 = recorder.fun(u0)
@@ -166,7 +204,7 @@ def run(problem, u0, maxiter, ftol):
     result = minimize(
         recorder.fun, u0, jac=recorder.jac, method="SLSQP",
         bounds=Bounds(np.zeros(problem.n), np.ones(problem.n)),
-        constraints=[envelope],
+        constraints=constraints,
         options=dict(ftol=ftol, maxiter=maxiter, disp=True),
         callback=recorder.callback,
     )
@@ -203,7 +241,7 @@ def plot(problem, x0, x_star, x_fd, path):
         ax.grid(True, color="#dddddd", lw=0.6)
         ax.legend(fontsize=8, frameon=False)
 
-    fig.suptitle("Adjoint-driven SLSQP optimum vs x0 and the FD optimum -- " + PROVISIONAL_LABEL,
+    fig.suptitle("Adjoint-driven SLSQP optimum vs x0 and the FD optimum -- " + BOUNDS_LABEL,
                  fontsize=10)
     fig.tight_layout()
     fig.savefig(path, dpi=150)
@@ -303,8 +341,8 @@ def main(argv=None):
     summary = {
         "description": "Adjoint-driven SLSQP on fun(u) = J(u)/|J(u0)| with the polar-cache "
                        "envelope constraint, from x0 -- A4's run with jac = jac_adjoint.",
-        "provisional_bounds": PROVISIONAL_LABEL,
-        "bounds": {k: float(v) for k, v in PROVISIONAL_BOUNDS.items()},
+        "bounds_label": BOUNDS_LABEL,
+        "bounds": problem.bounds.as_record(),
         "command": "python verification/adjoint_optimisation/run_adjoint_slsqp.py",
         "generated": datetime.datetime.now().isoformat(timespec="seconds"),
         "variables": names,
@@ -341,13 +379,22 @@ def main(argv=None):
         "active_envelope_rows": active_env,
         "envelope_min_row_value_m": float(g_env.min()),
         "envelope_min_row": labels[int(np.argmin(g_env))],
+        "active_set": problem.active_set(u_star),
+        "loads_at_rated_ceiling": {
+            "description": ("Ct, rotor thrust and per-blade root bending moment at the "
+                            "rated wind speed on the tip-speed ceiling (Phase 4's "
+                            "design condition; audit recommendation 4)."),
+            "x0": loads_at(problem, x0),
+            "x_star": loads_at(problem, x_star),
+            "x_star_fd": loads_at(problem, x_fd),
+        },
         "post_check_optimum": post,
         "comparison_with_fd": comparison,
     }
     with open(RESULT_PATH, "w", encoding="utf-8") as handle:
         json.dump(summary, handle, indent=1)
     with open(ITERATES_PATH, "w", encoding="utf-8") as handle:
-        json.dump({"provisional_bounds": PROVISIONAL_LABEL, "gradient": "adjoint",
+        json.dump({"bounds_label": BOUNDS_LABEL, "gradient": "adjoint",
                    "iterates": recorder.iterates}, handle, indent=1)
 
     plot(problem, x0, x_star, x_fd, FIGURE_PATH)
@@ -360,6 +407,11 @@ def main(argv=None):
     print(f"active bounds: {summary['active_bounds']}; active envelope rows: {active_env}")
     print(f"alpha at optimum: {post['alpha_min_deg']:.2f}..{post['alpha_max_deg']:.2f} deg, "
           f"within={post['within']}; Re {post['reynolds_min']:.0f}..{post['reynolds_max']:.0f}")
+    loads = summary["loads_at_rated_ceiling"]
+    print(f"loads at 11 m/s, lambda = {loads['x0']['tsr']:.3f} (300 rpm): "
+          f"M(x0) = {loads['x0']['root_bending_moment_nm']:.1f} N.m, "
+          f"M(x*) = {loads['x_star']['root_bending_moment_nm']:.1f} N.m "
+          f"({100.0 * (loads['x_star']['root_bending_moment_nm'] / loads['x0']['root_bending_moment_nm'] - 1.0):+.2f} %)")
     print(f"\nvs A4 (FD): ||du||_inf = {du_inf:.2e} (tol {u_tol}), "
           f"dAEP = {d_aep:+.3e} MWh/yr, dfun = {d_fun:+.3e} (tol {FUN_AGREEMENT_TOL:g}); "
           f"A4 nit/nfev/wall = {fd['nit']}/{fd['nfev']}/{fd['wall_time_s']:.0f}s; "
@@ -374,7 +426,7 @@ def main(argv=None):
 
 def _write_partial(domain_errors):
     with open(RESULT_PATH, "w", encoding="utf-8") as handle:
-        json.dump({"provisional_bounds": PROVISIONAL_LABEL, "aborted": True,
+        json.dump({"bounds_label": BOUNDS_LABEL, "aborted": True,
                    "domain_errors": domain_errors}, handle, indent=1)
 
 

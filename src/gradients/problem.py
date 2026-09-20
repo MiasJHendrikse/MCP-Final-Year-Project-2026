@@ -18,19 +18,29 @@ The envelope constraint is mandatory, not optional
 ---------------------------------------------------
 `CachedPolar` raises `PolarDomainError` outside the cache's Reynolds range
 (`interpolant_for(polar_cache).re_values[0]` .. `[-1]`, 40 k .. 1 M for
-SG6043). The provisional box bounds let the optimiser leave that range:
-`chord_max_m = 0.45 m` at the tip gives Re ~ 3 M at 19.5 m/s. The solver's
-own Reynolds estimate (`bem.rotor.solve_rotor`) is
+SG6043). The box bounds let the optimiser leave that range: `chord_max_m =
+0.30 m` at the tip gives Re ~ 1.04 M at 19.5 m/s under the 300 rpm ceiling
+(and ~2 M with none). The solver's own Reynolds estimate
+(`bem.rotor.solve_rotor`) is
 
-    Re_{b,i} = W_i(V_b) c_i / nu,   W_i(V) = hypot(V, lambda V r_i / R)
+    Re_{b,i} = W_i(V_b) c_i / nu,   W_i(V_b) = hypot(V_b, Omega_b r_i)
 
-which depends on the chord alone -- no state -- and `c = N_c d_c` is linear
-in the design vector, so "stay inside the cache at every operating point" is
-a *linear* constraint on `u` with a constant Jacobian:
+with `Omega_b = lambda_b V_b / R` the operating point's rotor speed on the
+configured schedule (`objective.power.operating_points`). It depends on the
+chord alone -- no state -- and `c = N_c d_c` is linear in the design vector,
+so "stay inside the cache at every operating point" is a *linear*
+constraint on `u` with a constant Jacobian:
 
     c_min,i (1 + mu) <= [N_c (lo + u * span)]_i <= c_max,i (1 - mu)
 
-    c_max,i = Re_hi nu / W_i(V_max),   c_min,i = Re_lo nu / W_i(V_min)
+    c_max,i = Re_hi nu / max_b W_i(V_b),   c_min,i = Re_lo nu / min_b W_i(V_b)
+
+The extremes are taken over the actual operating points rather than assumed
+to sit at `V_min` and `V_max` (2026-09-19; until then every bin ran lambda =
+6.5 and the two coincided). Under a ceiling `W_i` at the top bin is
+`hypot(19.5, Omega_max r_i)`, well below the fixed-lambda value, so the
+ceiling rows are looser than the conservative form the experiment reused;
+`envelope_data()` reports which operating point set each row.
 
 `mu = 0.05` is a stated margin, not a tuned one: SLSQP's intermediate
 iterates may violate inequality constraints slightly, and an objective
@@ -42,13 +52,40 @@ The angle-of-attack range of the cache (`xfoil_alpha_min/max`, -8..18 deg
 for SG6043) is *state*-dependent (it needs the solved `phi`), so it is not a
 constraint; `alpha_check` is a logged post-check on accepted iterates.
 
-Provisional bounds
--------------------
-`bounds` is a required argument with no default. The provisional numbers
-live in one place, `tests/test_parameterisation.py::PROVISIONAL_BOUNDS`;
-`chord_max_m = 0.45 m` there is a placeholder pending the hub-radius /
-root-attachment decision, and every result produced through this class is
-"under provisional bounds". Nothing here reads a bound from `config/`.
+Bounds and the constraint set
+------------------------------
+`bounds` is a required argument with no default (`DesignBounds.from_config()`
+since 2026-09-19; the 0.45 m placeholder that preceded it is retired).
+`constraints()` is the full inequality set every optimisation run hands to
+SLSQP -- the envelope and the configured solidity cap -- so no script can
+assemble a different one; `active_set(u)` reports which rows and bounds are
+active at a point.
+
+The mass problem (2026-09-20)
+------------------------------
+`docs/PLAN-mass-objective-2026-09-20.md`. The energy objective above becomes
+a constraint and the objective becomes the material proxy:
+
+    minimise    mass(u)  = A_shell(d) / A_shell(x0)          `objective.mass`, no BEM
+    subject to  AEP floor      -fun(u) - (1 - delta)  >= 0   `aep_floor_constraint(delta)`
+                moment cap     KS0 - KS(u)            >= 0   `moment_constraint(0)`
+                stress proxy   KS0/c00^2 - KS(u)/c0^2 >= 0   `stress_constraint()`
+                deflection     D0 - D(u)              >= 0   `deflection_constraint()`
+                monotone chord and twist control points     `manufacturing_constraints()`
+                envelope, solidity, box                      unchanged
+
+with `x0`, the committed Schmitz baseline, the reference of every relative
+row (it has zero slack on each of them by construction) and
+`constraints_for_mass_problem(delta)` the one assembly. The AEP row's
+Jacobian is `-jac_adjoint`; the moment and stress rows read the one cached
+`RootMomentSystem.gradient` at `u`; the deflection row reads a
+`DeflectionSystem.gradient` at `u` built on the *same* forward state (one
+9-point solve for three rows). The objective is geometry and cannot fail; the
+four state rows can (`PolarDomainError`, or an unconverged solve), and inside
+the mass problem their `fun` reports a large violation (`FAILED_SLACK`) and
+logs the point in `evaluation_failures` so SLSQP's line search backs off,
+while their `jac` raises -- a stale Jacobian is never substituted, and an
+accepted iterate that cannot be evaluated is a failed start.
 
 Author: MJ Hendrikse
 Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
@@ -61,13 +98,30 @@ import numpy as np
 from config import load_design_rotor, load_site
 from gradients.finite_difference import central_difference
 from objective.objective import objective
-from objective.power import aerodynamic_power, wind_speed_bins
+from objective.power import aerodynamic_power, operating_points, tsr_schedule
 from polars.interpolant import PolarDomainError
 from polars.polar import interpolant_for
 
 #: Envelope margin, stated (see module docstring). Raised to 0.10 once, and
 #: recorded, if a run still trips `PolarDomainError` -- never tuned beyond.
 DEFAULT_ENVELOPE_MARGIN = 0.05
+
+#: KS stiffness for the root-moment aggregate (Phase 4). The default the load
+#: constraint is built at; `moment_report` also quotes 30 and 300.
+DEFAULT_KS_RHO = 100.0
+
+#: `|u|` or `|1 - u|` below this: the bound is active. `g(u)` below this: the
+#: constraint row is active. One tolerance for every reporting script.
+ACTIVE_TOL = 1e-6
+
+#: The slack a state-dependent row of the mass problem reports at a trial
+#: point it cannot evaluate: a violation large enough that SLSQP's merit
+#: function rejects the step. Reported, never silently absorbed.
+FAILED_SLACK = 1.0e3
+
+#: The rows of the mass problem, in assembly order.
+MASS_PROBLEM_ROWS = ("envelope", "solidity", "manufacturing", "aep_floor", "moment",
+                     "stress", "deflection")
 
 
 class ScaledProblem:
@@ -127,6 +181,35 @@ class ScaledProblem:
         self.domain_errors = []
         self._adjoint = None
 
+        # Phase 4 load constraint (Step 2c): built on first use from the
+        # committed baseline. KS0 is `KS_rho(u0)` alongside J0; n_moment_solves
+        # counts the 9-point forward solves the constraint's fun/jac need.
+        self.KS0 = None
+        self.m_ref = None
+        self.u0 = None
+        self.n_moment_solves = 0
+        self._systems = {}
+        self._ks0 = {}
+        self._moment_cache = None
+        self._moment_cache_key = None
+
+        # The mass problem (2026-09-20): the material model and its reference,
+        # the deflection system with its reference, its own cache, and the
+        # log of trial points a state row could not evaluate.
+        self._material = None
+        self.material_ref = None
+        self._deflection = None
+        self.delta_ref = None
+        self.D0 = None
+        self.n_deflection_solves = 0
+        self._deflection_cache = None
+        self._deflection_cache_key = None
+        self.evaluation_failures = []
+        # `(u bytes, error)` of the last trial point whose forward load solve
+        # failed: the moment, stress and deflection rows share that solve, so
+        # the second and third row re-raise instead of repeating it.
+        self._load_failure = None
+
     # -- variables ----------------------------------------------------------
 
     @property
@@ -143,14 +226,19 @@ class ScaledProblem:
 
         return self.bounds.to_scaled(d)
 
-    def operating_speeds(self):
+    def operating_points(self):
         """
-        Every wind speed the objective solves at: the 17 bin midpoints. The
-        rating is a configured number, so the rated speed is not one of them.
+        Every operating point the objective solves at, `[(V, lambda)]`: the
+        17 bin midpoints on the configured schedule. The rating is a
+        configured number, so the rated speed is not one of them.
         """
 
-        _edges, midpoints, _width = wind_speed_bins()
-        return [float(v) for v in midpoints]
+        return operating_points(self.design)
+
+    def operating_speeds(self):
+        """The wind speeds of `operating_points()`."""
+
+        return [v for v, _lam in self.operating_points()]
 
     # -- objective ----------------------------------------------------------
 
@@ -247,6 +335,629 @@ class ScaledProblem:
         self.n_adjoint_evals += 1
         return result.dJ_dd * self.bounds.span() / abs(self.J0)
 
+    # -- the root-moment functional (Phase 4, Step 2c) -----------------------
+
+    def _system_for(self, rho):
+        """
+        The `adjoint.loads.RootMomentSystem` at KS stiffness `rho`, built on
+        first use and cached. The default (`rho = 100`) is the one
+        `moment_constraint` uses; the others exist so `moment_report` can quote
+        the conservatism at 30 and 300 from one set of moments.
+
+        `M_ref = M(x0)` and the starting point are read once from the committed
+        Schmitz baseline (`design.baseline.build_schmitz_baseline`, which
+        reproduces `verification/baseline/x0.json` bit for bit), so the
+        normalisation is one number in one place. `KS0 = KS_rho(u0)` is measured
+        in the same pass and cached; that is what makes the `eps = 0`
+        constraint exactly zero-slack at `u0`.
+        """
+
+        if rho in self._systems:
+            return self._systems[rho]
+
+        from adjoint.loads import RootMomentSystem
+        from objective.loads import root_moment
+
+        if self.m_ref is None:
+            x0 = self.reference_design()
+            geometry = self.parameterisation.to_geometry(x0, polar_cache=self.polar_cache)
+            v_rated = float(self.design.rated_wind_speed_ms)
+            tsr_rated = tsr_schedule(v_rated, self.design.design_tsr,
+                                     self.design.max_tip_speed_ms)
+            self.m_ref = float(root_moment(
+                geometry, v_rated, tsr_rated, float(self.site.air_density),
+                float(self.site.kinematic_viscosity))[0])
+
+        system = RootMomentSystem(self.parameterisation, self.bounds, self.resource,
+                                  polar_cache=self.polar_cache, rho=rho,
+                                  m_ref_nm=self.m_ref)
+        self._systems[rho] = system
+
+        # The forward state at u0 does not depend on rho: a second stiffness
+        # reuses the solve the first one made rather than repeating it.
+        u0_key = np.asarray(self.u0, dtype=float).tobytes()
+        state = None
+        if self._moment_cache is not None and self._moment_cache_key[1] == u0_key:
+            state = self._moment_cache.state
+        else:
+            self.n_moment_solves += 1
+        result = system.gradient(self.physical(self.u0), state=state)
+        self._ks0[rho] = float(result.KS)
+        self._moment_cache_key = (float(rho), u0_key)
+        self._moment_cache = result
+        if rho == DEFAULT_KS_RHO:
+            self.KS0 = float(result.KS)
+        return system
+
+    def reference_design(self):
+        """
+        `x0`, the committed Schmitz baseline (`design.baseline.build_schmitz_baseline`,
+        which reproduces `verification/baseline/x0.json` bit for bit), and the
+        one place `self.u0` is set. Every relative row normalises on it.
+        """
+
+        from design.baseline import build_schmitz_baseline
+
+        x0 = np.asarray(build_schmitz_baseline().design_vector, dtype=float)
+        if self.u0 is None:
+            self.u0 = self.scaled(x0)
+        return x0
+
+    def load_system(self):
+        """The default (`rho = 100`) `RootMomentSystem` over the load set `L`."""
+
+        return self._system_for(DEFAULT_KS_RHO)
+
+    def _shared_load_state(self, u_key):
+        """
+        A forward state over `L` already solved at this exact `u`, from either
+        the moment or the deflection cache, or `None`. The two systems share
+        the points, so a state one of them solved is the other's.
+        """
+
+        if self._moment_cache is not None and self._moment_cache_key[1] == u_key:
+            return self._moment_cache.state
+        if self._deflection_cache is not None and self._deflection_cache_key == u_key:
+            return self._deflection_cache.state
+        return None
+
+    def _moment_at(self, u, rho):
+        """
+        The cached `RootMomentSystem.gradient(d(u))` at stiffness `rho`.
+
+        SLSQP evaluates a constraint's `fun` and `jac` separately at the same
+        `u` and `fun` again in the line search; one cache entry keyed on the
+        exact `u` bytes makes that cost one 9-point solve, not three.
+        """
+
+        u = np.asarray(u, dtype=float)
+        key = (float(rho), u.tobytes())
+        if key == self._moment_cache_key:
+            return self._moment_cache
+        self._raise_if_failed(key[1])
+        system = self._system_for(rho)
+        state = self._shared_load_state(key[1])
+        if state is None:
+            self.n_moment_solves += 1
+        try:
+            result = system.gradient(self.physical(u), state=state)
+        except (PolarDomainError, RuntimeError) as error:
+            self._load_failure = (key[1], error)
+            raise
+        self._moment_cache_key = key
+        self._moment_cache = result
+        return result
+
+    def _raise_if_failed(self, u_key):
+        """Re-raise the remembered failure of the forward load solve at this `u`."""
+
+        if self._load_failure is not None and self._load_failure[0] == u_key:
+            raise self._load_failure[1]
+
+    def moment_state(self, u):
+        """The cached moment-adjoint result at `u` (default stiffness)."""
+
+        return self._moment_at(u, DEFAULT_KS_RHO)
+
+    def moment_ks(self, u, rho=None):
+        """`KS_rho(u)`, as a float, at the default stiffness (or `rho`)."""
+
+        rho = DEFAULT_KS_RHO if rho is None else float(rho)
+        return float(self._moment_at(u, rho).KS)
+
+    def _moment_reference(self, rho):
+        """`KS0 = KS_rho(u0)` at the committed baseline, measured once."""
+
+        if rho not in self._ks0:
+            self._system_for(rho)
+        return self._ks0[rho]
+
+    def moment_constraint(self, eps, rho=None):
+        """
+        SciPy inequality for the Phase 4 load cap:
+
+            g_eps(u) = (1 - eps) KS0 - KS(u)  =  (KS0 - KS(u)) - eps KS0  >= 0
+
+        written in the regrouped form so the `eps = 0` slack at `u0` and the
+        `eps`-linear slack are exact to the bit (the two groupings differ in
+        the last bit). `jac` is the adjoint Jacobian `-dKS/dd * span`.
+        """
+
+        rho = DEFAULT_KS_RHO if rho is None else float(rho)
+        ks0 = self._moment_reference(rho)
+        eps = float(eps)
+        span = self.bounds.span()
+
+        def fun(u):
+            return np.array([(ks0 - self._moment_at(u, rho).KS) - eps * ks0])
+
+        def jac(u):
+            return (-self._moment_at(u, rho).dKS_dd * span)[None, :]
+
+        return {"type": "ineq", "fun": fun, "jac": jac}
+
+    def constraints_with_moment(self, eps):
+        """The full Phase 4 inequality set: envelope, solidity, moment."""
+
+        return self.constraints() + [self.moment_constraint(eps)]
+
+    def moment_active(self, u, eps, rho=None, tol=ACTIVE_TOL):
+        """The moment row's slack at `u` for reduction fraction `eps`."""
+
+        rho = DEFAULT_KS_RHO if rho is None else float(rho)
+        ks0 = self._moment_reference(rho)
+        ks = float(self._moment_at(u, rho).KS)
+        slack = (ks0 - ks) - float(eps) * ks0
+        return {"row": "moment", "eps": float(eps), "rho": float(rho),
+                "KS": ks, "KS0": ks0, "slack": float(slack),
+                "active": bool(slack < tol)}
+
+    def moment_report(self, u):
+        """
+        Everything the load-constraint artefacts record at `u`, forward path
+        only: the per-point moments and softmax weights, `KS` and its
+        conservatism `KS - max` over `rho in {30, 100, 300}`, the
+        design-condition thrust and `Ct`, and the **B3-dependent** cut-out
+        post-check at 20 m/s on the ceiling (reported, never constrained).
+        """
+
+        from objective.loads import ks, ks_weights, root_moment
+
+        u = np.asarray(u, dtype=float)
+        system = self.load_system()
+        d = self.physical(u)
+        state = system.solve(d)
+        parts = system.partials(state.phi, state.d)
+        moments = system.moments_from_m(parts["m"])
+        m_ref = float(system.m_ref)
+        normalised = moments / m_ref
+        weights = ks_weights(normalised, system.rho)
+        peak = float(np.max(normalised))
+
+        points = []
+        for b, (v, lam) in enumerate(system.points):
+            points.append({
+                "v_ms": float(v),
+                "tsr": float(lam),
+                "rpm": float(system.omega[b] * 60.0 / (2.0 * math.pi)),
+                "moment_nm": float(moments[b]),
+                "moment_normalised": float(normalised[b]),
+                "softmax_weight": float(weights[b]),
+            })
+
+        rhos = (30.0, 100.0, 300.0)
+        ks_by_rho = {f"{rho:g}": float(ks(normalised, rho)) for rho in rhos}
+        conservatism = {f"{rho:g}": float(ks(normalised, rho) - peak) for rho in rhos}
+
+        geometry = self.parameterisation.to_geometry(d, polar_cache=self.polar_cache)
+        rho_air = float(self.site.air_density)
+        nu = float(self.site.kinematic_viscosity)
+        area = math.pi * self.parameterisation.radius_m ** 2
+
+        v_rated, tsr_rated = system.points[-1]
+        rated_moment, rated_result = root_moment(geometry, v_rated, tsr_rated,
+                                                 rho_air, nu)
+        Ct_rated = float(rated_result["Ct"])
+
+        v_cut = float(self.design.cut_out_wind_speed_ms)
+        tsr_cut = tsr_schedule(v_cut, self.design.design_tsr,
+                               self.design.max_tip_speed_ms)
+        cut_moment, cut_result = root_moment(geometry, v_cut, tsr_cut, rho_air, nu)
+        cut_alpha = [math.degrees(s["alpha"]) for s in cut_result["stations"]]
+        Ct_cut = float(cut_result["Ct"])
+        alpha_max_deg = float(max(cut_alpha))
+
+        return {
+            "u": [float(x) for x in u],
+            "x": [float(x) for x in d],
+            "m_ref_nm": m_ref,
+            "m_ref_label": ("M(x0) at 11 m/s, lambda = 5.711986642890533 "
+                            "(300 rpm), forward path"),
+            "KS0": None if self.KS0 is None else float(self.KS0),
+            "rho": float(system.rho),
+            "points": points,
+            "peak_normalised": peak,
+            "KS_by_rho": ks_by_rho,
+            "conservatism_by_rho": conservatism,
+            "softmax_weight_on_rated": float(weights[-1]),
+            "design_condition": {
+                "v_ms": float(v_rated),
+                "tsr": float(tsr_rated),
+                "rpm": float(system.omega[-1] * 60.0 / (2.0 * math.pi)),
+                "Ct": Ct_rated,
+                "thrust_n": float(Ct_rated * 0.5 * rho_air * float(v_rated) ** 2 * area),
+                "moment_nm": float(rated_moment),
+                "moment_over_ref": float(rated_moment / m_ref),
+            },
+            "cut_out": {
+                "label": ("B3-dependent: the model holds P = P_rated with no "
+                          "mechanism, so the state here is not the machine's; "
+                          f"alpha up to {alpha_max_deg:.1f} deg on Viterna"),
+                "B3_dependent": True,
+                "v_ms": v_cut,
+                "tsr": float(tsr_cut),
+                "rpm": float(tsr_cut * v_cut / self.parameterisation.radius_m
+                             * 60.0 / (2.0 * math.pi)),
+                "Ct": Ct_cut,
+                "thrust_n": float(Ct_cut * 0.5 * rho_air * v_cut ** 2 * area),
+                "moment_nm": float(cut_moment),
+                "alpha_min_deg": float(min(cut_alpha)),
+                "alpha_max_deg": alpha_max_deg,
+                "converged": bool(cut_result["converged"]),
+            },
+        }
+
+    # -- the mass problem (2026-09-20) ------------------------------------------
+
+    def material_model(self):
+        """
+        The `objective.mass.MaterialModel` over this parameterisation (the
+        configured `objective.mass_model`), built on first use; the
+        normaliser `material_ref = value(x0)` is measured in the same pass.
+        """
+
+        if self._material is None:
+            from objective.mass import MaterialModel
+
+            self._material = MaterialModel(self.parameterisation, polar_cache=self.polar_cache,
+                                           design=self.design)
+            # On `physical(u0)`, not `x0`: the scaled round trip differs from
+            # `x0` in the last bit, and the objective must be 1.0 at `u0`
+            # exactly as `fun(u0)` is -1.0 (KS0 and D0 are measured the same way).
+            self.reference_design()
+            self.material_ref = float(self._material.value(self.physical(self.u0)))
+        return self._material
+
+    def mass(self, u):
+        """
+        The mass-problem objective: the material proxy at `u` as a fraction
+        of the reference's, `value(d) / value(x0)`. Exactly `1.0` at `u0`.
+        Geometry only -- no BEM, cannot fail.
+        """
+
+        model = self.material_model()
+        return float(model.value(self.physical(u))) / self.material_ref
+
+    def mass_jac(self, u):
+        """`d mass / du = gradient(d) * span / value(x0)` -- exact, constant for the shell."""
+
+        model = self.material_model()
+        return model.gradient(self.physical(u)) * self.bounds.span() / self.material_ref
+
+    def material_report(self, u):
+        """Both proxies at `u`, and as fractions of `x0`'s (`MaterialModel.report`)."""
+
+        model = self.material_model()
+        return model.report(self.physical(u), reference=self.physical(self.u0))
+
+    def aep_floor_constraint(self, delta):
+        """
+        SciPy inequality for the energy floor `AEP(u) >= (1 - delta) AEP(x0)`:
+
+            g_delta(u) = -fun(u) - (1 - delta)  >=  0
+
+        `fun = J / |J0|` with `J0 = J(u0)` (`set_reference(u0)` must have been
+        called with the reference), so `-fun(u0) = 1.0` to the bit and the
+        `delta = 0` slack at `u0` is exactly zero. `jac` is `-jac_adjoint`,
+        the verified objective adjoint as a constraint Jacobian.
+        """
+
+        if self.J0 is None:
+            raise RuntimeError("J0 not set: call set_reference(u0) with the reference blade first")
+        delta = float(delta)
+        if not 0.0 <= delta < 1.0:
+            raise ValueError(f"delta must be in [0, 1), got {delta}")
+        floor = 1.0 - delta
+
+        def fun(u):
+            return np.array([-self.fun(u) - floor])
+
+        def jac(u):
+            return (-self.jac_adjoint(u))[None, :]
+
+        return {"type": "ineq", "fun": fun, "jac": jac}
+
+    def _root_chord(self, u):
+        """`c0 = d_0`: the chord at the clamp `r_hub` (`s = 0`), which the clamped
+        spline interpolates, so its basis row is `e_0`."""
+
+        return float(self.physical(u)[0])
+
+    def _stress_reference(self):
+        """`KS0 / c00^2` at the committed reference, measured once."""
+
+        ks0 = self._moment_reference(DEFAULT_KS_RHO)
+        return ks0, self._root_chord(self.u0)
+
+    def stress_ratio(self, u):
+        """`KS(u) / c0(u)^2` over `KS0 / c00^2`: the root-stress proxy relative to `x0`."""
+
+        ks0, c00 = self._stress_reference()
+        return (self.moment_ks(u) / self._root_chord(u) ** 2) / (ks0 / c00 ** 2)
+
+    def stress_constraint(self):
+        """
+        SciPy inequality for the root-stress proxy, `sigma ~ KS_rho(M) / Z`
+        with `Z ~ c0^2 t` for a thin shell of constant laminate thickness:
+
+            g(u) = KS0 / c00^2 - KS(u) / c0(u)^2  >=  0
+
+        zero at `u0` to the bit. `jac = -(dKS/dd / c0^2 - 2 KS / c0^3 e_0) * span`
+        with `dKS/dd`, `KS` from the cached moment state at `u`.
+        """
+
+        ks0, c00 = self._stress_reference()
+        reference = ks0 / c00 ** 2
+        span = self.bounds.span()
+        e0 = np.zeros(self.n)
+        e0[0] = 1.0
+
+        def fun(u):
+            c0 = self._root_chord(u)
+            return np.array([reference - self.moment_state(u).KS / c0 ** 2])
+
+        def jac(u):
+            c0 = self._root_chord(u)
+            state = self.moment_state(u)
+            g = state.dKS_dd / c0 ** 2 - 2.0 * state.KS / c0 ** 3 * e0
+            return (-g * span)[None, :]
+
+        return {"type": "ineq", "fun": fun, "jac": jac}
+
+    def _deflection_system(self):
+        """
+        The `adjoint.deflection.DeflectionSystem` over `L` at the default
+        stiffness, built on first use. `delta_ref` is the rated-point
+        deflection of the committed `x0` through the forward path
+        (`objective.loads.tip_deflection_at`, as `m_ref` is `root_moment`);
+        `D0 = D(u0)` is measured in the same pass on the moment row's state.
+        """
+
+        if self._deflection is not None:
+            return self._deflection
+
+        from adjoint.deflection import DeflectionSystem
+        from objective.loads import tip_deflection_at
+
+        x0 = self.reference_design()
+        self._system_for(DEFAULT_KS_RHO)  # m_ref, KS0 and the u0 state
+        geometry = self.parameterisation.to_geometry(x0, polar_cache=self.polar_cache)
+        v_rated = float(self.design.rated_wind_speed_ms)
+        tsr_rated = tsr_schedule(v_rated, self.design.design_tsr, self.design.max_tip_speed_ms)
+        self.delta_ref = float(tip_deflection_at(
+            geometry, v_rated, tsr_rated, float(self.site.air_density),
+            float(self.site.kinematic_viscosity))[0])
+
+        system = DeflectionSystem(self.parameterisation, self.bounds, self.resource,
+                                  polar_cache=self.polar_cache, rho=DEFAULT_KS_RHO,
+                                  m_ref_nm=self.m_ref, delta_ref=self.delta_ref)
+        self._deflection = system
+        u0_key = np.asarray(self.u0, dtype=float).tobytes()
+        state = self._shared_load_state(u0_key)
+        if state is None:
+            self.n_deflection_solves += 1
+        result = system.gradient(self.physical(self.u0), state=state)
+        self._deflection_cache_key = u0_key
+        self._deflection_cache = result
+        self.D0 = float(result.D)
+        return system
+
+    def _deflection_at(self, u):
+        """The cached `DeflectionSystem.gradient(d(u))`, on the moment row's state if it has one."""
+
+        u = np.asarray(u, dtype=float)
+        key = u.tobytes()
+        system = self._deflection_system()
+        if key == self._deflection_cache_key:
+            return self._deflection_cache
+        self._raise_if_failed(key)
+        state = self._shared_load_state(key)
+        if state is None:
+            self.n_deflection_solves += 1
+        try:
+            result = system.gradient(self.physical(u), state=state)
+        except (PolarDomainError, RuntimeError) as error:
+            self._load_failure = (key, error)
+            raise
+        self._deflection_cache_key = key
+        self._deflection_cache = result
+        return result
+
+    def deflection_state(self, u):
+        """The cached deflection-adjoint result at `u`."""
+
+        return self._deflection_at(u)
+
+    def deflection_ks(self, u):
+        """`D(u) = KS_rho(delta / delta_ref)` as a float."""
+
+        return float(self._deflection_at(u).D)
+
+    def deflection_constraint(self):
+        """
+        SciPy inequality for the tip-deflection proxy, `g(u) = D0 - D(u) >= 0`,
+        zero at `u0`; `jac = -dD/dd * span` by the deflection adjoint.
+        """
+
+        self._deflection_system()
+        d0 = self.D0
+        span = self.bounds.span()
+
+        def fun(u):
+            return np.array([d0 - self._deflection_at(u).D])
+
+        def jac(u):
+            return (-self._deflection_at(u).dD_dd * span)[None, :]
+
+        return {"type": "ineq", "fun": fun, "jac": jac}
+
+    def manufacturing_rows(self):
+        """
+        The difference matrix `D` (rows x n) of the enabled monotone blocks:
+        row `c_i - c_{i+1}` for chord, `theta_i - theta_{i+1}` for twist, per
+        `manufacturing.monotone_chord` / `monotone_twist` in config. Non-
+        increasing control points give a non-increasing B-spline (variation
+        diminishing), so with the min-chord floor (`min_chord_rows`) these
+        linear rows are the whole manufacturability set. Empty (0 x n) when
+        both are off.
+        """
+
+        n_c = self.parameterisation.n_chord
+        n_t = self.parameterisation.n_twist
+        rows, labels = [], []
+        blocks = []
+        if self.design.monotone_chord:
+            blocks.append(("chord", 0, n_c))
+        if self.design.monotone_twist:
+            blocks.append(("twist", n_c, n_t))
+        for name, offset, count in blocks:
+            for i in range(count - 1):
+                row = np.zeros(self.n)
+                row[offset + i] = 1.0
+                row[offset + i + 1] = -1.0
+                rows.append(row)
+                labels.append(f"monotone {name}_{i}-{name}_{i + 1}")
+        matrix = np.vstack(rows) if rows else np.zeros((0, self.n))
+        return matrix, labels
+
+    def min_chord_rows(self):
+        """
+        The buildable-tip floor `c_i - min_chord_m >= 0` on every chord
+        control point (`manufacturing.min_chord_m`, 2026-09-20): `(matrix,
+        rhs, labels)` with `matrix = [I 0]` and `rhs = min_chord_m`. A row
+        rather than the box bound so the Phase 1-4 scaling of `u` stays as
+        committed. Empty when the floor is at or below the box bound.
+        """
+
+        n_c = self.parameterisation.n_chord
+        floor = float(self.design.min_chord_m)
+        if floor <= self.bounds.chord_min_m:
+            return np.zeros((0, self.n)), np.zeros(0), []
+        matrix = np.zeros((n_c, self.n))
+        matrix[np.arange(n_c), np.arange(n_c)] = 1.0
+        return matrix, np.full(n_c, floor), [f"min chord chord_{i}" for i in range(n_c)]
+
+    def manufacturing_row_labels(self):
+        return self.manufacturing_rows()[1] + self.min_chord_rows()[2]
+
+    def manufacturing_constraints(self):
+        """
+        SciPy inequality `A (lo + u span) - b >= 0` over the monotone rows
+        (`b = 0`) and the min-chord rows (`b = min_chord_m`), in that order;
+        constant Jacobian `A span`.
+        """
+
+        monotone, _labels = self.manufacturing_rows()
+        floor, rhs, _floor_labels = self.min_chord_rows()
+        matrix = np.vstack([monotone, floor])
+        b = np.concatenate([np.zeros(monotone.shape[0]), rhs])
+        jac = matrix * self.bounds.span()[None, :]
+        offset = matrix @ self.bounds.lower() - b
+
+        return {
+            "type": "ineq",
+            "fun": lambda u: jac @ np.asarray(u, dtype=float) + offset,
+            "jac": lambda u: jac,
+        }
+
+    def _guarded(self, label, constraint):
+        """
+        The mass-problem wrapper for a state-dependent row: `fun` returns
+        `-FAILED_SLACK` and logs the point when the row cannot be evaluated
+        (outside the polar cache, or an unconverged solve); `jac` is left to
+        raise. See the module docstring.
+        """
+
+        fun, jac = constraint["fun"], constraint["jac"]
+
+        def guarded_fun(u):
+            try:
+                return fun(u)
+            except (PolarDomainError, RuntimeError) as error:
+                self.evaluation_failures.append({
+                    "row": label,
+                    "u": [float(x) for x in np.asarray(u, dtype=float)],
+                    "error": f"{type(error).__name__}: {error}",
+                })
+                return np.array([-FAILED_SLACK])
+
+        return {"type": "ineq", "fun": guarded_fun, "jac": jac}
+
+    def mass_problem_rows(self, delta, include=MASS_PROBLEM_ROWS):
+        """
+        The rows of the mass problem as `(label, constraint)` pairs, in
+        `MASS_PROBLEM_ROWS` order; `include` drops rows for an ablation, never
+        reorders them. The state rows are guarded.
+        """
+
+        builders = {
+            "envelope": lambda: self.envelope_constraint(),
+            "solidity": lambda: self.solidity_constraint(),
+            "manufacturing": lambda: self.manufacturing_constraints(),
+            "aep_floor": lambda: self._guarded("aep_floor", self.aep_floor_constraint(delta)),
+            "moment": lambda: self._guarded("moment", self.moment_constraint(0.0)),
+            "stress": lambda: self._guarded("stress", self.stress_constraint()),
+            "deflection": lambda: self._guarded("deflection", self.deflection_constraint()),
+        }
+        unknown = set(include) - set(MASS_PROBLEM_ROWS)
+        if unknown:
+            raise ValueError(f"unknown mass-problem rows {sorted(unknown)}")
+        return [(name, builders[name]()) for name in MASS_PROBLEM_ROWS if name in include]
+
+    def constraints_for_mass_problem(self, delta, include=MASS_PROBLEM_ROWS):
+        """The full inequality set of the mass problem at energy floor `delta`."""
+
+        return [constraint for _label, constraint in self.mass_problem_rows(delta, include)]
+
+    def mass_problem_slacks(self, u, delta, tol=ACTIVE_TOL):
+        """
+        Every scalar row of the mass problem at `u`: its slack, whether it is
+        active, and the ratios the artefacts report (`aep_over_ref`,
+        `ks_over_ks0`, `stress_ratio`, `deflection_ratio`). Evaluated
+        unguarded -- a point that cannot be evaluated raises here.
+        """
+
+        aep_slack = float(self.aep_floor_constraint(delta)["fun"](u)[0])
+        moment = self.moment_active(u, 0.0, tol=tol)
+        stress_slack = float(self.stress_constraint()["fun"](u)[0])
+        deflection_slack = float(self.deflection_constraint()["fun"](u)[0])
+        labels = self.manufacturing_row_labels()
+        mfg = self.manufacturing_constraints()["fun"](u)
+        return {
+            "aep_floor": {"delta": float(delta), "slack": aep_slack,
+                          "aep_over_ref": float(-self.fun(u)),
+                          "active": bool(aep_slack < tol)},
+            "moment": {"slack": moment["slack"], "ks_over_ks0": moment["KS"] / moment["KS0"],
+                       "active": moment["active"]},
+            "stress": {"slack": stress_slack, "stress_ratio": float(self.stress_ratio(u)),
+                       "active": bool(stress_slack < tol)},
+            "deflection": {"slack": deflection_slack,
+                           "deflection_ratio": float(self.deflection_ks(u) / self.D0),
+                           "active": bool(deflection_slack < tol)},
+            "manufacturing": {"rows": [labels[k] for k in range(len(labels)) if mfg[k] < tol],
+                              "slack_min": float(mfg.min()) if len(mfg) else None},
+        }
+
     # -- the polar-cache envelope (linear, mandatory) ------------------------
 
     def _chord_affine(self):
@@ -263,28 +974,33 @@ class ScaledProblem:
         -------
         dict
             `radii`, `chord_min_m`, `chord_max_m` (the raw cache limits per
-            station, before the margin), `margin`, `reynolds_lo/hi`, and the
-            speeds `v_min`, `v_max` the limits were computed at.
+            station, before the margin), `margin`, `reynolds_lo/hi`, and per
+            station the operating point (`v_at_min_w`, `v_at_max_w`, with
+            `tsr_at_*`) whose `W` set each limit.
         """
 
         nu = float(self.site.kinematic_viscosity)
-        tsr = float(self.design.design_tsr)
         R = self.parameterisation.radius_m
         radii = self.parameterisation.radii
 
-        speeds = self.operating_speeds()
-        v_min, v_max = min(speeds), max(speeds)
-        w_at = lambda v: np.hypot(v, tsr * v * radii / R)  # noqa: E731
+        points = self.operating_points()
+        # W[b, i] = hypot(V_b, Omega_b r_i), every operating point x station.
+        w = np.array([np.hypot(v, lam * v * radii / R) for v, lam in points])
+        b_min = np.argmin(w, axis=0)
+        b_max = np.argmax(w, axis=0)
+        stations = np.arange(len(radii))
 
         return {
             "radii": radii,
-            "chord_min_m": self.reynolds_lo * nu / w_at(v_min),
-            "chord_max_m": self.reynolds_hi * nu / w_at(v_max),
+            "chord_min_m": self.reynolds_lo * nu / w[b_min, stations],
+            "chord_max_m": self.reynolds_hi * nu / w[b_max, stations],
             "margin": self.margin,
             "reynolds_lo": self.reynolds_lo,
             "reynolds_hi": self.reynolds_hi,
-            "v_min": v_min,
-            "v_max": v_max,
+            "v_at_min_w": np.array([points[b][0] for b in b_min]),
+            "tsr_at_min_w": np.array([points[b][1] for b in b_min]),
+            "v_at_max_w": np.array([points[b][0] for b in b_max]),
+            "tsr_at_max_w": np.array([points[b][1] for b in b_max]),
         }
 
     def envelope_constraint(self):
@@ -318,19 +1034,76 @@ class ScaledProblem:
         return ([f"floor r={r:.4f}" for r in radii]
                 + [f"ceiling r={r:.4f}" for r in radii])
 
-    # -- solidity (built, never run: no cap has been decided) ---------------
+    def solidity_row_labels(self):
+        """`"solidity r=..."` per row of `solidity_constraint`."""
 
-    def solidity_constraint(self, cap):
+        return [f"solidity r={r:.4f}" for r in self.parameterisation.radii]
+
+    def constraints(self):
+        """
+        The inequality set every optimisation run uses: the polar-cache
+        envelope and the configured solidity cap, in that order. One place,
+        so no script can quietly run a different problem.
+        """
+
+        return [self.envelope_constraint(), self.solidity_constraint()]
+
+    def active_set(self, u, tol=ACTIVE_TOL, moment_eps=None, mass_delta=None):
+        """
+        Which bounds and constraint rows are active at `u`: a dict with
+        `bounds_lower`, `bounds_upper` (variable indices), `envelope`,
+        `solidity` (row labels), the tightest row of each constraint with
+        its slack, and every station's solidity.
+
+        With `moment_eps` given, the Phase 4 moment row is attached too (its
+        slack is `(KS0 - KS(u)) - eps KS0`, from `moment_active`). With
+        `mass_delta` given, every scalar row of the mass problem is attached
+        under `mass_problem` (`mass_problem_slacks`).
+        """
+
+        u = np.asarray(u, dtype=float)
+        env = self.envelope_constraint()["fun"](u)
+        sol = self.solidity_constraint()["fun"](u)
+        env_labels = self.envelope_row_labels()
+        sol_labels = self.solidity_row_labels()
+        chord = self.parameterisation.chord(self.physical(u))
+        sigma = self.design.n_blades * chord / (2.0 * math.pi * self.parameterisation.radii)
+        report = {
+            "bounds_lower": [int(j) for j in range(self.n) if abs(u[j]) < tol],
+            "bounds_upper": [int(j) for j in range(self.n) if abs(1.0 - u[j]) < tol],
+            "envelope": [env_labels[k] for k in range(len(env)) if env[k] < tol],
+            "solidity": [sol_labels[k] for k in range(len(sol)) if sol[k] < tol],
+            "envelope_tightest": {"row": env_labels[int(np.argmin(env))],
+                                  "slack_m": float(env.min())},
+            "solidity_tightest": {"row": sol_labels[int(np.argmin(sol))],
+                                  "slack": float(sol.min())},
+            "sigma_max": float(sigma.max()),
+            "sigma_cap": float(self.design.max_local_solidity),
+        }
+        if moment_eps is not None:
+            moment = self.moment_active(u, moment_eps, tol=tol)
+            report["moment"] = moment
+            report["moment_tightest"] = {"row": "moment", "slack": moment["slack"]}
+        if mass_delta is not None:
+            report["mass_problem"] = self.mass_problem_slacks(u, mass_delta, tol=tol)
+        return report
+
+    # -- solidity -------------------------------------------------------------
+
+    def solidity_constraint(self, cap=None):
         """
         SciPy inequality `cap - sigma_i >= 0`, `sigma_i = B c_i / (2 pi r_i)`.
 
-        `cap` is required and has no default: no solidity limit has been
-        decided (it depends on the same undecided root-attachment concept as
-        `chord_max_m`), so this constraint is not used in any run. It exists
-        so that the day a value lands, it is one argument away.
+        `cap` defaults to the configured `constraints.max_local_solidity`
+        (0.5, resolved 2026-09-19 with `chord_max_m`). Linear, constant
+        Jacobian. With the 0.30 m box on the control points and the spline's
+        convex-hull property the cap cannot be reached (the first station
+        would need 350 mm), so it reports inactive in every run; it is in
+        the constraint set because it is the principled radius-aware form of
+        the same limit, not because it shapes any result.
         """
 
-        cap = float(cap)
+        cap = float(self.design.max_local_solidity if cap is None else cap)
         A, b = self._chord_affine()
         factor = self.design.n_blades / (2.0 * math.pi * self.parameterisation.radii)
         jac = -A * factor[:, None]
@@ -348,24 +1121,24 @@ class ScaledProblem:
         """
         Per-operating-point station state at `u`: what the post-checks read.
 
-        Solves the rotor at every speed in `operating_speeds()` (17 solves,
+        Solves the rotor at every point in `operating_points()` (17 solves,
         the cost of one objective evaluation). Returns a dict of lists, one
-        entry per speed: `speeds`, `alpha_deg` (25,), `reynolds` (25,),
-        `phi` (25,), `a` (25,), `power_w`, `converged`.
+        entry per point: `speeds`, `tsr`, `alpha_deg` (25,), `reynolds`
+        (25,), `phi` (25,), `a` (25,), `power_w`, `converged`.
         """
 
         d = self.physical(u)
         geometry = self.parameterisation.to_geometry(d, polar_cache=self.polar_cache)
-        tsr = float(self.design.design_tsr)
         rho = float(self.site.air_density)
         nu = float(self.site.kinematic_viscosity)
 
-        state = {"speeds": [], "alpha_deg": [], "reynolds": [], "phi": [], "a": [],
-                 "power_w": [], "converged": []}
-        for v in self.operating_speeds():
+        state = {"speeds": [], "tsr": [], "alpha_deg": [], "reynolds": [], "phi": [],
+                 "a": [], "power_w": [], "converged": []}
+        for v, tsr in self.operating_points():
             power, result = aerodynamic_power(geometry, v, tsr, rho, nu)
             stations = result["stations"]
             state["speeds"].append(v)
+            state["tsr"].append(tsr)
             state["alpha_deg"].append([math.degrees(s["alpha"]) for s in stations])
             state["reynolds"].append([s["reynolds"] for s in stations])
             state["phi"].append([s["phi"] for s in stations])
@@ -383,22 +1156,40 @@ class ScaledProblem:
         Returns a dict with the extreme angles, the limits, the margin to the
         nearest limit, the Reynolds extremes (the same pass answers whether
         the envelope ceiling is close, §4.5), and `within`.
+
+        Reported twice: over every operating point, and over the *uncapped*
+        points only. Under a rotor-speed ceiling the capped bins run
+        lambda ~ 3-5 and their inboard stations sit in the Viterna
+        extrapolation (alpha ~ 30 deg at 19.5 m/s); they contribute a
+        constant to the objective and nothing to the gradient, so the
+        uncapped figure is the one that says whether the *optimised* part of
+        the objective is inside the validated polar band. Both are
+        reported so neither can be mistaken for the other.
         """
 
         state = self.operating_state(u)
         alpha = np.array(state["alpha_deg"])
         reynolds = np.array(state["reynolds"])
+        uncapped = np.array(state["power_w"]) <= float(self.design.rated_power_w)
 
-        alpha_min, alpha_max = float(alpha.min()), float(alpha.max())
-        return {
-            "alpha_min_deg": alpha_min,
-            "alpha_max_deg": alpha_max,
+        def band(rows):
+            lo, hi = float(alpha[rows].min()), float(alpha[rows].max())
+            return {
+                "alpha_min_deg": lo,
+                "alpha_max_deg": hi,
+                "alpha_margin_deg": float(min(lo - self.alpha_min_deg, self.alpha_max_deg - hi)),
+                "within": bool(lo >= self.alpha_min_deg and hi <= self.alpha_max_deg),
+            }
+
+        every = band(np.ones(len(alpha), dtype=bool))
+        report = dict(every)
+        report.update({
             "alpha_limits_deg": [self.alpha_min_deg, self.alpha_max_deg],
-            "alpha_margin_deg": float(min(alpha_min - self.alpha_min_deg,
-                                          self.alpha_max_deg - alpha_max)),
-            "within": bool(alpha_min >= self.alpha_min_deg and alpha_max <= self.alpha_max_deg),
+            "uncapped": band(uncapped) if uncapped.any() else None,
+            "n_uncapped_points": int(uncapped.sum()),
             "reynolds_min": float(reynolds.min()),
             "reynolds_max": float(reynolds.max()),
             "reynolds_limits": [self.reynolds_lo, self.reynolds_hi],
             "all_converged": all(state["converged"]),
-        }
+        })
+        return report

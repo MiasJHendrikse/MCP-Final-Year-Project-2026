@@ -23,8 +23,8 @@ What this script measures
 Outputs next to this script: `fit_error.json`, `fit_error.png`, and the
 README written from them.
 
-Provisional bounds: `chord_max_m = 0.45 m` is a placeholder pending the
-hub-radius / root-attachment decision; A4's gain is under provisional bounds.
+Bounds: the configured set (`DesignBounds.from_config()`), grounded
+2026-09-19 -- `chord_max_m = 0.30 m`; A4's gain is stated under those bounds.
 
 Run from the repo root (~5 s):
 
@@ -56,8 +56,8 @@ A4_RESULT_PATH = os.path.join(REPO_ROOT, "verification", "fd_optimisation", "res
 JSON_PATH = os.path.join(_HERE, "fit_error.json")
 FIGURE_PATH = os.path.join(_HERE, "fit_error.png")
 
-PROVISIONAL_LABEL = ("under provisional bounds (chord_max_m = 0.45 m provisional; "
-                     "chord_min_m, twist_min, twist_max grounded)")
+BOUNDS_LABEL = ("under the configured bounds (chord_max_m = 0.30 m, resolved "
+                "2026-09-19; chord_min_m, twist_min, twist_max grounded 2026-09-13)")
 N_FINE = 401
 
 
@@ -150,7 +150,7 @@ def main():
         "description": "Fit error between the analytic Schmitz chord/twist and x0's "
                        "spline projection (PROJECT_DIRECTION_v2 §7.3 point 4), and "
                        "the AEP of the analytic blade vs x0 vs A4's optimum.",
-        "provisional_bounds": PROVISIONAL_LABEL,
+        "bounds_label": BOUNDS_LABEL,
         "command": "python verification/spline_fit_error/run_fit_error.py",
         "generated": datetime.datetime.now().isoformat(timespec="seconds"),
         "parameterisation": {"n_chord": parameterisation.n_chord, "n_twist": parameterisation.n_twist,
@@ -253,7 +253,7 @@ def plot(summary, path):
         ax.grid(True, color="#dddddd", lw=0.6)
         ax.legend(fontsize=8, frameon=False)
 
-    fig.suptitle("Schmitz baseline: analytic vs spline projection (x0) -- " + PROVISIONAL_LABEL, fontsize=10)
+    fig.suptitle("Schmitz baseline: analytic vs spline projection (x0) -- " + BOUNDS_LABEL, fontsize=10)
     fig.tight_layout()
     fig.savefig(path, dpi=150)
     plt.close(fig)

@@ -14,6 +14,17 @@ Regeneration is deliberate, not routine — the same rule as the golden files. I
 these numbers move, something in the solver or the polar layer moved, and the
 commit message has to say what and why.
 
+**Re-run 2026-09-19 under the 300 rpm operating law and the configured
+bounds.** `x0.json`'s design vector is **byte-identical** to the committed
+one (the bounds do not move a point that was already inside them); the only
+change in that file is its `feasibility` block, which flipped from
+`checked: false` to `checked: true` with no violations now that
+`config/rotor_design.yaml` carries the box (below). The *reference numbers*
+moved for the reason recorded in the commit that introduced the ceiling: the
+rotor now runs λ = 6.5 only up to V_c = 9.67 m/s and holds 300 rpm above it,
+so the 11 m/s design point is no longer at the design TSR (see "History"
+below for the pre-ceiling figures, which are kept deliberately).
+
 ## Construction
 
 1. Analytic **Schmitz** distribution at the SG6043 maximum-L/D point.
@@ -46,17 +57,30 @@ blade rather than an approximation of it.
 
 | | |
 |---|---|
-| Cp at design point (λ = 6.5, V = 11 m/s) | **0.4720** |
-| Ct at design point | **0.8111** |
-| peak Cp | **0.4720 at λ = 6.5** |
-| root bending moment | **206.7 N·m per blade** |
-| peak thrust | **597.2 N at 11 m/s** |
-| AEP | **outstanding — see below** |
+| Cp at design point (V = 11 m/s, λ = 5.711986642890533, 300 rpm) | **0.4516** |
+| Ct at design point | **0.7029** |
+| aerodynamic power at design point | **3656.9 W** |
+| peak Cp on the fixed-λ curve | **0.4720 at λ = 6.5** |
+| root bending moment | **177.38 N·m per blade** (was 206.7) |
+| peak thrust | **517.51 N at 11 m/s** (was 597.2) |
+| AEP | **10.2477 MWh/yr** (was absent) |
+
+The earlier edition of this file said AEP was "outstanding", feasibility was
+unchecked and the above-rated line was unswept. All three are now answered
+(the sites' Weibull inputs arrived; the bounds are in `config/`; the 300 rpm
+ceiling *is* the above-rated operating law) and the numbers above are the
+answers. The paragraphs in "What is outstanding" below are kept, struck
+through in substance, so that the change is visible rather than silently
+overwritten.
 
 **The peak Cp landing exactly at the design λ is the strongest available check
 on the construction.** The blade is designed for λ = 6.5; if the Schmitz
 formulae, the twist convention, or the solver wiring were wrong, the peak would
-sit somewhere else. `tests/test_baseline.py` asserts it.
+sit somewhere else. `tests/test_baseline.py` asserts it. Note that the peak is
+on the *fixed-λ* curve, which is what the construction check needs; the
+schedule the machine actually runs caps λ at 300 rpm from V = 9.67 m/s, so the
+design point at 11 m/s sits at λ = 5.71 and Cp = 0.4516, below the peak — the
+blade is deliberately no longer at its design TSR at rated wind speed.
 
 Cp = 0.472 against the Betz limit of 0.593 is what a real blade with drag
 achieves — the ~20 % shortfall is profile drag plus tip loss, not an error.
@@ -65,31 +89,56 @@ Root bending moment is **per blade**, not per rotor: the root attachment
 carries one blade's load, and a rotor-summed figure would overstate it by a
 factor of B.
 
+### History
+
+| | 2026-09-13 (no rotor-speed ceiling, λ = 6.5 everywhere) | 2026-09-19 (300 rpm) |
+|---|---|---|
+| Cp at 11 m/s | 0.4720 | 0.4516 (λ = 5.712) |
+| root bending moment | 206.7 N·m | 177.38 N·m |
+| peak thrust | 597.2 N | 517.51 N |
+| AEP | not computable | 10.2477 MWh/yr |
+
+The drop is arithmetic, not regression: capping the rotor speed lowers λ above
+9.67 m/s, which lowers Cp and Ct at the same wind speed, hence both loads and
+the AEP the baseline extracts. `tests/test_baseline.py` pins the current
+numbers; the pre-ceiling ones live in the git history and in the 2026-09-19
+journal entry.
+
 ## What is outstanding
 
-**AEP is absent, not estimated.** It needs the Weibull parameters, which are
-`TODO` (see [`docs/OUTSTANDING-INPUTS.md`](../../docs/OUTSTANDING-INPUTS.md)
-§1). `baseline_reference.json` carries an `outstanding` block naming it as
-blocked. An estimated AEP sitting in the reference numbers would be
-indistinguishable from a real one to anyone reading this later, which is
-exactly the failure ground rule 3 exists to prevent.
+**Nothing in this artefact is blocked any more.** The section is kept as a
+record of what the earlier edition said and what answered it.
 
-**Feasibility was not checked**, and the artefact says so — `feasibility.checked`
-is `false` with the reason attached. The bounds are `TODO`
-(`OUTSTANDING-INPUTS.md` §2). A baseline that was never checked must not read
-as one that passed.
+- *"AEP is absent, not estimated."* It was, pending the Weibull parameters
+  (`docs/OUTSTANDING-INPUTS.md` §1). MJ supplied them; `aep_mwh_per_year` is
+  now **10.2477 MWh/yr**, inside the artefact's own `[8, 12]` sanity band
+  (`aep_in_sanity_band: true`).
+- *"Feasibility was not checked."* It is now: `x0.json`'s `feasibility` block
+  reads `checked: true`, `clipped: false`, `violations: []`, because
+  `config/rotor_design.yaml` carries the box (`chord_min_m = 0.045`,
+  `chord_max_m = 0.30`, `twist_min_deg = −2`, `twist_max_deg = 35`). The
+  bounds question is closed as of 2026-09-19. Context that made it a real
+  question at the time: the blade runs **263 mm chord at the root to 69 mm at
+  the tip**, twist **23.07° → 0.57°**, and a 263 mm root chord on a 2.0 m
+  blade is wide — characteristic of Schmitz. It turns out to sit inside the
+  0.30 m cap with 36 mm to spare. Had it not, `DesignBounds.clip_physical`
+  would have clipped it and `feasibility.violations` would say so rather than
+  leaving the caller to reconstruct the violation.
+- *"Above-rated operating line not swept."* It is specified now: the 300 rpm
+  ceiling in `config/rotor_design.yaml` is the operating law, and the sweep
+  runs 3.0 → 11.0 m/s in 0.5 m/s steps (17 points, all converged) with
+  λ = 6.5 up to V_c = 9.67 m/s and 300 rpm above it. Three knots of the sweep
+  sit on the ceiling (10.0, 10.5, 11.0 m/s at λ = 6.28, 5.98, 5.71) — visible
+  in `baseline.png` as the break in the λ curve.
 
-Context for whoever sets those bounds: this blade runs **263 mm chord at the
-root to 69 mm at the tip**, twist **23.07° → 0.57°**. A 263 mm root chord on a
-2.0 m blade is wide — characteristic of Schmitz — so whether the baseline is
-feasible is a genuinely open question, not a formality. If it is not, step 1.7
-requires it to be clipped and the violation *recorded*, which
-`DesignBounds.clip_physical` returns rather than leaving the caller to
-reconstruct.
-
-**Above-rated operating line not swept.** Power limiting above 11 m/s is part
-of the AEP model (step 1.5) and is not yet specified, so the operating line
-stops at rated rather than extrapolating a strategy that does not exist.
+**`baseline_reference.json`'s `outstanding.above_rated_operating_line` string
+is still the old text** ("… is not yet specified"). It is a hard-coded
+sentence in `generate_baseline.py`, it is now inaccurate, and it was left
+alone deliberately on 2026-09-19: rewriting it would edit a published
+artefact's provenance field in a re-run whose subject is the artefacts'
+numbers, and the correction belongs in the same commit as whatever fixes the
+generator's own idea of "outstanding". Recorded here and in the journal rather
+than silently dropped.
 
 ## Note on the interpolant fix
 

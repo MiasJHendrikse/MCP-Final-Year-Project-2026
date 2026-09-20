@@ -30,6 +30,7 @@ Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
 """
 
 import json
+import math
 import os
 import sys
 import time
@@ -40,7 +41,6 @@ from scipy.optimize import Bounds, minimize
 _HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(_HERE, "..", ".."))
 sys.path.insert(0, os.path.join(REPO, "src"))
-sys.path.insert(0, os.path.join(REPO, "tests"))
 
 from config import load_design_rotor, load_site  # noqa: E402
 from design import BladeParameterisation, DesignBounds  # noqa: E402
@@ -48,7 +48,16 @@ from gradients import ScaledProblem  # noqa: E402
 from objective import WeibullResource  # noqa: E402
 from objective.objective import HOURS_PER_YEAR  # noqa: E402
 from objective.power import aerodynamic_power, wind_speed_bins  # noqa: E402
-from test_parameterisation import PROVISIONAL_BOUNDS  # noqa: E402
+
+# The bounds this 2026-09-13 audit ran under, kept here verbatim so the script
+# stays a reproducible record. They were `tests/test_parameterisation.py::
+# PROVISIONAL_BOUNDS` at the time; that set was retired on 2026-09-19 when
+# `chord_max_m = 0.30 m` (O4) went into config/rotor_design.yaml. Do not read
+# 0.45 m as a current bound.
+PROVISIONAL_BOUNDS = {
+    "chord_min_m": 0.045, "chord_max_m": 0.45,
+    "twist_min_rad": math.radians(-2.0), "twist_max_rad": math.radians(35.0),
+}
 
 #: x0's aerodynamic rated power under the project's strategy, rounded to
 #: 0.1 W (verification/baseline/baseline_reference.json: 3822.19 W).

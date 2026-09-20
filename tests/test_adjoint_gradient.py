@@ -4,13 +4,14 @@ Phase 3, B3: the assembled adjoint gradient on the scaled problem.
 Tier 1 and Tier 2 live in their own files. This one pins the two things
 B3 adds on top of them: `ScaledProblem.jac_adjoint` is the adjoint
 gradient in `fun` units, and it agrees with the committed FD reference at
-`x0` to within the FD's own noise floor -- the Tier 3 acceptance, asserted
-here against `verification/fd_step_size/sweep.json` so that a change to
-either side is caught by the suite, not only by re-running the study. The
+`x0` to within the step-size study's `eps_j` (a flatness estimate of the
+FD's disagreement scale, not a measured noise floor) -- the Tier 3
+acceptance, asserted here against `verification/fd_step_size/sweep.json` so
+that a change to either side is caught by the suite, not only by re-running
+the study. The
 whole-chain Taylor remainder is asserted at `x0` as well.
 
-Bounds are provisional (`chord_max_m = 0.45 m` is a placeholder), from
-`test_parameterisation.PROVISIONAL_BOUNDS`.
+Bounds are the configured ones (`DesignBounds.from_config()`).
 
 Author: MJ Hendrikse
 Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
@@ -25,7 +26,6 @@ import pytest
 from design import BladeParameterisation, DesignBounds
 from gradients import ScaledProblem
 from objective import WeibullResource
-from test_parameterisation import PROVISIONAL_BOUNDS
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 X0_PATH = os.path.abspath(os.path.join(_HERE, "..", "verification", "baseline", "x0.json"))
@@ -35,8 +35,8 @@ SWEEP_PATH = os.path.abspath(os.path.join(_HERE, "..", "verification", "fd_step_
 @pytest.fixture(scope="module")
 def problem():
     parameterisation = BladeParameterisation()
-    bounds = DesignBounds(n_chord=parameterisation.n_chord,
-                          n_twist=parameterisation.n_twist, **PROVISIONAL_BOUNDS)
+    bounds = DesignBounds.from_config(n_chord=parameterisation.n_chord,
+                          n_twist=parameterisation.n_twist)
     return ScaledProblem(parameterisation, bounds, WeibullResource.from_config())
 
 

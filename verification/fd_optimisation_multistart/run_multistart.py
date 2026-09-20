@@ -2,10 +2,10 @@
 Multi-start FD-driven SLSQP: is A4's single-start optimum the optimum?
 
 Re-runs `verification/fd_optimisation/run_fd_slsqp.py`'s optimisation --
-same objective scaling (`fun = J / |J(x0)|`), same envelope constraint
-(margin 0.05), same `h*`, same SLSQP options (`ftol = 1e-8`, `maxiter = 200`)
--- from starting points sampled uniformly across the provisional bounds
-instead of from `x0`.
+same objective scaling (`fun = J / |J(x0)|`), same constraint set
+(`problem.constraints()`, margin 0.05), same `h*`, same SLSQP options
+(`ftol = 1e-8`, `maxiter = 200`) -- from starting points sampled uniformly
+across the configured bounds instead of from `x0`.
 
 Starting points
 ----------------
@@ -13,9 +13,10 @@ Starting points
 evaluated there: the envelope constraint holds (otherwise `CachedPolar`
 raises before SLSQP takes a step), every station converges at every
 operating point, and `J` is finite. Rejected candidates are recorded with the
-reason. The envelope ceiling binds the outboard chord control points hard
-(`c_4 <= 0.148 m` at the tip against a 0.45 m box), so "across the bounds"
-means across the *feasible* part of the box; that is stated in the README.
+reason. Under the 2026-09-19 bounds (0.30 m chord box at 300 rpm) the
+envelope ceiling is at `c_4 <= 0.289 m`, inside the box, so "across the
+bounds" means across the *feasible* part of the box; each start's
+`active_set` records which rows were binding at its optimum.
 
 Usage (from the repo root)
 --------------------------
@@ -29,9 +30,9 @@ Usage (from the repo root)
 The starts are independent, so `--start K` for every K can run in parallel
 processes.
 
-Provisional bounds: `chord_max_m = 0.45 m` is a placeholder pending the
-hub-radius / root-attachment decision; every optimum here is "under
-provisional bounds".
+Bounds: the configured set (`DesignBounds.from_config()`), grounded
+2026-09-19 -- `chord_max_m = 0.30 m` places the envelope ceiling at
+`c_4 <= 0.289 m`; the retired 0.45 m placeholder is not in play.
 
 Author: MJ Hendrikse
 Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
@@ -50,12 +51,11 @@ import numpy as np
 _HERE = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.abspath(os.path.join(_HERE, "..", ".."))
 sys.path.insert(0, os.path.join(REPO_ROOT, "src"))
-sys.path.insert(0, os.path.join(REPO_ROOT, "tests"))
 sys.path.insert(0, os.path.join(REPO_ROOT, "verification", "fd_optimisation"))
 
 from gradients.problem import DEFAULT_ENVELOPE_MARGIN  # noqa: E402
 from run_fd_slsqp import (  # noqa: E402
-    ACTIVE_TOL, ENVELOPE_ACTIVE_TOL, PROVISIONAL_LABEL,
+    ACTIVE_TOL, ENVELOPE_ACTIVE_TOL, BOUNDS_LABEL,
     build_problem, load_h_star, load_x0, run,
 )
 
@@ -121,10 +121,10 @@ def do_sample(args):
     problem = build_problem(DEFAULT_ENVELOPE_MARGIN)
     accepted, rejected = sample_starts(problem, args.n_starts, args.seed)
     payload = {
-        "provisional_bounds": PROVISIONAL_LABEL,
+        "bounds_label": BOUNDS_LABEL,
         "seed": args.seed,
         "n_starts": len(accepted),
-        "acceptance": "envelope satisfied, all stations converged at all 18 operating "
+        "acceptance": "envelope satisfied, all stations converged at all 17 operating "
                       "points, J finite",
         "variables": _names(problem),
         "starts": accepted,
@@ -169,7 +169,7 @@ def do_start(args):
     u_a4 = np.array(a4["u_star"])
 
     record = {
-        "provisional_bounds": PROVISIONAL_LABEL,
+        "bounds_label": BOUNDS_LABEL,
         "start": args.start,
         "generated": datetime.datetime.now().isoformat(timespec="seconds"),
         "fd_step": h,
@@ -197,6 +197,7 @@ def do_start(args):
                           "upper": [names[i] for i in range(problem.n) if abs(1 - u_star[i]) < ACTIVE_TOL]},
         "active_envelope_rows": [labels[i] for i in np.flatnonzero(g_env < ENVELOPE_ACTIVE_TOL)],
         "envelope_min_row_value_m": float(g_env.min()),
+        "active_set": problem.active_set(u_star),
         "distance_to_a4_u_inf": float(np.max(np.abs(u_star - u_a4))),
         "distance_to_a4_x": {names[i]: float(v) for i, v in
                              enumerate(problem.physical(u_star) - np.array(a4["x_star"]))},
@@ -238,7 +239,7 @@ def do_collect(args):
     x_stars = np.array([r["x_star"] for r in runs])
 
     summary = {
-        "provisional_bounds": PROVISIONAL_LABEL,
+        "bounds_label": BOUNDS_LABEL,
         "generated": datetime.datetime.now().isoformat(timespec="seconds"),
         "command": "python verification/fd_optimisation_multistart/run_multistart.py "
                    "--sample | --start K | --collect",
@@ -322,7 +323,7 @@ def plot(runs, a4, starts_payload, path):
     ax.grid(True, color="#dddddd", lw=0.6)
     ax.legend(fontsize=8, frameon=False)
 
-    fig.suptitle("Multi-start FD-driven SLSQP -- " + PROVISIONAL_LABEL, fontsize=10)
+    fig.suptitle("Multi-start FD-driven SLSQP -- " + BOUNDS_LABEL, fontsize=10)
     fig.tight_layout()
     fig.savefig(path, dpi=150)
     plt.close(fig)
