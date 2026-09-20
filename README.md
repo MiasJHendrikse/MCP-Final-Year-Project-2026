@@ -44,8 +44,9 @@ production problem is therefore *minimise blade material subject to AEP ≥
 Schmitz's, the root-moment cap, a root-stress proxy, a tip-deflection proxy
 and monotone chord/twist* — the verified objective adjoint as the energy-floor
 Jacobian, the moment adjoint as the cap and stress rows, and one new sibling
-adjoint (deflection). Result: **−4.24 % shell material at exactly Schmitz's
-energy** (`verification/mass_optimisation/`); the plan and its cut list are
+adjoint (deflection). Result: **−3.4 % shell material at exactly Schmitz's
+energy, −5.3 % within 0.5 % of it**, with a 60 mm buildable-tip floor
+(`verification/mass_optimisation/`); the plan and its cut list are
 `docs/PLAN-mass-objective-2026-09-20.md`. Title unchanged; research question
 rewritten in `docs/journal/PROJECT_PLAN.md`, Framing.
 
@@ -58,7 +59,7 @@ Phase numbering follows the plan rewrite of 2026-08-23:
 | **2** | Finite-difference gradient path | complete (2026-09-13) — `verification/fd_*` |
 | **3** | Discrete adjoint | complete (2026-09-13) — Tiers 1–4 verified, `verification/gradient_verification/`, `docs/adjoint_derivation.md` |
 | **4** | Structural constraint and cost scaling | complete (2026-09-19) — relative root-moment KS constraint, `verification/load_constraint/`; scaling law, `verification/cost_scaling/` |
-| **5** | Production runs and results — **re-pitched to minimum-material design 2026-09-20** | **run (2026-09-20)** — `verification/mass_optimisation/`: `x_m` at −4.24 % shell / −8.53 % solid material at AEP(x₀), ten starts agree, δ ∈ {0 … 2 %} front with KKT exchange rates, ablation, Tiers 1–3 at `x₀` and `x_m`, cross-evaluation. The energy optimum `x_c` (`verification/load_constraint/result_eps0.json`, +0.147 %) is now the comparison blade |
+| **5** | Production runs and results — **re-pitched to minimum-material design 2026-09-20** | **run (2026-09-20)** — `verification/mass_optimisation/`: `x_m` at −3.38 % shell / −7.28 % solid material at AEP(x₀) (−5.27 % / −9.67 % within 0.5 %), 60 mm tip floor, ten starts agree, δ ∈ {0 … 2 %} front with KKT exchange rates, ablation, Tiers 1–3 at `x₀` and `x_m`, rendered blades, cross-evaluation. The energy optimum `x_c` (`verification/load_constraint/result_eps0.json`, +0.147 %) is now the comparison blade |
 | **6** | Report | next — the results are all committed; Phase 6 is the only remaining work |
 | **7** | Optional (STEP export, DE, UI) | **cut 2026-09-20** |
 

@@ -97,7 +97,8 @@ limit, and the basis has to stay findable.
 
 | field | value | basis |
 |---|---|---|
-| `chord_min_m` | 0.045 m | SG6043 10 % t/c at 32.1 % chord → ~4.5 mm laminate minimum (2026-09-13) |
+| `chord_min_m` | 0.045 m | SG6043 10 % t/c at 32.1 % chord → ~4.5 mm laminate minimum (2026-09-13). **Superseded as a buildability statement on 2026-09-20** — it is the thickness of the *whole* section, and the mass objective put the tip on it (−4.24 % shell, 6:1 taper) — but **kept as the box** because the box sets the `u` scaling every Phase 1–4 artefact was measured in. The buildable-tip floor is the separate row below |
+| `manufacturing.min_chord_m` | **0.060 m** (new 2026-09-20, MJ's decision) | Five linear rows `c_i ≥ 0.060` in the mass problem (plan decision 6). 60 mm = a 6 mm section (two 2 mm skins + bond + web); below the Schmitz tip (67 mm), so `x0` and every reference are unchanged. 80 mm was measured and rejected (infeasible at δ = 0; would need a re-fitted reference; `misc/blade_shape_experiment`, scratch). Replaced by a laminate concept |
 | `chord_max_m` | **0.30 m** | local solidity at the root cut-out r = 0.3 m: 0.45 m gives σ = 0.72 (blades nearly touching; BEM's independent-annuli assumption and the Prandtl loss model no longer hold), 0.30 m gives σ = 0.48, the conventional edge of BEM validity; c/R = 0.15 is the top of the small-turbine commercial range (~0.08–0.15); the Schmitz root is 276 mm, so the baseline stays feasible and unclipped (audit §3.4) and the fairness argument is unchanged; measured neither generous nor punitive — +0.147 % at 300 rpm with either 0.30 or 0.45 m, and 2.33 → 2.28 % at 263 rpm |
 | `twist_min_deg` | −2° | Schmitz tip twist 0.57° with margin (2026-09-13). **Active at the optimum** from every start |
 | `twist_max_deg` | 35° | Schmitz root twist 23.07° with margin (2026-09-13) |
@@ -121,8 +122,14 @@ changed, the `u` scaling changed with it, so every gradient and optimisation
 artefact was re-run — see the 2026-09-19 journal entry.
 
 **What would replace it:** a hub radius and root-attachment concept that
-fixes a different upper chord. Then the value is replaced, not reconciled,
-and the artefacts re-run.
+fixes a different upper chord, or a laminate concept that fixes a different
+minimum section. Then the value is replaced, not reconciled, and the
+artefacts re-run. **2026-09-20:** the buildable-tip floor was needed and
+was added as a *row of the mass problem* (`manufacturing.min_chord_m`,
+above) precisely so that the box — and with it the scaling and every
+committed gradient artefact, including the red test's FD reference — stays
+as it is. Phase 4's `x_c` (tip 47.7 mm) violates that row by 12 mm and is
+kept as the energy reference, evaluated only.
 
 ---
 
@@ -387,8 +394,8 @@ Raised 2026-09-20 with the re-pitch to minimum-material design
 (`docs/PLAN-mass-objective-2026-09-20.md`). The Phase 5 objective is the
 shell material proxy `k_P ∫ c dr` per blade and every structural row is
 relative to the Schmitz `x₀`, so **no material input is needed for any
-result**: the headline is `−4.24 %` shell material (`−8.53 %` on the solid
-proxy) at equal energy, and stays a percentage.
+result**: the headline is `−3.38 %` shell material (`−7.28 %` on the solid
+proxy) at equal energy, `−5.27 %` within 0.5 % of it, and stays a percentage.
 
 The two fields are `TODO` in `config/rotor_design.yaml` (`structure:`) and
 arrive as `Unresolved`; `MaterialModel.mass_kg` returns `None` while they
