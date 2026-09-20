@@ -61,6 +61,32 @@ SLSQP -- the envelope and the configured solidity cap -- so no script can
 assemble a different one; `active_set(u)` reports which rows and bounds are
 active at a point.
 
+The mass problem (2026-09-20)
+------------------------------
+`docs/PLAN-mass-objective-2026-09-20.md`. The energy objective above becomes
+a constraint and the objective becomes the material proxy:
+
+    minimise    mass(u)  = A_shell(d) / A_shell(x0)          `objective.mass`, no BEM
+    subject to  AEP floor      -fun(u) - (1 - delta)  >= 0   `aep_floor_constraint(delta)`
+                moment cap     KS0 - KS(u)            >= 0   `moment_constraint(0)`
+                stress proxy   KS0/c00^2 - KS(u)/c0^2 >= 0   `stress_constraint()`
+                deflection     D0 - D(u)              >= 0   `deflection_constraint()`
+                monotone chord and twist control points     `manufacturing_constraints()`
+                envelope, solidity, box                      unchanged
+
+with `x0`, the committed Schmitz baseline, the reference of every relative
+row (it has zero slack on each of them by construction) and
+`constraints_for_mass_problem(delta)` the one assembly. The AEP row's
+Jacobian is `-jac_adjoint`; the moment and stress rows read the one cached
+`RootMomentSystem.gradient` at `u`; the deflection row reads a
+`DeflectionSystem.gradient` at `u` built on the *same* forward state (one
+9-point solve for three rows). The objective is geometry and cannot fail; the
+four state rows can (`PolarDomainError`, or an unconverged solve), and inside
+the mass problem their `fun` reports a large violation (`FAILED_SLACK`) and
+logs the point in `evaluation_failures` so SLSQP's line search backs off,
+while their `jac` raises -- a stale Jacobian is never substituted, and an
+accepted iterate that cannot be evaluated is a failed start.
+
 Author: MJ Hendrikse
 Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
 """
@@ -87,6 +113,15 @@ DEFAULT_KS_RHO = 100.0
 #: `|u|` or `|1 - u|` below this: the bound is active. `g(u)` below this: the
 #: constraint row is active. One tolerance for every reporting script.
 ACTIVE_TOL = 1e-6
+
+#: The slack a state-dependent row of the mass problem reports at a trial
+#: point it cannot evaluate: a violation large enough that SLSQP's merit
+#: function rejects the step. Reported, never silently absorbed.
+FAILED_SLACK = 1.0e3
+
+#: The rows of the mass problem, in assembly order.
+MASS_PROBLEM_ROWS = ("envelope", "solidity", "manufacturing", "aep_floor", "moment",
+                     "stress", "deflection")
 
 
 class ScaledProblem:
@@ -157,6 +192,19 @@ class ScaledProblem:
         self._ks0 = {}
         self._moment_cache = None
         self._moment_cache_key = None
+
+        # The mass problem (2026-09-20): the material model and its reference,
+        # the deflection system with its reference, its own cache, and the
+        # log of trial points a state row could not evaluate.
+        self._material = None
+        self.material_ref = None
+        self._deflection = None
+        self.delta_ref = None
+        self.D0 = None
+        self.n_deflection_solves = 0
+        self._deflection_cache = None
+        self._deflection_cache_key = None
+        self.evaluation_failures = []
 
     # -- variables ----------------------------------------------------------
 
@@ -304,12 +352,10 @@ class ScaledProblem:
             return self._systems[rho]
 
         from adjoint.loads import RootMomentSystem
-        from design.baseline import build_schmitz_baseline
         from objective.loads import root_moment
 
         if self.m_ref is None:
-            x0 = build_schmitz_baseline().design_vector
-            self.u0 = self.scaled(x0)
+            x0 = self.reference_design()
             geometry = self.parameterisation.to_geometry(x0, polar_cache=self.polar_cache)
             v_rated = float(self.design.rated_wind_speed_ms)
             tsr_rated = tsr_schedule(v_rated, self.design.design_tsr,
@@ -339,10 +385,37 @@ class ScaledProblem:
             self.KS0 = float(result.KS)
         return system
 
+    def reference_design(self):
+        """
+        `x0`, the committed Schmitz baseline (`design.baseline.build_schmitz_baseline`,
+        which reproduces `verification/baseline/x0.json` bit for bit), and the
+        one place `self.u0` is set. Every relative row normalises on it.
+        """
+
+        from design.baseline import build_schmitz_baseline
+
+        x0 = np.asarray(build_schmitz_baseline().design_vector, dtype=float)
+        if self.u0 is None:
+            self.u0 = self.scaled(x0)
+        return x0
+
     def load_system(self):
         """The default (`rho = 100`) `RootMomentSystem` over the load set `L`."""
 
         return self._system_for(DEFAULT_KS_RHO)
+
+    def _shared_load_state(self, u_key):
+        """
+        A forward state over `L` already solved at this exact `u`, from either
+        the moment or the deflection cache, or `None`. The two systems share
+        the points, so a state one of them solved is the other's.
+        """
+
+        if self._moment_cache is not None and self._moment_cache_key[1] == u_key:
+            return self._moment_cache.state
+        if self._deflection_cache is not None and self._deflection_cache_key == u_key:
+            return self._deflection_cache.state
+        return None
 
     def _moment_at(self, u, rho):
         """
@@ -357,10 +430,13 @@ class ScaledProblem:
         key = (float(rho), u.tobytes())
         if key == self._moment_cache_key:
             return self._moment_cache
-        result = self._system_for(rho).gradient(self.physical(u))
+        system = self._system_for(rho)
+        state = self._shared_load_state(key[1])
+        if state is None:
+            self.n_moment_solves += 1
+        result = system.gradient(self.physical(u), state=state)
         self._moment_cache_key = key
         self._moment_cache = result
-        self.n_moment_solves += 1
         return result
 
     def moment_state(self, u):
@@ -516,6 +592,327 @@ class ScaledProblem:
             },
         }
 
+    # -- the mass problem (2026-09-20) ------------------------------------------
+
+    def material_model(self):
+        """
+        The `objective.mass.MaterialModel` over this parameterisation (the
+        configured `objective.mass_model`), built on first use; the
+        normaliser `material_ref = value(x0)` is measured in the same pass.
+        """
+
+        if self._material is None:
+            from objective.mass import MaterialModel
+
+            self._material = MaterialModel(self.parameterisation, polar_cache=self.polar_cache,
+                                           design=self.design)
+            # On `physical(u0)`, not `x0`: the scaled round trip differs from
+            # `x0` in the last bit, and the objective must be 1.0 at `u0`
+            # exactly as `fun(u0)` is -1.0 (KS0 and D0 are measured the same way).
+            self.reference_design()
+            self.material_ref = float(self._material.value(self.physical(self.u0)))
+        return self._material
+
+    def mass(self, u):
+        """
+        The mass-problem objective: the material proxy at `u` as a fraction
+        of the reference's, `value(d) / value(x0)`. Exactly `1.0` at `u0`.
+        Geometry only -- no BEM, cannot fail.
+        """
+
+        model = self.material_model()
+        return float(model.value(self.physical(u))) / self.material_ref
+
+    def mass_jac(self, u):
+        """`d mass / du = gradient(d) * span / value(x0)` -- exact, constant for the shell."""
+
+        model = self.material_model()
+        return model.gradient(self.physical(u)) * self.bounds.span() / self.material_ref
+
+    def material_report(self, u):
+        """Both proxies at `u`, and as fractions of `x0`'s (`MaterialModel.report`)."""
+
+        model = self.material_model()
+        return model.report(self.physical(u), reference=self.physical(self.u0))
+
+    def aep_floor_constraint(self, delta):
+        """
+        SciPy inequality for the energy floor `AEP(u) >= (1 - delta) AEP(x0)`:
+
+            g_delta(u) = -fun(u) - (1 - delta)  >=  0
+
+        `fun = J / |J0|` with `J0 = J(u0)` (`set_reference(u0)` must have been
+        called with the reference), so `-fun(u0) = 1.0` to the bit and the
+        `delta = 0` slack at `u0` is exactly zero. `jac` is `-jac_adjoint`,
+        the verified objective adjoint as a constraint Jacobian.
+        """
+
+        if self.J0 is None:
+            raise RuntimeError("J0 not set: call set_reference(u0) with the reference blade first")
+        delta = float(delta)
+        if not 0.0 <= delta < 1.0:
+            raise ValueError(f"delta must be in [0, 1), got {delta}")
+        floor = 1.0 - delta
+
+        def fun(u):
+            return np.array([-self.fun(u) - floor])
+
+        def jac(u):
+            return (-self.jac_adjoint(u))[None, :]
+
+        return {"type": "ineq", "fun": fun, "jac": jac}
+
+    def _root_chord(self, u):
+        """`c0 = d_0`: the chord at the clamp `r_hub` (`s = 0`), which the clamped
+        spline interpolates, so its basis row is `e_0`."""
+
+        return float(self.physical(u)[0])
+
+    def _stress_reference(self):
+        """`KS0 / c00^2` at the committed reference, measured once."""
+
+        ks0 = self._moment_reference(DEFAULT_KS_RHO)
+        return ks0, self._root_chord(self.u0)
+
+    def stress_ratio(self, u):
+        """`KS(u) / c0(u)^2` over `KS0 / c00^2`: the root-stress proxy relative to `x0`."""
+
+        ks0, c00 = self._stress_reference()
+        return (self.moment_ks(u) / self._root_chord(u) ** 2) / (ks0 / c00 ** 2)
+
+    def stress_constraint(self):
+        """
+        SciPy inequality for the root-stress proxy, `sigma ~ KS_rho(M) / Z`
+        with `Z ~ c0^2 t` for a thin shell of constant laminate thickness:
+
+            g(u) = KS0 / c00^2 - KS(u) / c0(u)^2  >=  0
+
+        zero at `u0` to the bit. `jac = -(dKS/dd / c0^2 - 2 KS / c0^3 e_0) * span`
+        with `dKS/dd`, `KS` from the cached moment state at `u`.
+        """
+
+        ks0, c00 = self._stress_reference()
+        reference = ks0 / c00 ** 2
+        span = self.bounds.span()
+        e0 = np.zeros(self.n)
+        e0[0] = 1.0
+
+        def fun(u):
+            c0 = self._root_chord(u)
+            return np.array([reference - self.moment_state(u).KS / c0 ** 2])
+
+        def jac(u):
+            c0 = self._root_chord(u)
+            state = self.moment_state(u)
+            g = state.dKS_dd / c0 ** 2 - 2.0 * state.KS / c0 ** 3 * e0
+            return (-g * span)[None, :]
+
+        return {"type": "ineq", "fun": fun, "jac": jac}
+
+    def _deflection_system(self):
+        """
+        The `adjoint.deflection.DeflectionSystem` over `L` at the default
+        stiffness, built on first use. `delta_ref` is the rated-point
+        deflection of the committed `x0` through the forward path
+        (`objective.loads.tip_deflection_at`, as `m_ref` is `root_moment`);
+        `D0 = D(u0)` is measured in the same pass on the moment row's state.
+        """
+
+        if self._deflection is not None:
+            return self._deflection
+
+        from adjoint.deflection import DeflectionSystem
+        from objective.loads import tip_deflection_at
+
+        x0 = self.reference_design()
+        self._system_for(DEFAULT_KS_RHO)  # m_ref, KS0 and the u0 state
+        geometry = self.parameterisation.to_geometry(x0, polar_cache=self.polar_cache)
+        v_rated = float(self.design.rated_wind_speed_ms)
+        tsr_rated = tsr_schedule(v_rated, self.design.design_tsr, self.design.max_tip_speed_ms)
+        self.delta_ref = float(tip_deflection_at(
+            geometry, v_rated, tsr_rated, float(self.site.air_density),
+            float(self.site.kinematic_viscosity))[0])
+
+        system = DeflectionSystem(self.parameterisation, self.bounds, self.resource,
+                                  polar_cache=self.polar_cache, rho=DEFAULT_KS_RHO,
+                                  m_ref_nm=self.m_ref, delta_ref=self.delta_ref)
+        self._deflection = system
+        u0_key = np.asarray(self.u0, dtype=float).tobytes()
+        state = self._shared_load_state(u0_key)
+        if state is None:
+            self.n_deflection_solves += 1
+        result = system.gradient(self.physical(self.u0), state=state)
+        self._deflection_cache_key = u0_key
+        self._deflection_cache = result
+        self.D0 = float(result.D)
+        return system
+
+    def _deflection_at(self, u):
+        """The cached `DeflectionSystem.gradient(d(u))`, on the moment row's state if it has one."""
+
+        u = np.asarray(u, dtype=float)
+        key = u.tobytes()
+        system = self._deflection_system()
+        if key == self._deflection_cache_key:
+            return self._deflection_cache
+        state = self._shared_load_state(key)
+        if state is None:
+            self.n_deflection_solves += 1
+        result = system.gradient(self.physical(u), state=state)
+        self._deflection_cache_key = key
+        self._deflection_cache = result
+        return result
+
+    def deflection_state(self, u):
+        """The cached deflection-adjoint result at `u`."""
+
+        return self._deflection_at(u)
+
+    def deflection_ks(self, u):
+        """`D(u) = KS_rho(delta / delta_ref)` as a float."""
+
+        return float(self._deflection_at(u).D)
+
+    def deflection_constraint(self):
+        """
+        SciPy inequality for the tip-deflection proxy, `g(u) = D0 - D(u) >= 0`,
+        zero at `u0`; `jac = -dD/dd * span` by the deflection adjoint.
+        """
+
+        self._deflection_system()
+        d0 = self.D0
+        span = self.bounds.span()
+
+        def fun(u):
+            return np.array([d0 - self._deflection_at(u).D])
+
+        def jac(u):
+            return (-self._deflection_at(u).dD_dd * span)[None, :]
+
+        return {"type": "ineq", "fun": fun, "jac": jac}
+
+    def manufacturing_rows(self):
+        """
+        The difference matrix `D` (rows x n) of the enabled monotone blocks:
+        row `c_i - c_{i+1}` for chord, `theta_i - theta_{i+1}` for twist, per
+        `manufacturing.monotone_chord` / `monotone_twist` in config. Non-
+        increasing control points give a non-increasing B-spline (variation
+        diminishing), so these linear rows are the whole manufacturability
+        set. Empty (0 x n) when both are off.
+        """
+
+        n_c = self.parameterisation.n_chord
+        n_t = self.parameterisation.n_twist
+        rows, labels = [], []
+        blocks = []
+        if self.design.monotone_chord:
+            blocks.append(("chord", 0, n_c))
+        if self.design.monotone_twist:
+            blocks.append(("twist", n_c, n_t))
+        for name, offset, count in blocks:
+            for i in range(count - 1):
+                row = np.zeros(self.n)
+                row[offset + i] = 1.0
+                row[offset + i + 1] = -1.0
+                rows.append(row)
+                labels.append(f"monotone {name}_{i}-{name}_{i + 1}")
+        matrix = np.vstack(rows) if rows else np.zeros((0, self.n))
+        return matrix, labels
+
+    def manufacturing_row_labels(self):
+        return self.manufacturing_rows()[1]
+
+    def manufacturing_constraints(self):
+        """SciPy inequality `D (lo + u span) >= 0`; constant Jacobian `D span`."""
+
+        matrix, _labels = self.manufacturing_rows()
+        jac = matrix * self.bounds.span()[None, :]
+        offset = matrix @ self.bounds.lower()
+
+        return {
+            "type": "ineq",
+            "fun": lambda u: jac @ np.asarray(u, dtype=float) + offset,
+            "jac": lambda u: jac,
+        }
+
+    def _guarded(self, label, constraint):
+        """
+        The mass-problem wrapper for a state-dependent row: `fun` returns
+        `-FAILED_SLACK` and logs the point when the row cannot be evaluated
+        (outside the polar cache, or an unconverged solve); `jac` is left to
+        raise. See the module docstring.
+        """
+
+        fun, jac = constraint["fun"], constraint["jac"]
+
+        def guarded_fun(u):
+            try:
+                return fun(u)
+            except (PolarDomainError, RuntimeError) as error:
+                self.evaluation_failures.append({
+                    "row": label,
+                    "u": [float(x) for x in np.asarray(u, dtype=float)],
+                    "error": f"{type(error).__name__}: {error}",
+                })
+                return np.array([-FAILED_SLACK])
+
+        return {"type": "ineq", "fun": guarded_fun, "jac": jac}
+
+    def mass_problem_rows(self, delta, include=MASS_PROBLEM_ROWS):
+        """
+        The rows of the mass problem as `(label, constraint)` pairs, in
+        `MASS_PROBLEM_ROWS` order; `include` drops rows for an ablation, never
+        reorders them. The state rows are guarded.
+        """
+
+        builders = {
+            "envelope": lambda: self.envelope_constraint(),
+            "solidity": lambda: self.solidity_constraint(),
+            "manufacturing": lambda: self.manufacturing_constraints(),
+            "aep_floor": lambda: self._guarded("aep_floor", self.aep_floor_constraint(delta)),
+            "moment": lambda: self._guarded("moment", self.moment_constraint(0.0)),
+            "stress": lambda: self._guarded("stress", self.stress_constraint()),
+            "deflection": lambda: self._guarded("deflection", self.deflection_constraint()),
+        }
+        unknown = set(include) - set(MASS_PROBLEM_ROWS)
+        if unknown:
+            raise ValueError(f"unknown mass-problem rows {sorted(unknown)}")
+        return [(name, builders[name]()) for name in MASS_PROBLEM_ROWS if name in include]
+
+    def constraints_for_mass_problem(self, delta, include=MASS_PROBLEM_ROWS):
+        """The full inequality set of the mass problem at energy floor `delta`."""
+
+        return [constraint for _label, constraint in self.mass_problem_rows(delta, include)]
+
+    def mass_problem_slacks(self, u, delta, tol=ACTIVE_TOL):
+        """
+        Every scalar row of the mass problem at `u`: its slack, whether it is
+        active, and the ratios the artefacts report (`aep_over_ref`,
+        `ks_over_ks0`, `stress_ratio`, `deflection_ratio`). Evaluated
+        unguarded -- a point that cannot be evaluated raises here.
+        """
+
+        aep_slack = float(self.aep_floor_constraint(delta)["fun"](u)[0])
+        moment = self.moment_active(u, 0.0, tol=tol)
+        stress_slack = float(self.stress_constraint()["fun"](u)[0])
+        deflection_slack = float(self.deflection_constraint()["fun"](u)[0])
+        _matrix, labels = self.manufacturing_rows()
+        mfg = self.manufacturing_constraints()["fun"](u)
+        return {
+            "aep_floor": {"delta": float(delta), "slack": aep_slack,
+                          "aep_over_ref": float(-self.fun(u)),
+                          "active": bool(aep_slack < tol)},
+            "moment": {"slack": moment["slack"], "ks_over_ks0": moment["KS"] / moment["KS0"],
+                       "active": moment["active"]},
+            "stress": {"slack": stress_slack, "stress_ratio": float(self.stress_ratio(u)),
+                       "active": bool(stress_slack < tol)},
+            "deflection": {"slack": deflection_slack,
+                           "deflection_ratio": float(self.deflection_ks(u) / self.D0),
+                           "active": bool(deflection_slack < tol)},
+            "manufacturing": {"rows": [labels[k] for k in range(len(labels)) if mfg[k] < tol],
+                              "slack_min": float(mfg.min()) if len(mfg) else None},
+        }
+
     # -- the polar-cache envelope (linear, mandatory) ------------------------
 
     def _chord_affine(self):
@@ -606,7 +1003,7 @@ class ScaledProblem:
 
         return [self.envelope_constraint(), self.solidity_constraint()]
 
-    def active_set(self, u, tol=ACTIVE_TOL, moment_eps=None):
+    def active_set(self, u, tol=ACTIVE_TOL, moment_eps=None, mass_delta=None):
         """
         Which bounds and constraint rows are active at `u`: a dict with
         `bounds_lower`, `bounds_upper` (variable indices), `envelope`,
@@ -614,7 +1011,9 @@ class ScaledProblem:
         its slack, and every station's solidity.
 
         With `moment_eps` given, the Phase 4 moment row is attached too (its
-        slack is `(KS0 - KS(u)) - eps KS0`, from `moment_active`).
+        slack is `(KS0 - KS(u)) - eps KS0`, from `moment_active`). With
+        `mass_delta` given, every scalar row of the mass problem is attached
+        under `mass_problem` (`mass_problem_slacks`).
         """
 
         u = np.asarray(u, dtype=float)
@@ -640,6 +1039,8 @@ class ScaledProblem:
             moment = self.moment_active(u, moment_eps, tol=tol)
             report["moment"] = moment
             report["moment_tightest"] = {"row": "moment", "slack": moment["slack"]}
+        if mass_delta is not None:
+            report["mass_problem"] = self.mass_problem_slacks(u, mass_delta, tol=tol)
         return report
 
     # -- solidity -------------------------------------------------------------

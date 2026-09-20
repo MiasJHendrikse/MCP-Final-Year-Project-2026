@@ -11,8 +11,8 @@ What is compared to what
     (`D(phi, d)`) against `dD_dx`, `dD_dd` (Tier 1, at the functional level:
     TOL_J, as `dKS_dx` / `dKS_dd`);
   * the forward-mode tangent against the adjoint direction (Tier 2);
-  * the constraint Jacobian against central FD at `u0` (Tier 3; the
-    `ScaledProblem` wrapper arrives in Step 3 and the test is appended then).
+  * the wrapped constraint's Jacobian (`ScaledProblem.deflection_constraint`,
+    Step 3) against central FD at `u0` (Tier 3), on the Phase 4 pattern.
 
 Tolerances are the existing mixed ones; never loosen them.
 
@@ -30,6 +30,7 @@ import pytest
 from adjoint import BEMSystem, DeflectionSystem, RootMomentSystem
 from config import load_site
 from design import BladeParameterisation, DesignBounds
+from gradients import ScaledProblem, central_difference
 from objective import WeibullResource
 from objective.loads import (
     load_operating_points,
@@ -45,6 +46,8 @@ X0_PATH = os.path.join(ROOT, "verification", "baseline", "x0.json")
 
 H = 1e-30
 TOL_J = 1e-12
+#: The committed global step of the A3 study (verification/fd_step_size).
+H_STAR_GLOBAL = 3.162277660168379e-06
 M_REFERENCE = 177.3755406092969
 #: `tip_deflection` at `x0`, 11 m/s on the 300 rpm ceiling, per unit E k_I t_shell.
 DELTA_REFERENCE = 30776.559398053847
@@ -271,3 +274,83 @@ def test_moment_functional_still_available_on_the_same_instance(system, state):
 
     assert system.KS(state.phi, state.d) == pytest.approx(
         RootMomentSystem.KS(system, state.phi, state.d), rel=1e-15)
+
+
+# ---------------------------------------------------------------------------
+# Tier 3: the wrapped constraint against central FD (Step 3)
+# ---------------------------------------------------------------------------
+
+@pytest.fixture(scope="module")
+def problem():
+    parameterisation = BladeParameterisation()
+    bounds = DesignBounds.from_config(n_chord=parameterisation.n_chord,
+                                      n_twist=parameterisation.n_twist)
+    problem = ScaledProblem(parameterisation, bounds, WeibullResource.from_config())
+    problem.set_reference(problem.scaled(problem.reference_design()))
+    return problem
+
+
+def test_deflection_constraint_is_zero_slack_at_the_reference(problem):
+    u0 = np.asarray(problem.u0)
+    assert float(problem.deflection_constraint()["fun"](u0)[0]) == 0.0
+    assert problem.delta_ref == pytest.approx(DELTA_REFERENCE, rel=1e-12)
+    assert problem.D0 == pytest.approx(1.0004420795243203, rel=1e-12)
+    assert problem.deflection_ks(u0) == problem.D0
+
+
+def test_deflection_constraint_jacobian_matches_fd_at_x0(problem):
+    """`deflection_constraint()["jac"](u0)` vs central FD of its `fun` at the
+    committed global `h*` and `h* / sqrt(10)`, `h* sqrt(10)`, acceptance
+    `|adj - fd| <= 3 eps_j`; the round-off floor measured only on failure."""
+
+    u0 = np.asarray(problem.u0)
+    constraint = problem.deflection_constraint()
+    jac = constraint["jac"](u0)[0]
+    g = lambda u: float(constraint["fun"](u)[0])  # noqa: E731
+
+    def fd(h):
+        return central_difference(g, u0, h)[0]
+
+    g_mid = fd(H_STAR_GLOBAL)
+    g_lo = fd(H_STAR_GLOBAL / math.sqrt(10.0))
+    g_hi = fd(H_STAR_GLOBAL * math.sqrt(10.0))
+    eps = np.maximum(np.abs(g_mid - g_lo), np.abs(g_mid - g_hi))
+    abs_err = np.abs(jac - g_mid)
+
+    if not np.all(abs_err <= 3.0 * eps):
+        worst = int(np.argmax(abs_err / eps))
+        ts = np.linspace(-4e-12, 4e-12, 9)
+        e = np.zeros(problem.n)
+        e[worst] = 1.0
+        values = np.array([g(u0 + t * e) for t in ts])
+        residual = values - np.polyval(np.polyfit(ts, values, 1), ts)
+        floor = float(np.sqrt(np.mean(residual ** 2))) / H_STAR_GLOBAL
+        pytest.fail(
+            f"deflection constraint Jacobian outside 3 eps at variable {worst}: "
+            f"|adj - fd| = {abs_err[worst]:.3e}, eps = {eps[worst]:.3e}, "
+            f"ratio = {abs_err[worst] / eps[worst]:.3f}, measured round-off floor = "
+            f"{floor:.3e}, eps_below_floor = {bool(eps[worst] < floor)}")
+
+
+def test_deflection_constraint_taylor_remainder_is_second_order(problem):
+    u0 = np.asarray(problem.u0)
+    constraint = problem.deflection_constraint()
+    jac = constraint["jac"](u0)[0]
+    g = lambda u: float(constraint["fun"](u)[0])  # noqa: E731
+    steps = (1e-2, 1e-3, 1e-4)
+
+    rng = np.random.default_rng(11)
+    envelope = problem.envelope_constraint()["fun"]
+    for _attempt in range(50):
+        v = rng.normal(size=problem.n)
+        v /= np.linalg.norm(v)
+        if all(np.all(envelope(u0 + h * v) > 0.0) for h in steps):
+            break
+    else:
+        pytest.fail("no envelope-feasible direction found for the deflection Taylor test")
+
+    g0 = g(u0)
+    slope = float(jac @ v)
+    remainders = [abs(g(u0 + h * v) - g0 - h * slope) for h in steps]
+    ratios = [remainders[0] / remainders[1], remainders[1] / remainders[2]]
+    assert min(ratios) >= 30.0, (remainders, ratios)
