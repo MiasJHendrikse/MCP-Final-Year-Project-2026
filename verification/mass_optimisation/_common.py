@@ -184,6 +184,29 @@ def loads_at(problem, d, with_spanwise=False):
     return record
 
 
+def reynolds_all_bins(problem, d):
+    """
+    The zero-induction station Reynolds numbers of blade `d` over all 17
+    wind-speed bins: `min`, `max` and the counts. `BEMSystem.reynolds` is
+    `hypot(V_b, Omega_b r_i) c_i / nu`, the estimate the polar cache is sized
+    against -- not the solved state's Reynolds numbers, which are reported
+    separately as `post_check.reynolds_*`. No BEM solve is spent.
+    """
+
+    system = problem.adjoint_system()
+    chord = problem.parameterisation.chord(np.asarray(d, dtype=float))
+    values = np.array([[system.reynolds(b, i, float(chord[i]))
+                        for i in range(len(chord))]
+                       for b in range(len(system.points))])
+    return {
+        "min": float(values.min()),
+        "max": float(values.max()),
+        "n_bins": int(len(system.points)),
+        "n_stations": int(len(chord)),
+        "method": "zero-induction hypot(V, Omega r) c / nu (BEMSystem.reynolds)",
+    }
+
+
 def worst_slack(slacks):
     """The worst slack over the five mass-problem rows of a `blade_record`'s `slacks`."""
 
@@ -230,6 +253,7 @@ def blade_record(problem, u, delta, label, u0=None):
         "loads_rated": loads,
         "post_check": check,
         "reynolds_min": float(check["reynolds_min"]),
+        "reynolds_all_bins": reynolds_all_bins(problem, d),
         "du_inf_from_x0": None if u0 is None else float(np.max(np.abs(u - np.asarray(u0)))),
     }
 

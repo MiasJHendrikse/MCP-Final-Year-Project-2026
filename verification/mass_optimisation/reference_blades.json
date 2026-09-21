@@ -3,8 +3,8 @@
  "bounds_label": "under the configured bounds (chord_max_m = 0.30 m, resolved 2026-09-19; chord_min_m, twist_min, twist_max grounded 2026-09-13) and the 60 mm buildable-tip floor of the mass problem (manufacturing.min_chord_m, 2026-09-20)",
  "law_label": "lambda(V) = min(6.5, Omega_max R / V), Omega_max = 300 rpm (V_c = 9.67 m/s), fixed rating 3822.189755449124 W",
  "command": "python verification/mass_optimisation/run_mass_checks.py",
- "generated": "2026-09-20T12:24:58",
- "src_commit": "41d3ccabda7a4fade9cd40b38a4643d817dce66d",
+ "generated": "2026-09-21T18:52:50",
+ "src_commit": "9e4fc9d45f26aaa02181b193607e9c79261874f9",
  "sources": {
   "x0": "verification/baseline/x0.json",
   "x_c": "verification/load_constraint/result_eps0.json (x_c)",
@@ -61,10 +61,17 @@
     "shell_area_m2": 0.43705266291483963,
     "solid_volume_m3": 0.0022341394994333102,
     "planform_area_m2": 0.21335201212927016,
-    "mass_kg": null,
+    "mass_kg": 1.6782822255929841,
+    "shell_mass_kg": 1.6782822255929841,
+    "solid_mass_kg": 4.289547838911956,
     "section_coefficients": {
      "k_A": 0.06850241963050001,
-     "k_P": 2.048504996756389
+     "k_P": 2.048504996756389,
+     "k_I": 0.003293118852977795,
+     "k_Z": 0.051642701138200756,
+     "shell_centroid_y_over_c": 0.038922637325357994,
+     "extreme_fibre_over_c": 0.063767362674642,
+     "principal_rotation_deg": 0.08567485698054939
     },
     "shell_over_reference": 1.0,
     "solid_over_reference": 1.0
@@ -102,6 +109,20 @@
     "manufacturing": {
      "rows": [],
      "slack_min": 0.007002340649469488
+    },
+    "stress_absolute": {
+     "available": true,
+     "stress_mpa": 22.588359653651022,
+     "allowable_mpa": 196.50104968509447,
+     "ultimate_mpa": 702.0,
+     "safety_factor": 3.5725,
+     "slack": 0.8850471298252589,
+     "slack_mpa": 173.91269003144345,
+     "active": false
+    },
+    "deflection_absolute": {
+     "available": "TODO: tip_clearance_m: machine geometry (tower diameter, hub overhang, cone, tilt) not specified (2026-09-20); the absolute deflection row activates when it lands; deflection is reported in mm meanwhile",
+     "tip_deflection_mm": 111.84030293110712
     }
    },
    "loads_rated": {
@@ -221,6 +242,13 @@
     "all_converged": true
    },
    "reynolds_min": 73169.88098098728,
+   "reynolds_all_bins": {
+    "min": 73169.88098098728,
+    "max": 313659.27068392513,
+    "n_bins": 17,
+    "n_stations": 25,
+    "method": "zero-induction hypot(V, Omega r) c / nu (BEMSystem.reynolds)"
+   },
    "du_inf_from_x0": 0.0
   },
   {
@@ -273,10 +301,17 @@
     "shell_area_m2": 0.4640246959054284,
     "solid_volume_m3": 0.002551299599690325,
     "planform_area_m2": 0.22651870346431519,
-    "mass_kg": null,
+    "mass_kg": 1.781854832276845,
+    "shell_mass_kg": 1.781854832276845,
+    "solid_mass_kg": 4.898495231405424,
     "section_coefficients": {
      "k_A": 0.06850241963050001,
-     "k_P": 2.048504996756389
+     "k_P": 2.048504996756389,
+     "k_I": 0.003293118852977795,
+     "k_Z": 0.051642701138200756,
+     "shell_centroid_y_over_c": 0.038922637325357994,
+     "extreme_fibre_over_c": 0.063767362674642,
+     "principal_rotation_deg": 0.08567485698054939
     },
     "shell_over_reference": 1.0617134621963036,
     "solid_over_reference": 1.1419607416356332
@@ -316,6 +351,20 @@
       "min chord chord_4"
      ],
      "slack_min": -0.01234589407811032
+    },
+    "stress_absolute": {
+     "available": true,
+     "stress_mpa": 19.08980308595638,
+     "allowable_mpa": 196.50104968509447,
+     "ultimate_mpa": 702.0,
+     "safety_factor": 3.5725,
+     "slack": 0.9028513938396309,
+     "slack_mpa": 177.4112465991381,
+     "active": false
+    },
+    "deflection_absolute": {
+     "available": "TODO: tip_clearance_m: machine geometry (tower diameter, hub overhang, cone, tilt) not specified (2026-09-20); the absolute deflection row activates when it lands; deflection is reported in mm meanwhile",
+     "tip_deflection_mm": 85.19900244133024
     }
    },
    "loads_rated": {
@@ -435,6 +484,13 @@
     "all_converged": true
    },
    "reynolds_min": 62148.56771032308,
+   "reynolds_all_bins": {
+    "min": 62148.56771032308,
+    "max": 339128.6211440906,
+    "n_bins": 17,
+    "n_stations": 25,
+    "method": "zero-induction hypot(V, Omega r) c / nu (BEMSystem.reynolds)"
+   },
    "du_inf_from_x0": 0.1138237034479169
   },
   {
@@ -487,10 +543,17 @@
     "shell_area_m2": 0.4222855534550201,
     "solid_volume_m3": 0.002071527848887808,
     "planform_area_m2": 0.2061432869940121,
-    "mass_kg": null,
+    "mass_kg": 1.6215765252672771,
+    "shell_mass_kg": 1.6215765252672771,
+    "solid_mass_kg": 3.977333469864591,
     "section_coefficients": {
      "k_A": 0.06850241963050001,
-     "k_P": 2.048504996756389
+     "k_P": 2.048504996756389,
+     "k_I": 0.003293118852977795,
+     "k_Z": 0.051642701138200756,
+     "shell_centroid_y_over_c": 0.038922637325357994,
+     "extreme_fibre_over_c": 0.063767362674642,
+     "principal_rotation_deg": 0.08567485698054939
     },
     "shell_over_reference": 0.9662120592943352,
     "solid_over_reference": 0.9272150863512556
@@ -532,6 +595,20 @@
       "min chord chord_4"
      ],
      "slack_min": -2.42861286636753e-17
+    },
+    "stress_absolute": {
+     "available": true,
+     "stress_mpa": 22.588359653617626,
+     "allowable_mpa": 196.50104968509447,
+     "ultimate_mpa": 702.0,
+     "safety_factor": 3.5725,
+     "slack": 0.8850471298254288,
+     "slack_mpa": 173.9126900314768,
+     "active": false
+    },
+    "deflection_absolute": {
+     "available": "TODO: tip_clearance_m: machine geometry (tower diameter, hub overhang, cone, tilt) not specified (2026-09-20); the absolute deflection row activates when it lands; deflection is reported in mm meanwhile",
+     "tip_deflection_mm": 111.84030293127924
     }
    },
    "loads_rated": {
@@ -651,6 +728,13 @@
     "all_converged": true
    },
    "reynolds_min": 71126.9220599783,
+   "reynolds_all_bins": {
+    "min": 71126.9220599783,
+    "max": 304901.6644583882,
+    "n_bins": 17,
+    "n_stations": 25,
+    "method": "zero-induction hypot(V, Omega r) c / nu (BEMSystem.reynolds)"
+   },
    "du_inf_from_x0": 0.14932573979430433
   }
  ],
