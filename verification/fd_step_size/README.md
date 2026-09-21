@@ -100,12 +100,13 @@ Reading the gradient: under this law AEP **falls** with the inboard and mid-span
 chord control points, most strongly `chord_2` (the 40–60 % span region), and
 **rises** only with the tip control point `chord_4`; the outboard twist points
 (`twist_3`, `twist_4`) push AEP down and are the only twist levers of any size.
-Ten of the seventeen schedule bins now sit on the 300 rpm ceiling (V ≥ 10.5 m/s),
-where the operating law fixes λ and, above rated, the power is the configured
-rating — so those bins contribute nothing to the gradient. That is why the
+Nine of the seventeen bins (**11.5–19.5 m/s**) are capped at the rating and
+contribute nothing to the gradient; the 10.5 m/s bin sits on the ceiling but is
+uncapped and does contribute. That is why the
 largest lever is 0.207 MWh/yr per unit `u` against 0.558 before, and why
 `chord_3` changed sign. For the record, the fixed-`λ` gradient at `x0` was
-`chord_3 = +0.558`, `chord_4 = +0.386`, `twist_3 = -0.252`.
+`chord_3 = +0.558`, `chord_4 = +0.386`, `twist_3 = -0.252` (0.558 MWh yr⁻¹ per
+unit `u`, the fixed-`λ` form's largest lever).
 
 ## What the V-curve shows (`v_curve.png`)
 

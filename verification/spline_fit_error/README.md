@@ -99,3 +99,5 @@ whether it is also a property of the starting point.
   signed errors, the three chord/twist distributions, the design point.
 - `fit_error.png` — chord and twist (analytic, spline, optimum) and the
   signed fit errors vs span.
+
+The figure(s) in this directory predate `src/plotting/figstyle.py` and have not been redrawn through it; they are kept as the record of the run that produced them, and the scripts that write them carry no super-title.

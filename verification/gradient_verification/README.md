@@ -211,10 +211,12 @@ statement of the failure: the adjoint and the FD reference agree to the
 precision the arithmetic allows; the acceptance scale is wrong at this
 variable. See "One failure, and what it is" above.
 
-### The whole V attributed (`tier4_attribution.png`)
+### The whole V attributed (`tier4_attribution.png`, `tier4_attribution_iterate.png`)
 
 For the worst variable at each point, `|FD(h) − adjoint|` over A3's 15-step
-grid next to the crossing counts and the floor. Fitting the smooth law
+grid next to the crossing counts and the floor. `tier4_attribution.png` carries
+the reference and the optimum, and `tier4_attribution_iterate.png` the mid-run
+iterate on its own (the report places it in Appendix D). Fitting the smooth law
 `C h²` on the crossing-free steps that sit clear of the floor (at least
 30 × the floor, so the fit is not itself fitted to noise) and subtracting it
 gives the departure at every step:
@@ -280,7 +282,9 @@ holds (it is 17 of 35 since 2026-09-19).
 - `adjoint_x0.json` — the adjoint gradient at `x0` in the format
   `run_sweep.py --reference` reads.
 - `v_curve_vs_adjoint.png` — A3's sweep against the adjoint.
-- `tier3_agreement.png` — the acceptance figure.
+- `tier3_agreement.png` — the acceptance figure (disagreement over the
+  acceptance scale | relative error, the three points named reference,
+  mid-run iterate and optimum).
 - `run_tier4.py` — the Tier 4 script (reads `tier3.json` and A3's `sweep.json`).
 - `tier4.json` — per point: every variable's crossing counts and margins at
   `h*_j`, `δJ` and its samples, the round-off floor, the clean-step FD, and
@@ -290,4 +294,6 @@ holds (it is 17 of 35 since 2026-09-19).
   crossing-free step clears 30 × its round-off floor the coefficient and
   every derived prediction/excess are `null` rather than a fabricated or NaN
   value.
-- `tier4_attribution.png` — the attributed V-curves.
+- `tier4_attribution.png` — the attributed V-curves for the reference and the
+  optimum; `tier4_attribution_iterate.png` — the same for the mid-run iterate,
+  alone.

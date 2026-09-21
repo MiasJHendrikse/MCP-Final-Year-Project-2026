@@ -8,7 +8,9 @@ the Phase 1.2 entries for the SG6043 selection.
 
 This cache is retained **unchanged** and is not to be regenerated or
 reorganised (repo-audit ground rule 1): the golden regression and the
-cross-validation figures are all anchored to it as it stands.
+cross-validation figures are all anchored to it as it stands. The Phase VI
+cross-validation was run against the original 100k–500k rows, before the
+extension, and has not been repeated against the extended range.
 
 One CSV per Reynolds number, columns `alpha,cl,cd,cm,source`, alpha
 −180° to +180° on a 0.5° grid — XFOIL-converged from −8° to +18°, Viterna

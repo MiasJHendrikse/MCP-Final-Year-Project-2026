@@ -138,3 +138,5 @@ without one.
 `sample_starts` is deterministic (fixed seed), so `--sample` reproduces the
 eight starts above exactly; `--start K` may be run in any order or in
 parallel, and `--collect` is what writes `results.json`.
+
+The figure(s) in this directory predate `src/plotting/figstyle.py` and have not been redrawn through it; they are kept as the record of the run that produced them, and the scripts that write them carry no super-title.

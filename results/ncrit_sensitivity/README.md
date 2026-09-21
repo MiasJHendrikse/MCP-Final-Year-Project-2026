@@ -58,12 +58,18 @@ candidates with complete six-Re coverage:
 | 400k | 0.0361 | 0.0376 | **9** |
 | 500k | 0.0476 | 0.0421 | 11 |
 
-`n_crit = 9` wins 4 of 6, including every Reynolds number from 100k–400k —
-the band that overlaps the design rotor's actual operating range (plan §3.3:
-~150k–450k at the rated condition) and sits closest to the unmeasured
-40k–100k floor the real cache has to cover down to. `n_crit = 11` only wins
-at 150k and 500k. The mean-of-means aggregate let those two wins (one of them
-by a wide margin, 150k) outweigh four narrower losses.
+`n_crit = 9` wins at 100k, 200k, 300k and 400k — the band that overlaps the
+design rotor's actual operating range (plan §3.3: ~150k–450k at the rated
+condition) and sits closest to the unmeasured 40k–100k floor the real cache has
+to cover down to. `n_crit = 11` wins at 150k and 500k. The mean-of-means
+aggregate let those two wins (one of them by a wide margin, 150k) outweigh four
+narrower losses.
+
+Three further candidates are **incompletely characterised** rather than
+losing, and are not ruled out: 5, 7 and 13 are each missing one Reynolds
+number (5 at 300k, 7 at 150k, 13 at 200k), and 13 produced the single best Cl
+score at 300k (0.0410 against 9's 0.0978). The choice of 9 is a calibration on
+the Reynolds-number band the rotor uses, not a fitted optimum.
 
 Two independent checks support 9 over 11 rather than just the score:
 

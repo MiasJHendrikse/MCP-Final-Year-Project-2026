@@ -129,3 +129,5 @@ step-size study.
   SLSQP counters and options, the bounds label.
 - `iterates.json` — the 36 iterates.
 - `optimised_blade.png` — chord and twist, `x0` vs optimum.
+
+The figure(s) in this directory predate `src/plotting/figstyle.py` and have not been redrawn through it; they are kept as the record of the run that produced them, and the scripts that write them carry no super-title.

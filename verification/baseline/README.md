@@ -8,7 +8,12 @@ is a fixed artefact: `x0.json` is what Phases 2–5 start from, and
 ```
 python verification/baseline/generate_baseline.py
 ```
-→ `x0.json`, `baseline_reference.json`, `baseline.png`
+→ `x0.json`, `baseline_reference.json`, `baseline_geometry.png`,
+`baseline_operating_line.png`
+
+(`baseline.png`, the earlier three-panel figure, is no longer written by this
+script; the two files above replace it, and it is kept only because the
+dashboard still points at it.)
 
 Regeneration is deliberate, not routine — the same rule as the golden files. If
 these numbers move, something in the solver or the polar layer moved, and the
@@ -129,7 +134,7 @@ record of what the earlier edition said and what answered it.
   runs 3.0 → 11.0 m/s in 0.5 m/s steps (17 points, all converged) with
   λ = 6.5 up to V_c = 9.67 m/s and 300 rpm above it. Three knots of the sweep
   sit on the ceiling (10.0, 10.5, 11.0 m/s at λ = 6.28, 5.98, 5.71) — visible
-  in `baseline.png` as the break in the λ curve.
+  in `baseline_operating_line.png` as the break in the λ curve.
 
 **`baseline_reference.json`'s `outstanding.above_rated_operating_line` string
 is still the old text** ("… is not yet specified"). It is a hard-coded

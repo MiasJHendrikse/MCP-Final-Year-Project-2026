@@ -184,3 +184,5 @@ choice: inputs B1–B3 in `docs/OUTSTANDING-INPUTS.md` §9.
   `comparison_with_fd` with the tolerances and the pass flags.
 - `iterates.json` — the 36 iterates `(k, u_k, J_k, fun_k, g_k, wall_time)`.
 - `optimised_blade.png` — chord and twist: `x0`, A4's optimum, this optimum.
+
+The figure(s) in this directory predate `src/plotting/figstyle.py` and have not been redrawn through it; they are kept as the record of the run that produced them, and the scripts that write them carry no super-title.

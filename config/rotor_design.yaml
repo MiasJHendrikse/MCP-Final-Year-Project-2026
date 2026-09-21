@@ -34,7 +34,7 @@ geometry:
 
 operating:
   design_tsr: 6.5
-  rated_wind_speed_ms: 11.0     # ~1.9 * V_bar, standard for low-wind machines
+  rated_wind_speed_ms: 11.0     # ~1.7 * V_bar (11 / 6.49), low for a low-wind machine
   cut_in_wind_speed_ms: 3.0     # deliberately low for a low-wind site
   cut_out_wind_speed_ms: 20.0
 

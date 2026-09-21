@@ -85,3 +85,5 @@ Wall time: 3–7 min per `reoptimise.py` case, ~4 min for `diagnostics.py`,
 ~1 min for `cross_evaluate_xstar.py`. The last is the only one expected to
 reproduce as committed; it reads `x*` from
 `verification/adjoint_optimisation/result.json`.
+
+The figure(s) in this directory predate `src/plotting/figstyle.py` and have not been redrawn through it; they are kept as the record of the run that produced them, and the scripts that write them carry no super-title.

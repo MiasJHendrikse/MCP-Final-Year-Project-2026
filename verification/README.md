@@ -28,8 +28,8 @@ it was produced, and what would make it wrong.
 | `gradient_verification/` | **re-run 2026-09-19** | Tier 3 (adjoint vs the FD noise floor) and Tier 4 (attribution of what is left); **one red variable, reported and accepted** |
 | `fd_optimisation_multistart/` | **re-run 2026-09-19** | that A4's gain is not an artefact of the starting point |
 | `aep_gain_audit/` | **history — one file re-run** | the measurements behind `docs/AEP_GAIN_AUDIT.md`, under the retired provisional bounds; `cross_evaluate_xstar.json` is the exception, re-run 2026-09-19 with the current `x*` |
-| `smoothness_gate/` | populated 2026-09-13, **not re-run** | that the objective is smooth enough to differentiate; its numbers predate the fixed rating and the ceiling, its verdict (C¹ not C², from the Buhl blend) does not depend on them |
-| `representation_study/` | populated 2026-09-10, **not re-run** | the choice of blade parameterisation and control-point count; a geometric comparison, unaffected by the bounds or the power model |
+| `smoothness_gate/` | **re-run 2026-09-21 under the committed law and rating** | that the objective is smooth enough to differentiate: `J` is C¹ but not C², the C² defects are single-step slope changes traced to the Buhl blend and the polar knots, and four of the ten variables are swept only over the part of the design box on which the objective is defined and the solver converges |
+| `representation_study/` | populated 2026-09-10, figure redrawn from its JSON | the choice of blade parameterisation and control-point count; a geometric comparison, unaffected by the bounds or the power model |
 | `aep_optimisation_experiment/` | **port, not a re-run** | the 2026-09-19 experiment behind inputs B1 and O4 (the 300 rpm ceiling and the 0.30 m chord cap), frozen as a record |
 
 Statuses are current as of 2026-09-20.
@@ -74,3 +74,42 @@ Every subdirectory has a generator script next to its output, and the output is
 committed alongside it. Regeneration is deliberate, not routine — the same rule
 `tests/golden/README.md` states for the golden files. A figure that changes
 without an explanation in the commit message is a defect, not an update.
+
+## Regenerating the figures
+
+Every committed figure is written through `src/plotting/figstyle.py`. That
+module sets the project's figure style (serif text, sentence-case axis labels
+with their symbols and units, two panels at most, side by side) and refuses, at
+write time, a figure that carries more than two panels, a super-title, or any
+project-history string in its text — a date, a phase number, "audit", an
+old/new legend, a bounds label. The refusal is mechanical, so a figure cannot
+acquire history by accident.
+
+The figures are redrawn **from the committed JSON beside them**, never by
+re-running the physics behind them, in this order:
+
+    python verification/baseline/generate_baseline.py --replot
+    python verification/phase_vi/generate_residual_histories.py --replot
+    python verification/polar_interpolant/generate_plots.py
+    python verification/representation_study/run_study.py --replot
+    python verification/fd_step_size/run_sweep.py --replot
+    python verification/gradient_verification/run_tier3.py --replot
+    python verification/gradient_verification/run_tier4.py --replot
+    python verification/cost_scaling/run_scaling.py --replot
+    python verification/mass_optimisation/replot_figures.py
+    python verification/absolute_material/run_absolute_material.py --replot
+    python src/validation/plot_bem_comparison.py
+    python src/validation/compare_sg6043_uiuc.py --replot
+
+Two exceptions. `smoothness_gate/run_gate.py` has no `--replot`: it is the one
+gate whose figure *is* its run (12.6 minutes, 3000 objective evaluations), and
+it must be re-run when the objective changes rather than redrawn from a stale
+JSON. `polar_interpolant/generate_plots.py` and the two `src/validation/`
+scripts read the committed polar caches and the two BEM comparison results —
+tables, not runs — so they need no physics either.
+
+The figures left in place but no longer written by any script — `baseline.png`,
+`smoothness_gate.png`, `blade_delta0.png`, `pareto.png`, and the unplaced
+figures of `load_constraint/`, `fd_optimisation/`, `adjoint_optimisation/`,
+`aep_optimisation_experiment/` and `spline_fit_error/` — predate the style
+module and are kept as the record of the run that produced them.

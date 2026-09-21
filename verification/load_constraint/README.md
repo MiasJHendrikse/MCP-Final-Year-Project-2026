@@ -327,3 +327,5 @@ change it.
   for `E = 0, 0.02, 0.05, 0.1`.
 - `run_pareto.py` — the cold/warm eps-sweep.
 - `pareto.json`, `pareto.png` — the front and the blade shapes.
+
+The figure(s) in this directory predate `src/plotting/figstyle.py` and have not been redrawn through it; they are kept as the record of the run that produced them, and the scripts that write them carry no super-title.

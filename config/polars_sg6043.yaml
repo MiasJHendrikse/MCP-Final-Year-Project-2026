@@ -118,7 +118,14 @@ reynolds_envelope:
     Low-Speed Airfoil Tests range (60k, 100k, 200k, 300k) and inherit the
     low-Re XFOIL uncertainty plan 3.3 names as a dominant error source; they
     are cached to keep the envelope covered, not because they are as
-    trustworthy as the rest.
+    trustworthy as the rest. The 49k-854k span is the envelope this cache was
+    sized against -- a synthetic Schmitz chord model and an unregulated
+    constant-lambda law held to cut-out, neither of which is the machine that
+    is built. Under the committed 300 rpm operating law the three committed
+    blades occupy 62k-339k, with x0 at 73 170-313 659 over all 17 bins
+    (`verification/mass_optimisation/reference_blades.json` ->
+    reynolds_all_bins), so the cache's coverage is conservative by a factor of
+    about 2.5 at the top.
 
 # ---------------------------------------------------------------------------
 # Post-stall extrapolation -- work order Task 2, item 3

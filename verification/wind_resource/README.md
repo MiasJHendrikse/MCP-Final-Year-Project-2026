@@ -85,10 +85,13 @@ Chosen over the two obvious alternatives for two specific reasons:
   asserts the distribution keeps its shape with height. It does not — the
   distribution broadens downward, `k` falling 1.87 → 1.709 over these 30 m.
   Holding `k` at a value read 30 m above hub height biases the AEP integral in
-  a direction nothing downstream could detect. Measured here it is **−0.90 %**
-  (10.270 → 10.178 MWh/yr with `k` pinned at 1.87) — smaller than one might
+  a direction nothing downstream could detect. Measured here it is **−0.91 %**
+  (10.2477 → 10.1542 MWh/yr with `k` pinned at 1.87) — smaller than one might
   guess, and worth removing regardless, since the point is that the shape is
-  computed rather than assumed.
+  computed rather than assumed. The pair is the current-law, fixed-rating form
+  (`wind_resource_20m.json → held_k_penalty`, the reference blade under the
+  committed operating law); an earlier fixed-λ, floating-rating form gave
+  −0.90 % (10.270 → 10.178), a difference of one digit in the second decimal.
 - **It needs no surface roughness.** A log-law central case would require a
   `z₀` for this terrain, and no roughness survey exists. Inventing one is
   exactly what ground rule 3 forbids. `z₀` appears below only as a *range*, in

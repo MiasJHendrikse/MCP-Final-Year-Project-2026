@@ -368,3 +368,5 @@ project's `requirements.txt`; reads `verification/baseline/x0.json`,
 `verification/adjoint_optimisation/result.json` (for `x*`) and, for check 7,
 `verification/aep_gain_audit/opt_<v>_fixed.json`. Writes only into
 `results/`.
+
+The figure(s) in this directory predate `src/plotting/figstyle.py` and have not been redrawn through it; they are kept as the record of the run that produced them, and the scripts that write them carry no super-title.

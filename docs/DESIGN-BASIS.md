@@ -60,7 +60,7 @@ corners (§6.5).
 | Blades | B = 3 | | same |
 | Root cut-out | 0.15 R = 0.30 m | conventional for this size; a modelling choice | same |
 | Design tip-speed ratio | λ_d = 6.5 | | `operating:` |
-| Rated / cut-in / cut-out wind speed | 11 / 3 / 20 m/s | ≈ 1.9 V̄; deliberately low cut-in for a low-wind site | same |
+| Rated / cut-in / cut-out wind speed | 11 / 3 / 20 m/s | ≈ 1.7 V̄ (11 / 6.49); low for a low-wind site | same |
 | Rated power | P_rated = 3 822.19 W, held constant above rated | the reference blade's aerodynamic power at 11 m/s and λ = 6.5; a nameplate does not change with the blade | `operating.rated_power_w` and its comment |
 | Rotor-speed ceiling | Ω_max = 300 rpm (62.8 m/s tip speed; V_c = 9.67 m/s) | residential-scale noise-conscious tip-speed limit (~60–65 m/s); nearest commercial analogues (Skystream 3.7 ≈ 330 rpm / 64 m/s; direct-drive 3 kW PMGs at 250–300 rpm) | `operating.max_rotor_speed_rpm` and its comment |
 | Operating law | λ(V) = min(6.5, Ω_max R / V); P = min(P_aero, P_rated) | variable-speed fixed-TSR tracking with a rotor-speed ceiling and an ideal power hold above rated | `src/objective/power.py::tsr_schedule` |
