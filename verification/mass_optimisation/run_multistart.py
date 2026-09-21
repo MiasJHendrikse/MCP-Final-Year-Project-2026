@@ -1,7 +1,7 @@
 """
 Phase 5 (2026-09-20) -- multi-start of the mass problem at delta = 0.
 
-Starts: `x0` (the production start), `x_c` (the Phase 4 energy optimum,
+Starts: `x0` (the production start), `x_c` (the energy optimum,
 AEP slack +0.146 %, below the 60 mm tip floor it predates), and the eight
 committed random starts of `verification/fd_optimisation_multistart/starts.json`
 (drawn for the energy problem, so most are infeasible for the mass problem
@@ -19,11 +19,16 @@ Outputs, next to this script: `multistart_delta0.json`, `multistart_delta0.png`.
 Run from the repo root (about five minutes):
 
     python verification/mass_optimisation/run_multistart.py
+    python verification/mass_optimisation/run_multistart.py --replot
+
+`--replot` redraws `multistart_delta0.png` from the committed
+`multistart_delta0.json`; no solve is run and no JSON is written.
 
 Author: MJ Hendrikse
 Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
 """
 
+import argparse
 import datetime
 import json
 import os
@@ -105,41 +110,92 @@ def run_start(label, u_start, names):
     }
 
 
-def plot(runs, spread, path):
+def plot_multistart(runs, spread, path):
+    """
+    The optima the ten starts reached, two panels side by side, written
+    through `figstyle.save`:
+
+    * "Objective from each start" -- the objective value each run reached
+      (bars, one per start);
+    * "Distance from the best optimum" -- `|u - u_best|_inf` on a log axis,
+      with the committed agreement criterion as a dashed line.
+
+    `runs` is `multistart_delta0.json`'s `runs`; the best run is the
+    feasible one with the lowest objective, and the distance is taken from
+    its `u_m`. Returns the path.
+    """
+
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
 
-    ok = [r for r in runs if r["status"] == "ok"]
-    fig, axes = plt.subplots(1, 2, figsize=(12, 4.6))
+    from plotting import figstyle
+
+    figstyle.apply()
+
+    ok = [r for r in runs if r["status"] == "ok" and r.get("u_m")]
+    feasible = [r for r in ok if r.get("feasible")]
+    best = min(feasible or ok, key=lambda r: r["mass"]) if ok else None
     labels = [r["label"] for r in ok]
-    masses = [r["shell_pct_vs_x0"] for r in ok]
-    colours = ["#1f5fbf" if r["feasible"] else "#e08a1e" for r in ok]
-    axes[0].bar(range(len(ok)), masses, color=colours)
-    axes[0].set_xticks(range(len(ok)))
-    axes[0].set_xticklabels(labels, rotation=45, ha="right", fontsize=8)
-    axes[0].set_ylabel("shell material vs x0 [%]")
-    axes[0].set_title("optimum reached from each start (orange: infeasible)", fontsize=11)
-    axes[0].grid(True, axis="y", color="#dddddd", lw=0.6)
+    objective = [r["mass"] for r in ok]
+    distance = []
+    for r in ok:
+        if best is None:
+            distance.append(float("nan"))
+        else:
+            u = np.array(r["u_m"], dtype=float)
+            u_best = np.array(best["u_m"], dtype=float)
+            distance.append(float(np.max(np.abs(u - u_best))))
+    x = np.arange(len(ok))
+    blue, orange, red = "#1f3b8b", "#e08a1e", "#b3452a"
+    colours = [blue if r.get("feasible") else orange for r in ok]
 
-    du = [r["du_inf_from_best"] for r in ok]
-    axes[1].bar(range(len(ok)), du, color=colours)
-    axes[1].axhline(spread, color="#d1495b", lw=1.2, ls="--",
-                    label=f"energy-problem multi-start spread {spread:.4f}")
-    axes[1].set_xticks(range(len(ok)))
-    axes[1].set_xticklabels(labels, rotation=45, ha="right", fontsize=8)
-    axes[1].set_ylabel("|u - u_best|_inf")
+    fig, axes = plt.subplots(1, 2, figsize=figstyle.DOUBLE)
+
+    axes[0].bar(x, objective, color=colours)
+    axes[0].set_xticks(x)
+    axes[0].set_xticklabels(labels, rotation=45, ha="right", fontsize=7)
+    axes[0].set_ylabel(figstyle.LABELS["objective"])
+    figstyle.title(axes[0], "Objective from each start")
+
+    axes[1].bar(x, distance, color=colours)
+    axes[1].axhline(spread, color=red, lw=1.2, ls="--",
+                    label="agreement criterion")
+    axes[1].set_xticks(x)
+    axes[1].set_xticklabels(labels, rotation=45, ha="right", fontsize=7)
+    axes[1].set_ylabel(figstyle.label(
+        r"$\|\mathbf{u} - \mathbf{u}_{\mathrm{best}}\|_\infty$", None, "--"))
     axes[1].set_yscale("log")
-    axes[1].set_title("distance in u from the best feasible optimum", fontsize=11)
-    axes[1].grid(True, axis="y", color="#dddddd", lw=0.6)
-    axes[1].legend(fontsize=8, frameon=False)
-    fig.suptitle("Mass problem multi-start, delta = 0 -- " + C.BOUNDS_LABEL, fontsize=10)
+    figstyle.title(axes[1], "Distance from the best optimum")
+    axes[1].legend(loc="upper left")
+
+    if any(r.get("feasible") for r in ok) and any(not r.get("feasible") for r in ok):
+        handles = [Line2D([], [], color=blue, lw=6, label="feasible optimum"),
+                   Line2D([], [], color=orange, lw=6, label="infeasible optimum")]
+        axes[0].legend(handles=handles, loc="upper right", fontsize=7)
+
     fig.tight_layout()
-    fig.savefig(path, dpi=150)
+    figstyle.save(fig, path)
     plt.close(fig)
+    return path
 
 
 def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    parser.add_argument("--replot", action="store_true",
+                        help="redraw multistart_delta0.png from the committed "
+                             "multistart_delta0.json; no solve is run and no "
+                             "JSON is written")
+    args = parser.parse_args(argv)
+
+    if args.replot:
+        artefact = C.load_json(OUT_PATH)
+        plot_multistart(artefact["runs"], artefact["multistart_u_spread_inf"],
+                        FIGURE_PATH)
+        print(f"redrew {FIGURE_PATH} from {OUT_PATH}; no solve", flush=True)
+        return artefact
+
     spread = float(C.load_json(C.MULTISTART_PATH)["spread_of_optima_u_inf"])
     probe, _u0 = C.prepared_problem()
     names = C.variable_names(probe)
@@ -161,7 +217,7 @@ def main(argv=None):
     mass_spread = (float(max(r["mass"] for r in feasible_runs) - best["mass"])
                    if feasible_runs else None)
 
-    plot(runs, spread, FIGURE_PATH)
+    plot_multistart(runs, spread, FIGURE_PATH)
     summary = {
         "problem": C.PROBLEM_LABEL,
         "bounds_label": C.BOUNDS_LABEL,

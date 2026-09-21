@@ -60,6 +60,14 @@ it is (and used as an infeasible start, which SLSQP handles).
     python verification/mass_optimisation/run_mass_checks.py               # ~1 min, Tiers 1-3, Taylor, the reference table, the renders
     python verification/mass_optimisation/run_cross_evaluation.py          # ~1 min, x0 / x_c / x_m under other resources and ceilings
 
+Every figure of this directory is redrawn from the committed JSON, without
+solving anything, by
+
+    python verification/mass_optimisation/replot_figures.py
+
+(and each runner has its own `--replot`: `run_mass_checks.py`,
+`run_multistart.py`, `run_sweep.py`).
+
 All of them read `verification/baseline/x0.json`,
 `verification/load_constraint/result_eps0.json` (`x_c`),
 `verification/fd_optimisation_multistart/results.json` (the `0.0166`
@@ -93,7 +101,7 @@ derive; the material model is `src/objective/mass.py`
 SG6043 coordinates); the solid proxy `k_A int c^2 dr` is reported beside the
 shell figure, never optimised.
 
-## The result (`result_delta0.json`, `blade_delta0.png`, `blades_rendered.png`)
+## The result (`result_delta0.json`, `blade_delta0_geometry.png`, `blade_delta0_loads.png`, `blades_rendered.png`)
 
 **Two headline numbers, from one sweep** (MJ, 2026-09-20, plan "Decision 7"):
 
@@ -122,8 +130,10 @@ adjoints, 22 load solves.
 
 (`reference_blades.json`, `reference_blades.png`; the `x_c` row is the
 "+6.2 % material for +0.15 % energy" motivation of the re-pitch, measured on
-the same code. `blades_rendered.png` draws the three blades with a cosmetic
-root cylinder and tip rounding, labelled as such: neither is modelled.)
+the same code. `blades_rendered.png` draws the three blades (isometric |
+plan) and `blades_rendered_edge.png` the edge-on view; the root cylinder and
+the tip rounding are drawn only: neither is modelled, and the blade the
+numbers describe starts at the 0.30 m cut-out.)
 
 **Where the material comes off.** The outer third: the two tip control
 points sit on their 60 mm rows (multipliers 0.34 and 0.97) and their
@@ -132,7 +142,7 @@ r ~ 1.5 m out; the root stays close to Schmitz (271 vs 276 mm) because the
 stress row pins `KS / c0^2` and the deflection row pins
 `int M (R - r) / c^3 dr`. The mid-span control point rises (135 vs 97 mm)
 to make back the energy the tip gives up, which is what the `1 / c^3` panel
-of `blade_delta0.png` says the deflection row wants. The tip twist goes to
+of `blade_delta0_loads.png` says the deflection row wants. The tip twist goes to
 about 0 deg (Schmitz 0.6 deg).
 
 **Active set and KKT** (`kkt`, non-negative least squares -- the active set
@@ -167,7 +177,7 @@ finds the feasible set first). **All ten exit 0 at the same point**: spread
 in `u` `1.1e-6` (criterion `0.0166`), spread in the objective `3.4e-11`, no
 failed trial point in any run. 185 s.
 
-## The energy-floor sweep (`pareto.json`, `pareto.png`)
+## The energy-floor sweep (`pareto.json`, `pareto_front.png`)
 
 Cold from `x0` and warm from the previous floor at each `delta`; cold and
 warm agree to `<= 5.7e-6` in `u` everywhere (criterion `0.0166`).
@@ -183,7 +193,7 @@ warm agree to `<= 5.7e-6` in `u` everywhere (criterion `0.0166`).
 The front is concave, the saving is monotone in `delta`, and **every secant
 lies between the KKT exchange rates at its two ends** (4.90 between 11.02
 and 3.11, and so on) -- the adjoint multiplier and the front's own slope
-check each other, which is what the tangents in `pareto.png` show. The
+check each other, which is what the tangents in `pareto_front.png` show. The
 stress and deflection rows and the two min-chord rows stay active along the
 whole front; from `delta = 0.25 %` the monotone twist rows bind too (the
 outer twist control points equalise). The first quarter-percent of energy
@@ -197,7 +207,7 @@ a `lambda = 6.0` Schmitz would raise the floor by about 0.16 %, which at the
 first secant (4.9 points per %) costs roughly 0.8 of the 3.4 points of shell
 material. Stated, not re-run.
 
-## Ablation at `delta = 0` (`ablation.json`, `pareto.png` middle panel)
+## Ablation at `delta = 0` (`ablation.json`, `pareto_ablation.png`)
 
 | rows | shell saved | solid saved | stress ratio | deflection ratio | `KS / KS0` |
 |---|---|---|---|---|---|

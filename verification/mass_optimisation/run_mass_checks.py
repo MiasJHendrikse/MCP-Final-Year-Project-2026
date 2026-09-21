@@ -31,17 +31,23 @@ its JSON through the forward path only, confirming the recorded AEP, root
 moment and tip deflection to 1e-10 (plan, Verification 5).
 
 Outputs, next to this script: `checks.json`, `reference_blades.json`,
-`reference_blades.png`, `blades_rendered.png` (the three blades drawn with a
-cosmetic root cylinder and tip rounding, labelled as such).
+`reference_blades.png`, `blades_rendered.png` and `blades_rendered_edge.png`
+(the three blades drawn with a cosmetic root cylinder and tip rounding: both
+are drawn only, never modelled).
 
 Run from the repo root (about three minutes):
 
     python verification/mass_optimisation/run_mass_checks.py
+    python verification/mass_optimisation/run_mass_checks.py --replot
+
+`--replot` redraws `reference_blades.png` from the committed
+`reference_blades.json`; no check is run and no JSON is written.
 
 Author: MJ Hendrikse
 Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
 """
 
+import argparse
 import datetime
 import json
 import math
@@ -64,7 +70,6 @@ RESULT_PATH = os.path.join(_HERE, "result_delta0.json")
 CHECKS_PATH = os.path.join(_HERE, "checks.json")
 TABLE_PATH = os.path.join(_HERE, "reference_blades.json")
 FIGURE_PATH = os.path.join(_HERE, "reference_blades.png")
-RENDER_PATH = os.path.join(_HERE, "blades_rendered.png")
 
 H = 1e-30
 SQRT10 = math.sqrt(10.0)
@@ -176,7 +181,7 @@ def tier2(system, state, parts):
 
 
 # ---------------------------------------------------------------------------
-# Tier 3 and Taylor, the Phase 4 rule verbatim
+# Tier 3 and Taylor, the committed rule verbatim
 # ---------------------------------------------------------------------------
 
 def roundoff_floor(g, u, h_star):
@@ -218,7 +223,7 @@ def tier3(problem, constraint, u, h_star, names):
         "passes": bool(np.all(within)),
     }
     if not out["passes"]:
-        # The floor is measured only on failure (the Phase 4 rule): it
+        # The floor is measured only on failure (the committed rule): it
         # describes the failure, it does not pass it.
         fit_floor = roundoff_floor(g, u, h_star)
         eps_below = eps < fit_floor
@@ -314,44 +319,85 @@ def reevaluate_from_json(problem, artefact):
     return out
 
 
-def plot(table, path):
+def plot_reference_blades(table, path):
+    """
+    The three committed blades as two panels side by side, written through
+    `figstyle.save`:
+
+    * "Material proxies" -- the shell and the solid material of each blade
+      relative to `x0`, in per cent (grouped bars);
+    * "Constrained quantities" -- the AEP, KS-moment, stress-proxy and
+      deflection-proxy ratios to `x0`, with a line at 1.0.
+
+    The blade labels and tick labels come from `figstyle.BLADES`, so the
+    bars read the same as every other figure. `table` is the list of blade
+    records (`reference_blades.json`'s `blades`). Returns the path.
+    """
+
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    labels = [b["label"] for b in table]
-    fig, axes = plt.subplots(1, 2, figsize=(12, 4.6))
-    x = np.arange(len(labels))
-    axes[0].bar(x - 0.2, [b["shell_pct_vs_x0"] for b in table], 0.4, color="#1f5fbf", label="shell k_P int c dr")
-    axes[0].bar(x + 0.2, [b["solid_pct_vs_x0"] for b in table], 0.4, color="#5aa9e6", label="solid k_A int c^2 dr")
-    axes[0].axhline(0.0, color="#888888", lw=0.8)
-    axes[0].set_xticks(x)
-    axes[0].set_xticklabels(labels)
-    axes[0].set_ylabel("material vs x0 [%]")
-    axes[0].set_title("material proxies", fontsize=11)
-    axes[0].legend(fontsize=8, frameon=False)
-    axes[0].grid(True, axis="y", color="#dddddd", lw=0.6)
+    from plotting import figstyle
 
-    keys = [("aep_over_x0", "AEP"), ("KS_over_KS0", "KS moment"), ("stress_ratio", "stress proxy"),
-            ("deflection_ratio", "deflection proxy")]
+    figstyle.apply()
+
+    keys = [b["label"] for b in table]
+    tick_labels = [figstyle.BLADES[key]["label"] for key in keys]
+    x = np.arange(len(table))
+    blue, light, ink = "#1f3b8b", "#5aa9e6", "#888888"
+
+    fig, axes = plt.subplots(1, 2, figsize=figstyle.DOUBLE)
+
+    width = 0.38
+    axes[0].bar(x - width / 2.0, [b["shell_pct_vs_x0"] for b in table], width,
+                color=blue, label=r"shell $k_P\int c\,dr$")
+    axes[0].bar(x + width / 2.0, [b["solid_pct_vs_x0"] for b in table], width,
+                color=light, label=r"solid $k_A\int c^2\,dr$")
+    axes[0].axhline(0.0, color=ink, lw=0.8)
+    axes[0].set_xticks(x)
+    axes[0].set_xticklabels(tick_labels, rotation=35, ha="right",
+                            rotation_mode="anchor", fontsize=7)
+    axes[0].set_ylabel(figstyle.LABELS["shell_material"])
+    figstyle.title(axes[0], "Material proxies")
+    axes[0].legend(loc="upper left", fontsize=7)
+
+    keys = (("aep_over_x0", "energy"), ("KS_over_KS0", "KS moment"),
+            ("stress_ratio", "stress proxy"), ("deflection_ratio", "deflection proxy"))
     width = 0.2
     for k, (key, name) in enumerate(keys):
-        axes[1].bar(x + (k - 1.5) * width, [b[key] for b in table], width, label=name)
-    axes[1].axhline(1.0, color="#888888", lw=0.8)
+        axes[1].bar(x + (k - 1.5) * width, [b[key] for b in table], width,
+                    label=name)
+    axes[1].axhline(1.0, color=ink, lw=0.8)
     axes[1].set_xticks(x)
-    axes[1].set_xticklabels(labels)
-    axes[1].set_ylabel("ratio to x0")
-    axes[1].set_ylim(0.75, 1.1)
-    axes[1].set_title("the constrained quantities", fontsize=11)
-    axes[1].legend(fontsize=8, frameon=False)
-    axes[1].grid(True, axis="y", color="#dddddd", lw=0.6)
-    fig.suptitle("Reference blades x0 / x_c / x_m -- " + C.BOUNDS_LABEL, fontsize=10)
+    axes[1].set_xticklabels(tick_labels, rotation=35, ha="right",
+                            rotation_mode="anchor", fontsize=7)
+    axes[1].set_ylabel(figstyle.LABELS["ratio_to_reference"])
+    axes[1].set_ylim(0.72, 1.16)
+    figstyle.title(axes[1], "Constrained quantities")
+    axes[1].legend(loc="upper left", ncol=2, fontsize=7)
+
     fig.tight_layout()
-    fig.savefig(path, dpi=150)
+    figstyle.save(fig, path)
     plt.close(fig)
+    return path
 
 
 def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    parser.add_argument("--replot", action="store_true",
+                        help="redraw reference_blades.png from the committed "
+                             "reference_blades.json; no check runs, no JSON "
+                             "is written")
+    args = parser.parse_args(argv)
+
+    if args.replot:
+        table = C.load_json(TABLE_PATH)["blades"]
+        plot_reference_blades(table, FIGURE_PATH)
+        print(f"redrew {FIGURE_PATH} from {TABLE_PATH}; no check run",
+              flush=True)
+        return table
+
     artefact = C.load_json(RESULT_PATH)
     h_star = float(C.load_json(C.SWEEP_PATH)["h_star_global"])
     problem, u0 = C.prepared_problem()
@@ -369,10 +415,10 @@ def main(argv=None):
              C.blade_record(problem, u_m, 0.0, "x_m", u0=u0)]
     reevaluation = reevaluate_from_json(problem, artefact)
     wall = time.perf_counter() - started
-    plot(table, FIGURE_PATH)
-    C.render_blades(problem, [("x0 (fitted Schmitz)", C.STYLE_X0, table[0]),
-                              ("x_c (energy optimum, Phase 4)", C.STYLE_XC, table[1]),
-                              ("x_m (mass optimum, delta = 0)", C.STYLE_XM, table[2])], RENDER_PATH)
+    plot_reference_blades(table, FIGURE_PATH)
+    render_paths = C.render_blades(problem, [("x0", table[0]),
+                                             ("x_c", table[1]),
+                                             ("x_m", table[2])], _HERE)
 
     checks = {
         "problem": C.PROBLEM_LABEL,
@@ -428,7 +474,8 @@ def main(argv=None):
           f"({ {k: v['rel_error'] for k, v in reevaluation.items() if isinstance(v, dict)} })")
     print(f"Tier 3 all pass: {checks['all_tier3_pass']}; failures {checks['tier3_failures']}; "
           f"Taylor all pass: {checks['all_taylor_pass']}  ({wall:.0f} s)")
-    print(f"wrote {CHECKS_PATH}\n      {TABLE_PATH}\n      {FIGURE_PATH}\n      {RENDER_PATH}")
+    print(f"wrote {CHECKS_PATH}\n      {TABLE_PATH}\n      {FIGURE_PATH}\n      "
+          + "\n      ".join(render_paths))
     return checks
 
 

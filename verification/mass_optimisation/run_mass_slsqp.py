@@ -20,7 +20,7 @@ the exchange rate, % material per % energy at the margin), the post-check,
 The `--delta 0` run from `x0` is the production optimum.
 
 Outputs, next to this script: `result_delta{D}.json`, `iterates_delta{D}.json`,
-`blade_delta{D}.png`.
+`blade_delta{D}_geometry.png`, `blade_delta{D}_loads.png`.
 
 Run from the repo root (one to two minutes):
 
@@ -59,7 +59,7 @@ def optimise_with_escalation(delta, start, include, args):
     """
     Solve at `delta`, raising the envelope margin to 0.10 once and restarting
     if a `PolarDomainError` escapes from an accepted iterate's Jacobian --
-    the Phase 4 rule, recorded. Returns
+    the margin-escalation rule of the earlier scripts, recorded. Returns
     `(problem, u0, result, recorder, wall, margin_raised, domain_errors)`.
     """
 
@@ -130,17 +130,15 @@ def main(argv=None):
     tag = args.tag if args.tag is not None else f"{args.delta:g}"
     result_path = os.path.join(_HERE, f"result_delta{tag}.json")
     iterates_path = os.path.join(_HERE, f"iterates_delta{tag}.json")
-    figure_path = os.path.join(_HERE, f"blade_delta{tag}.png")
     with open(result_path, "w", encoding="utf-8") as handle:
         json.dump(summary, handle, indent=1)
     with open(iterates_path, "w", encoding="utf-8") as handle:
         json.dump({"bounds_label": C.BOUNDS_LABEL, "delta": args.delta, "rows": list(include),
                    "start": args.start, "iterates": recorder.iterates}, handle, indent=1)
-    C.plot_blade(problem, [("x0 (fitted Schmitz)", C.STYLE_X0, summary["blades"]["x0"]),
-                           ("x_c (energy optimum, Phase 4)", C.STYLE_XC, summary["blades"]["x_c"]),
-                           (f"x_m (mass optimum, delta = {args.delta:g})", C.STYLE_XM,
-                            summary["blades"]["x_m"])],
-                 args.delta, figure_path)
+    figure_paths = C.plot_blade(problem, [("x0", summary["blades"]["x0"]),
+                                          ("x_c", summary["blades"]["x_c"]),
+                                          ("x_m", summary["blades"]["x_m"])],
+                                _HERE, stem=f"blade_delta{tag}")
 
     opt = summary["optimum"]
     print(f"\n{result.message}")
@@ -166,7 +164,8 @@ def main(argv=None):
           f"{opt['post_check']['uncapped']['within'] if opt['post_check']['uncapped'] else None}")
     for note in summary["sanity_notes"]:
         print(f"*** {note} ***")
-    print(f"wrote {result_path}\n      {iterates_path}\n      {figure_path}")
+    print(f"wrote {result_path}\n      {iterates_path}\n      "
+          + "\n      ".join(figure_paths))
     return summary
 
 

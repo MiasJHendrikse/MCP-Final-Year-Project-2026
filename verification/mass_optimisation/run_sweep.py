@@ -9,8 +9,8 @@ previous floor's optimum. The two must agree to the multi-start spread in
 they do not, the lighter feasible optimum is chosen and the README says why.
 The KKT multiplier of the AEP row at each optimum is the exchange rate at
 that floor (% material per % energy); it is drawn as the tangent of the
-front in `pareto.png`, so the front's slope and the adjoint's multiplier
-check each other.
+front in `pareto_front.png`, so the front's slope and the adjoint's
+multiplier check each other.
 
 **Ablation at delta = 0.** The full row set, then without the deflection
 row, without the stress row, without both, without the manufacturing block
@@ -21,16 +21,23 @@ Removing rows can only enlarge the feasible set, so the saving must grow
 work, and the table the report's "what makes the number defensible"
 paragraph is built from.
 
-Outputs, next to this script: `pareto.json`, `pareto.png`, `ablation.json`.
+Outputs, next to this script: `pareto.json`, `pareto_front.png`,
+`ablation.json`, `pareto_ablation.png`.
 
 Run from the repo root (about five minutes):
 
     python verification/mass_optimisation/run_sweep.py
+    python verification/mass_optimisation/run_sweep.py --replot
+
+`--replot` redraws `pareto_front.png` and `pareto_ablation.png` from the
+committed `pareto.json` and `ablation.json`; no solve is run and no JSON is
+written.
 
 Author: MJ Hendrikse
 Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
 """
 
+import argparse
 import datetime
 import json
 import os
@@ -46,8 +53,20 @@ import _common as C  # noqa: E402
 from gradients.problem import MASS_PROBLEM_ROWS  # noqa: E402
 
 PARETO_PATH = os.path.join(_HERE, "pareto.json")
-FIGURE_PATH = os.path.join(_HERE, "pareto.png")
+FRONT_FIGURE_PATH = os.path.join(_HERE, "pareto_front.png")
 ABLATION_PATH = os.path.join(_HERE, "ablation.json")
+ABLATION_FIGURE_PATH = os.path.join(_HERE, "pareto_ablation.png")
+
+#: The ablation case labels as the figure reads them (the JSON keeps the
+#: longer working labels).
+ABLATION_CASE_LABELS = {
+    "full": "full set",
+    "no deflection": "no deflection row",
+    "no stress": "no stress row",
+    "no stress, no deflection": "no stress, no deflection",
+    "no manufacturing (monotone + min chord)": "no manufacturing rows",
+    "no moment cap": "no moment cap",
+}
 
 ABLATIONS = (
     ("full", MASS_PROBLEM_ROWS),
@@ -120,72 +139,126 @@ def solve(delta, include, u_start, label, names):
     return out
 
 
-def plot(steps, ablation, path):
+def plot_pareto_front(parameterisation, x0, front, steps, path):
+    """
+    The energy-material front, two panels side by side, written through
+    `figstyle.save`:
+
+    * "Material-energy front" -- the shell (and the reported solid) material
+      saved against the energy given up, with the KKT exchange rate at each
+      optimum drawn as its tangent;
+    * "Chord along the front" -- the chord distribution of the reference
+      blade and of every optimum on the front.
+
+    `front` and `steps` are `pareto.json`'s lists, `x0` the committed
+    reference design vector ('x0.json'), `parameterisation` places both.
+    Returns the path.
+    """
+
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    fig, axes = plt.subplots(1, 3, figsize=(16, 4.8))
+    from plotting import figstyle
 
-    # (a) the front: material saved vs energy given up, with the exchange
-    # rate at each optimum drawn as a tangent: in these axes (energy given
-    # up, material saved) its slope is the AEP row's multiplier itself.
-    xs = [s["chosen"]["energy_given_up_pct"] for s in steps]
-    ys = [-s["chosen"]["shell_pct_vs_x0"] for s in steps]
-    axes[0].plot(xs, ys, "o-", color="#1f5fbf", ms=6, lw=1.6, label="shell material saved")
-    axes[0].plot(xs, [-s["chosen"]["solid_pct_vs_x0"] for s in steps], "s--", color="#5aa9e6",
-                 ms=5, lw=1.2, label="solid proxy saved (reported)")
-    half = 0.35 * (max(xs) - min(xs)) / max(1, len(xs) - 1)
-    for s, x, y in zip(steps, xs, ys):
-        rate = s["chosen"]["exchange_rate_pct_material_per_pct_energy"]
+    figstyle.apply()
+
+    blue, light, red, ink = "#1f3b8b", "#5aa9e6", "#b3452a", "#888888"
+    energy = np.array([f["energy_given_up_pct"] for f in front], dtype=float)
+    shell = np.array([f["shell_saved_pct"] for f in front], dtype=float)
+    solid = np.array([f["solid_saved_pct"] for f in front], dtype=float)
+
+    fig, axes = plt.subplots(1, 2, figsize=figstyle.DOUBLE)
+
+    axes[0].plot(energy, shell, "o-", color=blue, lw=1.4, label="shell material saved")
+    axes[0].plot(energy, solid, "s--", color=light, lw=1.2,
+                 label="solid proxy saved")
+    half = 0.35 * (energy.max() - energy.min()) / max(1, len(energy) - 1)
+    for f, x, y in zip(front, energy, shell):
+        rate = f["exchange_rate_pct_material_per_pct_energy"]
         if rate is not None:
-            axes[0].plot([x - half, x + half], [y - rate * half, y + rate * half], "-",
-                         color="#d1495b", lw=1.0, alpha=0.8)
-        axes[0].annotate(f"delta={s['delta']:g}", (x, y), textcoords="offset points",
-                         xytext=(6, -12), fontsize=8)
-        if not s["agrees_to_multistart_spread"]:
-            for r in (s["cold"], s["warm"]):
-                axes[0].plot([r["energy_given_up_pct"]], [-r["shell_pct_vs_x0"]], "x",
-                             color="#e08a1e", ms=7)
-    axes[0].plot([], [], "-", color="#d1495b", lw=1.0, label="KKT exchange rate (tangent)")
-    axes[0].set_xlabel("energy given up vs x0 [%]")
-    axes[0].set_ylabel("material saved vs x0 [%]")
-    axes[0].set_title("material-energy front", fontsize=11)
-    axes[0].grid(True, color="#dddddd", lw=0.6)
-    axes[0].legend(fontsize=8, frameon=False)
+            axes[0].plot([x - half, x + half], [y - rate * half, y + rate * half],
+                         "-", color=red, lw=1.0, alpha=0.8)
+        axes[0].annotate(f"{f['delta'] * 1e2:g} %", (x, y), fontsize=7,
+                         color=ink, textcoords="offset points", xytext=(6, -12))
+    axes[0].plot([], [], "-", color=red, lw=1.0, label="KKT exchange rate")
+    axes[0].set_xlabel(figstyle.LABELS["energy_given_up"])
+    axes[0].set_ylabel(figstyle.LABELS["material_saved"])
+    figstyle.title(axes[0], "Material-energy front")
+    axes[0].legend(loc="lower right", fontsize=7)
 
-    # (b) ablation at delta = 0.
-    labels = [a["label"] for a in ablation]
-    saved = [-a["shell_pct_vs_x0"] for a in ablation]
-    axes[1].barh(range(len(ablation)), saved, color="#1f5fbf")
-    axes[1].set_yticks(range(len(ablation)))
-    axes[1].set_yticklabels(labels, fontsize=8)
-    axes[1].invert_yaxis()
-    axes[1].set_xlabel("shell material saved at delta = 0 [%]")
-    axes[1].set_title("ablation: rows removed one at a time", fontsize=11)
-    axes[1].grid(True, axis="x", color="#dddddd", lw=0.6)
+    radii = parameterisation.radii
+    x0_style = figstyle.BLADES["x0"]
+    axes[1].plot(radii, parameterisation.chord(np.asarray(x0, dtype=float)) * 1e3,
+                 x0_style["ls"], color=x0_style["color"], lw=1.4,
+                 label=x0_style["label"])
+    colours = plt.cm.Blues(np.linspace(0.35, 0.95, max(1, len(steps))))
+    for step, colour in zip(steps, colours):
+        axes[1].plot(radii,
+                     parameterisation.chord(np.asarray(step["chosen"]["x_m"],
+                                                       dtype=float)) * 1e3,
+                     "-", color=colour, lw=1.2,
+                     label=f"$\\delta$ = {step['delta'] * 1e2:g} %")
+    axes[1].set_xlabel(figstyle.LABELS["radius"])
+    axes[1].set_ylabel(figstyle.LABELS["chord"])
+    figstyle.title(axes[1], "Chord along the front")
+    axes[1].legend(loc="best", fontsize=7)
 
-    # (c) chord along the front.
-    probe, _ = C.prepared_problem()
-    p = probe.parameterisation
-    x0 = C.load_x0()
-    axes[2].plot(p.radii, p.chord(x0), "-", color="#888888", lw=1.6, label="x0")
-    for s in steps:
-        axes[2].plot(p.radii, p.chord(np.array(s["chosen"]["x_m"])), "-", lw=1.4,
-                     label=f"delta={s['delta']:g}")
-    axes[2].set_xlabel("radius r [m]")
-    axes[2].set_ylabel("chord [m]")
-    axes[2].set_title("chord along the front", fontsize=11)
-    axes[2].grid(True, color="#dddddd", lw=0.6)
-    axes[2].legend(fontsize=8, frameon=False)
-
-    fig.suptitle("Mass problem: energy-floor sweep and ablation -- " + C.BOUNDS_LABEL, fontsize=10)
     fig.tight_layout()
-    fig.savefig(path, dpi=150)
+    figstyle.save(fig, path)
     plt.close(fig)
+    return path
+
+
+def plot_pareto_ablation(cases, path):
+    """
+    The ablation bars at `delta = 0`, single panel, written through
+    `figstyle.save`: the shell material saved when each row group of the
+    full set is removed. `cases` is `ablation.json`'s `cases`. Returns the
+    path.
+    """
+
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    from plotting import figstyle
+
+    figstyle.apply()
+
+    labels = [ABLATION_CASE_LABELS.get(c["label"], c["label"]) for c in cases]
+    saved = [-c["shell_pct_vs_x0"] for c in cases]
+
+    fig, ax = plt.subplots(figsize=figstyle.SINGLE)
+    ax.bar(range(len(cases)), saved, color="#1f3b8b")
+    ax.set_xticks(range(len(cases)))
+    ax.set_xticklabels(labels, rotation=40, ha="right", fontsize=7)
+    ax.set_ylabel(figstyle.LABELS["material_saved"])
+    fig.tight_layout()
+    figstyle.save(fig, path)
+    plt.close(fig)
+    return path
 
 
 def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    parser.add_argument("--replot", action="store_true",
+                        help="redraw pareto_front.png and pareto_ablation.png "
+                             "from the committed pareto.json and ablation.json; "
+                             "no solve is run and no JSON is written")
+    args = parser.parse_args(argv)
+
+    if args.replot:
+        pareto = C.load_json(PARETO_PATH)
+        ablation = C.load_json(ABLATION_PATH)
+        probe = C.build_problem()
+        plot_pareto_front(probe.parameterisation, C.load_x0(), pareto["front"],
+                          pareto["steps"], FRONT_FIGURE_PATH)
+        plot_pareto_ablation(ablation["cases"], ABLATION_FIGURE_PATH)
+        print(f"redrew {FRONT_FIGURE_PATH} and {ABLATION_FIGURE_PATH} from "
+              f"{PARETO_PATH} and {ABLATION_PATH}; no solve", flush=True)
+        return pareto
+
     spread = float(C.load_json(C.MULTISTART_PATH)["spread_of_optima_u_inf"])
     probe, _ = C.prepared_problem()
     names = C.variable_names(probe)
@@ -238,7 +311,6 @@ def main(argv=None):
                           for a in ablation if a["label"] in ("no deflection", "no stress"))
 
     wall = time.perf_counter() - started
-    plot(steps, ablation, FIGURE_PATH)
 
     pareto = {
         "problem": C.PROBLEM_LABEL,
@@ -263,24 +335,30 @@ def main(argv=None):
         "all_agree_to_multistart_spread": bool(all(s["agrees_to_multistart_spread"] for s in steps)),
         "wall_time_s": wall,
     }
+    ablation_record = {
+        "problem": C.PROBLEM_LABEL,
+        "command": "python verification/mass_optimisation/run_sweep.py",
+        "generated": pareto["generated"], "src_commit": pareto["src_commit"],
+        "delta": 0.0,
+        "cases": ablation,
+        "same_saving_tol_pct_points": SAME_SAVING_TOL_PCT,
+        "saving_never_shrinks_when_a_row_is_removed": bool(ablation_monotone),
+        "removing_both_proxies_saves_at_least_either": bool(nested_monotone),
+    }
     with open(PARETO_PATH, "w", encoding="utf-8") as handle:
         json.dump(pareto, handle, indent=1)
     with open(ABLATION_PATH, "w", encoding="utf-8") as handle:
-        json.dump({
-            "problem": C.PROBLEM_LABEL,
-            "command": "python verification/mass_optimisation/run_sweep.py",
-            "generated": pareto["generated"], "src_commit": pareto["src_commit"],
-            "delta": 0.0,
-            "cases": ablation,
-            "same_saving_tol_pct_points": SAME_SAVING_TOL_PCT,
-            "saving_never_shrinks_when_a_row_is_removed": bool(ablation_monotone),
-            "removing_both_proxies_saves_at_least_either": bool(nested_monotone),
-        }, handle, indent=1)
+        json.dump(ablation_record, handle, indent=1)
+
+    plot_pareto_front(probe.parameterisation, C.load_x0(), pareto["front"],
+                      steps, FRONT_FIGURE_PATH)
+    plot_pareto_ablation(ablation, ABLATION_FIGURE_PATH)
 
     print(f"\nshell saving monotone in delta: {saving_monotone}; all agree to spread {spread:.4f}: "
           f"{pareto['all_agree_to_multistart_spread']}; ablation monotone: {ablation_monotone} "
           f"(nested {nested_monotone})  ({wall:.0f} s)")
-    print(f"wrote {PARETO_PATH}\n      {ABLATION_PATH}\n      {FIGURE_PATH}")
+    print(f"wrote {PARETO_PATH}\n      {ABLATION_PATH}\n      {FRONT_FIGURE_PATH}\n      "
+          f"{ABLATION_FIGURE_PATH}")
     return pareto
 
 

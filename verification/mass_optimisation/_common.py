@@ -7,7 +7,7 @@ evaluate ONE problem, stated in `docs/PLAN-mass-objective-2026-09-20.md`:
 
     minimise    f(u) = m_shell(d(u)) / m_shell(x0)          geometric, no BEM
     subject to  g_AEP = AEP(u)/AEP(x0) - (1 - delta)  >= 0   the energy floor
-                g_M   = KS0 - KS(u)                   >= 0   the Phase 4 load cap
+                g_M   = KS0 - KS(u)                   >= 0   the load cap
                 g_s   = KS0/c00^2 - KS(u)/c0(u)^2     >= 0   root-stress proxy
                 g_d   = D0 - D(u)                     >= 0   tip-deflection proxy
                 envelope (50), solidity (25), monotone chord/twist (4 + 4)
@@ -15,7 +15,7 @@ evaluate ONE problem, stated in `docs/PLAN-mass-objective-2026-09-20.md`:
 
 The rows are `ScaledProblem.constraints_for_mass_problem(delta)`; the
 Jacobians are the objective adjoint (AEP floor), the moment adjoint (cap and
-stress) and the deflection adjoint. Everything here that the Phase 4 scripts
+stress) and the deflection adjoint. Everything here that the earlier scripts
 already had (`build_problem`, `loads_at`, the recorder, the KKT estimate) is
 lifted from `verification/load_constraint/run_constrained_slsqp.py` rather
 than copied a fourth time, and extended to the mass problem's rows.
@@ -63,7 +63,7 @@ BOUNDS_LABEL = ("under the configured bounds (chord_max_m = 0.30 m, resolved 202
 LAW_LABEL = ("lambda(V) = min(6.5, Omega_max R / V), Omega_max = 300 rpm "
              "(V_c = 9.67 m/s), fixed rating 3822.189755449124 W")
 PROBLEM_LABEL = ("minimise shell material k_P int c dr subject to AEP >= (1 - delta) AEP(x0), "
-                 "the Phase 4 moment cap, the root-stress and tip-deflection proxies, "
+                 "the moment cap, the root-stress and tip-deflection proxies, "
                  "monotone chord and twist control points, the 60 mm min-chord floor, "
                  "the envelope and solidity")
 
@@ -97,7 +97,7 @@ def load_x0():
 
 
 def load_xc():
-    """The Phase 4 `eps = 0` optimum `x_c` -- the energy-optimal blade. Its tip
+    """The energy optimum `x_c` -- the load cap at `eps = 0`. Its tip
     (47.7 mm) predates the 60 mm min-chord row of 2026-09-20: inside the box,
     infeasible for that row; evaluated as it is, and a legitimate (infeasible)
     start."""
@@ -264,7 +264,7 @@ def blade_record(problem, u, delta, label, u0=None):
 
 class Recorder:
     """
-    The Phase 4 recorder for the mass problem. The objective is geometric,
+    The recorder for the mass problem. The objective is geometric,
     so the record per accepted iterate is the row values SLSQP has just
     evaluated there (each row's `fun` is wrapped to remember its last
     point), never a second solve. `extra_evals` counts the times the
@@ -590,67 +590,90 @@ def greville_abscissae(parameterisation, n_pts):
     return radii[0] + greville * (radii[-1] - radii[0])
 
 
-def plot_blade(problem, blades, delta, path, title_extra=""):
+def plot_blade(problem, blades, out_dir, stem="blade_delta0"):
     """
-    Planform and twist of `x0`, `x_c` and `x_m` with their control points,
-    and the rated-point spanwise moment `M(r)` and the flexibility `1/c^3`
-    that the deflection row weighs it with. `blades` is a list of
-    `(label, style, blade_record)`.
+    The planform and the rated-point loads of the committed blades, two
+    panels per file, written through `figstyle.save`:
+
+    * `{stem}_geometry.png` -- chord | twist, the control points as hollow
+      markers;
+    * `{stem}_loads.png`    -- the rated-point flapwise moment `M(r)` | the
+      flexibility weight `1/c(r)^3` the deflection row weighs it with, on a
+      log axis.
+
+    `blades` is a list of `(key, blade_record)`, `key` in `figstyle.BLADES`
+    (`x0`, `x_c`, `x_m`): the label and the colour of each blade come from
+    there, so it reads the same as in every other figure. Returns the two
+    paths.
     """
 
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    p = problem.parameterisation
-    radii = p.radii
-    fig, axes = plt.subplots(2, 2, figsize=(12, 8.4))
-    axes = axes.ravel()
+    from plotting import figstyle
 
-    for ax, (field, unit, get, block) in zip(axes[:2], [
-        ("chord", "m", p.chord, slice(0, p.n_chord)),
-        ("twist", "deg", lambda d: np.degrees(p.twist(d)), slice(p.n_chord, None)),
-    ]):
-        n_pts = p.n_chord if field == "chord" else p.n_twist
-        s = greville_abscissae(p, n_pts)
-        scale = np.degrees(1.0) if field == "twist" else 1.0
-        for label, style, record in blades:
-            d = np.array(record["x"], dtype=float)
-            ax.plot(radii, get(d), style["ls"], color=style["color"], lw=style["lw"], label=label)
-            ax.plot(s, d[block] * scale, "o", color=style["color"], ms=4.5, mfc="white")
-        ax.set_xlabel("radius r [m]")
-        ax.set_ylabel(f"{field} [{unit}]")
-        ax.set_title(f"{field} distribution (markers: control points)", fontsize=11)
-        ax.grid(True, color="#dddddd", lw=0.6)
-        ax.legend(fontsize=8, frameon=False)
+    figstyle.apply()
 
-    for label, style, record in blades:
-        loads = record["loads_rated"]
-        r = np.array(loads["radii_m"])
-        axes[2].plot(r, loads["spanwise_moment_nm"], style["ls"], color=style["color"],
-                     lw=style["lw"], label=label)
-        axes[3].plot(r, 1.0 / np.array(loads["chord_m"]) ** 3, style["ls"],
-                     color=style["color"], lw=style["lw"], label=label)
-    axes[2].set_xlabel("radius r [m]")
-    axes[2].set_ylabel("flapwise moment M(r) [N m], one blade")
-    axes[2].set_title("spanwise moment at the rated point (11 m/s, 300 rpm)", fontsize=11)
-    axes[3].set_xlabel("radius r [m]")
-    axes[3].set_ylabel("1 / c(r)^3 [m^-3]")
-    axes[3].set_title("flexibility weight of the deflection row", fontsize=11)
-    axes[3].set_yscale("log")
-    for ax in axes[2:]:
-        ax.grid(True, color="#dddddd", lw=0.6)
-        ax.legend(fontsize=8, frameon=False)
+    parameterisation = problem.parameterisation
+    radii = parameterisation.radii
 
-    fig.suptitle(f"Mass problem, delta = {delta:g}{title_extra} -- " + BOUNDS_LABEL, fontsize=10)
+    geometry_path = os.path.join(out_dir, f"{stem}_geometry.png")
+    fields = (
+        ("chord", parameterisation.chord, slice(0, parameterisation.n_chord),
+         1e3, 1e3, figstyle.LABELS["chord"], "Chord distribution"),
+        ("twist", lambda d: np.degrees(parameterisation.twist(d)),
+         slice(parameterisation.n_chord, None), 1.0, np.degrees(1.0),
+         figstyle.LABELS["twist"], "Twist distribution"),
+    )
+    fig, axes = plt.subplots(1, 2, figsize=figstyle.DOUBLE)
+    for ax, (field, evaluate, block, scale, marker_scale, ylabel, panel_title) in \
+            zip(axes, fields):
+        n_pts = (parameterisation.n_chord if field == "chord"
+                 else parameterisation.n_twist)
+        abscissae = greville_abscissae(parameterisation, n_pts)
+        for key, record in blades:
+            style = figstyle.BLADES[key]
+            design = np.array(record["x"], dtype=float)
+            ax.plot(radii, evaluate(design) * scale, style["ls"],
+                    color=style["color"], lw=style.get("lw", 1.4),
+                    label=style["label"])
+            ax.plot(abscissae, design[block] * marker_scale, "o",
+                    color=style["color"], ms=4.0, mfc="white", mew=1.0)
+        ax.set_xlabel(figstyle.LABELS["radius"])
+        ax.set_ylabel(ylabel)
+        figstyle.title(ax, panel_title)
+        ax.legend(loc="best")
     fig.tight_layout()
-    fig.savefig(path, dpi=150)
+    figstyle.save(fig, geometry_path)
     plt.close(fig)
 
+    loads_path = os.path.join(out_dir, f"{stem}_loads.png")
+    fig, axes = plt.subplots(1, 2, figsize=figstyle.DOUBLE)
+    for key, record in blades:
+        style = figstyle.BLADES[key]
+        loads = record["loads_rated"]
+        radius = np.array(loads["radii_m"], dtype=float)
+        axes[0].plot(radius, loads["spanwise_moment_nm"], style["ls"],
+                     color=style["color"], lw=style.get("lw", 1.4),
+                     label=style["label"])
+        axes[1].plot(radius, 1.0 / np.array(loads["chord_m"], dtype=float) ** 3,
+                     style["ls"], color=style["color"], lw=style.get("lw", 1.4),
+                     label=style["label"])
+    axes[0].set_xlabel(figstyle.LABELS["radius"])
+    axes[0].set_ylabel(figstyle.LABELS["spanwise_moment"])
+    figstyle.title(axes[0], "Spanwise moment")
+    axes[1].set_xlabel(figstyle.LABELS["radius"])
+    axes[1].set_ylabel(figstyle.LABELS["flexibility_weight"])
+    axes[1].set_yscale("log")
+    figstyle.title(axes[1], "Flexibility weight")
+    for ax in axes:
+        ax.legend(loc="best")
+    fig.tight_layout()
+    figstyle.save(fig, loads_path)
+    plt.close(fig)
 
-STYLE_X0 = {"ls": "-", "color": "#888888", "lw": 1.6}
-STYLE_XC = {"ls": "--", "color": "#d1495b", "lw": 1.6}
-STYLE_XM = {"ls": "-", "color": "#1f5fbf", "lw": 2.4}
+    return [geometry_path, loads_path]
 
 
 # ---------------------------------------------------------------------------
@@ -665,6 +688,9 @@ PITCH_AXIS_FRACTION = 0.30
 #: grid, outside the material proxy, outside every constraint.
 RENDER_ROOT = {"r_flange_m": 0.10, "r_cylinder_end_m": 0.16, "cylinder_diameter_m": 0.09,
                "tip_rounding_m": 0.06}
+#: The lateral offset between the blades in the rendered views, so that all
+#: three stay visible in one axes (they differ only in chord and twist).
+RENDER_BLADE_SPACING_M = 0.30
 
 
 def _smoothstep(x):
@@ -706,36 +732,95 @@ def blade_surface(problem, d, n_span=90):
     return np.array(X), np.array(Y), np.array(Z)
 
 
-def render_blades(problem, blades, path):
+def render_blades(problem, blades, out_dir):
     """
-    Three views (isometric, edge-on, top) of each blade in `blades`
-    (`(label, style, blade_record)`), one row per blade, with the cosmetic
-    root and tip rounding. The caption says they are cosmetic.
+    The rendered blades, written through `figstyle.save`:
+
+    * `blades_rendered.png`      -- isometric | plan view, two 3-D axes;
+    * `blades_rendered_edge.png` -- edge-on view, one 3-D axes.
+
+    All three blades are drawn in every axes. The blades differ only in
+    chord and twist, so each is offset by `k * RENDER_BLADE_SPACING_M` in
+    span order (`x0`, `x_c`, `x_m`): along `Y` (the screen-lateral axis) for
+    the isometric and plan views, along `Z` (the screen-vertical axis) for
+    the edge-on view, where the view direction is `Y` itself and a `Y`
+    offset would hide two blades behind the first. `blades` is a list of
+    `(key, blade_record)` with the label and colour from `figstyle.BLADES`.
+    The root cylinder, its transition and the tip rounding are drawn only:
+    outside the BEM grid, the material proxy and every constraint. Returns
+    the two paths.
     """
 
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
 
-    R = float(problem.parameterisation.radius_m)
-    fig = plt.figure(figsize=(16, 2.7 * len(blades)))
-    for k, (label, style, record) in enumerate(blades):
+    from plotting import figstyle
+
+    figstyle.apply()
+
+    surfaces = []
+    for k, (key, record) in enumerate(blades):
         X, Y, Z = blade_surface(problem, np.array(record["x"], dtype=float))
-        for j, (elev, azim) in enumerate([(25, -60), (0, -90), (90, -90)]):
-            ax = fig.add_subplot(len(blades), 3, 3 * k + j + 1, projection="3d")
-            ax.plot_surface(X, Y, Z, color=style["color"], alpha=0.75, lw=0, rstride=1, cstride=1, shade=True)
+        surfaces.append((figstyle.BLADES[key], X, Y, Z, k))
+
+    def draw(ax, elev, azim, offset_axis="y", box_aspect=(2.0, 0.9, 0.55)):
+        """
+        One 3-D axes: the three blades, each offset `k *
+        RENDER_BLADE_SPACING_M` along `offset_axis`. The drawn surfaces are
+        built first, so the limits cover the offsets whichever axis carries
+        them.
+        """
+
+        drawn = []
+        for style, X, Y, Z, k in surfaces:
+            offset = k * RENDER_BLADE_SPACING_M
+            if offset_axis == "z":
+                Z = Z + offset
+            else:
+                Y = Y + offset
+            drawn.append((style, X, Y, Z))
+        for style, X, Y, Z in drawn:
+            ax.plot_surface(X, Y, Z, color=style["color"], alpha=0.75, lw=0,
+                            rstride=1, cstride=1, shade=True)
             for i in range(0, X.shape[0], 5):
                 ax.plot(X[i], Y[i], Z[i], color="k", lw=0.25, alpha=0.5)
-            ax.set_box_aspect((2.0, 0.55, 0.55))
-            ax.view_init(elev=elev, azim=azim)
-            ax.set_xlim(0, R); ax.set_ylim(-0.12, 0.25); ax.set_zlim(-0.12, 0.12)
-            ax.set_axis_off()
-            if j == 0:
-                ax.set_title(label, fontsize=10, loc="left")
-    fig.suptitle("Rendered blades -- isometric / edge-on (twist) / top view. The root cylinder "
-                 f"(r < {RENDER_ROOT['r_cylinder_end_m']:.2f} m), its transition to the section by "
-                 f"r_hub, and the tip rounding are DRAWN ONLY: outside the BEM grid, the material "
-                 "proxy and every constraint.", fontsize=9)
-    fig.tight_layout()
-    fig.savefig(path, dpi=130)
+        x_max = max(float(X.max()) for _style, X, _Y, _Z in drawn)
+        y_lo = min(float(Y.min()) for _style, _X, Y, _Z in drawn)
+        y_hi = max(float(Y.max()) for _style, _X, Y, _Z in drawn)
+        ax.set_xlim(0.0, x_max)
+        ax.set_ylim(y_lo - 0.02, y_hi + 0.02)
+        if offset_axis == "z":
+            z_lo = min(float(Z.min()) for _style, _X, _Y, Z in drawn)
+            z_hi = max(float(Z.max()) for _style, _X, _Y, Z in drawn)
+            ax.set_zlim(z_lo - 0.02, z_hi + 0.02)
+        else:
+            z_max = max(float(np.abs(Z).max()) for _style, _X, _Y, Z in drawn)
+            ax.set_zlim(-z_max - 0.02, z_max + 0.02)
+        ax.set_box_aspect(box_aspect)
+        ax.view_init(elev=elev, azim=azim)
+        ax.set_axis_off()
+        handles = [Line2D([], [], color=style["color"], ls=style["ls"],
+                          lw=style.get("lw", 1.4), label=style["label"])
+                   for style, _X, _Y, _Z in drawn]
+        ax.legend(handles=handles, loc="upper left", fontsize=7)
+
+    rendered_path = os.path.join(out_dir, "blades_rendered.png")
+    fig, axes = plt.subplots(1, 2, figsize=figstyle.DOUBLE,
+                             subplot_kw={"projection": "3d"})
+    draw(axes[0], elev=25, azim=-60)
+    figstyle.title(axes[0], "Isometric view")
+    draw(axes[1], elev=90, azim=-90)
+    figstyle.title(axes[1], "Plan view")
+    figstyle.save(fig, rendered_path)
     plt.close(fig)
+
+    edge_path = os.path.join(out_dir, "blades_rendered_edge.png")
+    fig = plt.figure(figsize=figstyle.SINGLE)
+    draw(fig.add_subplot(projection="3d"), elev=0, azim=-90,
+         offset_axis="z", box_aspect=(2.0, 0.6, 1.1))
+    figstyle.save(fig, edge_path)
+    plt.close(fig)
+
+    return [rendered_path, edge_path]
