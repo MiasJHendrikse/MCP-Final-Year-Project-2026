@@ -1,71 +1,64 @@
 # Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 
-Final-year Mechanical Engineering project (DSP810S, NUST). An adjoint-BEM
-aerodynamic optimisation framework for small wind turbine blades targeting
-Namibian low-wind conditions (Khomas Hochland site, **V̄ = 6.49 m/s** at the
-20 m hub height — measured, see `verification/wind_resource/`).
+Final-year Mechanical Engineering project (MCP820S, NUST). A verified
+discrete-adjoint blade-element momentum framework, applied to the design of
+the **minimum-material blade at the Schmitz reference annual energy** for a
+2 m, three-bladed, fixed-pitch small wind turbine at a low-wind, high-altitude
+site in the Khomas Hochland, Namibia (V̄ = 6.49 m/s at the 20 m hub height,
+`verification/wind_resource/`).
 
 **Title:** *Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine
-Blade for Low-Wind-Speed Conditions Using an Adjoint-BEM Framework*
+Blade for Low-Wind-Speed Conditions Using a Discrete-Adjoint BEM Framework*
 
-**Scope note.** CFD validation is **out of scope** — see `PROJECT_PLAN.md`,
-"Priority hierarchy": with ~11 weeks to 6 November and the WCE placement load,
-CFD was cut to protect the core adjoint work. **Prof. van der Walt has signed
-off on that scope boundary** (confirmed by MJ, 2026-09-13), so the title above
-is shortened accordingly — it previously had to be quoted in its longer
-registered form, *"…Adjoint-BEM Framework and CFD Validation"*, because
-asserting an approval that had not happened would have been worse than a
-self-contradictory title.
-
-> If the title as *formally registered* with the department still carries "and
-> CFD Validation", amending that registration is a separate administrative step
-> from the scope sign-off. Worth checking which was agreed.
-
-- **Author:** MJ Hendrikse
+- **Author:** M. J. Hendrikse
 - **Supervisor:** Prof. Hannes van der Walt
-- **Timeline:** 13 June – 6 November 2026
-
-Progress, phase-by-phase, is tracked in
-[`docs/journal/PROJECT_PLAN.md`](docs/journal/PROJECT_PLAN.md). The working
-record of every session is in `docs/journal/Session Notes/`.
+- **Design basis, assumptions and settled results:** [`docs/DESIGN-BASIS.md`](docs/DESIGN-BASIS.md) — read this first.
+- **Model assumptions and the inputs that would replace them:** [`docs/OUTSTANDING-INPUTS.md`](docs/OUTSTANDING-INPUTS.md).
+- **Working record:** `docs/journal/` (project plan and session notes).
 
 ---
 
+## The design problem
+
+    minimise    shell material  k_P ∫ c dr                         (geometric, exact gradient)
+    subject to  AEP ≥ AEP(Schmitz reference)                       (energy adjoint)
+                KS root moment ≤ reference                         (moment adjoint)
+                root-stress proxy ≤ reference                      (moment adjoint)
+                tip-deflection proxy ≤ reference                   (deflection adjoint)
+                monotone chord and twist, 60 mm buildable-tip floor, polar envelope, solidity, box
+
+Annual energy is a constraint, not the objective: under the machine's
+fixed-tip-speed-ratio law with a 300 rpm rotor-speed ceiling, the
+polar-consistent Schmitz blade is within 0.15 % of the best annual energy any
+blade of this rotor delivers, while the energy-optimal blade carries 6 % more
+shell material for that margin. The design freedom is therefore spent on
+material under load, stress, deflection and manufacturability constraints.
+
 ## Pipeline
 
-XFOIL polars → BEM solver → objective function → finite-difference gradients →
-discrete adjoint → structural constraints (three adjoint rows) → SLSQP
-minimum-material optimisation at fixed energy.
+XFOIL polars → C¹ polar interpolant → BEM solver (Ning form) → energy
+functional, loads and material proxies → finite-difference gradients →
+discrete adjoint (energy, root moment, tip deflection) → SLSQP
+minimum-material design at fixed energy.
 
-**Re-pitched 2026-09-20.** Under the settled operating law the verified
-energy optimum beats the polar-consistent Schmitz blade by **+0.147 %** and
-carries +6.2 % material for it; annual energy is a plateau in the blade. The
-production problem is therefore *minimise blade material subject to AEP ≥
-Schmitz's, the root-moment cap, a root-stress proxy, a tip-deflection proxy
-and monotone chord/twist* — the verified objective adjoint as the energy-floor
-Jacobian, the moment adjoint as the cap and stress rows, and one new sibling
-adjoint (deflection). Result: **−3.4 % shell material at exactly Schmitz's
-energy, −5.3 % within 0.5 % of it**, with a 60 mm buildable-tip floor
-(`verification/mass_optimisation/`); the plan and its cut list are
-`docs/PLAN-mass-objective-2026-09-20.md`. Title unchanged; research question
-rewritten in `docs/journal/PROJECT_PLAN.md`, Framing.
+## Results
 
-Phase numbering follows the plan rewrite of 2026-08-23:
-
-| Phase | | Status |
+| result | value | artefact |
 |---|---|---|
-| **0** | Tooling, solver, cross-validation | complete |
-| **1** | Objective function (AEP, parameterisation, baseline, smoothness gate) | complete (2026-09-13); bounds decided 2026-09-19 (`chord_max_m = 0.30 m`, in `config/`) |
-| **2** | Finite-difference gradient path | complete (2026-09-13) — `verification/fd_*` |
-| **3** | Discrete adjoint | complete (2026-09-13) — Tiers 1–4 verified, `verification/gradient_verification/`, `docs/adjoint_derivation.md` |
-| **4** | Structural constraint and cost scaling | complete (2026-09-19) — relative root-moment KS constraint, `verification/load_constraint/`; scaling law, `verification/cost_scaling/` |
-| **5** | Production runs and results — **re-pitched to minimum-material design 2026-09-20** | **run (2026-09-20)** — `verification/mass_optimisation/`: `x_m` at −3.38 % shell / −7.28 % solid material at AEP(x₀) (−5.27 % / −9.67 % within 0.5 %), 60 mm tip floor, ten starts agree, δ ∈ {0 … 2 %} front with KKT exchange rates, ablation, Tiers 1–3 at `x₀` and `x_m`, rendered blades, cross-evaluation. The energy optimum `x_c` (`verification/load_constraint/result_eps0.json`, +0.147 %) is now the comparison blade |
-| **6** | Report | next — the results are all committed; Phase 6 is the only remaining work |
-| **7** | Optional (STEP export, DE, UI) | **cut 2026-09-20** |
+| Reference blade x₀ (Schmitz, projected onto the 5 + 5 spline) | AEP 10.2477 MWh/yr; root moment 177.38 N m; thrust 517.5 N | `verification/baseline/` |
+| **Minimum-material blade x_m at the reference energy** | **−3.38 % shell material** (−7.28 % solid proxy); moment cap slack (KS/KS₀ = 0.9685); stress and deflection proxies at their reference values; 60 mm tip | `verification/mass_optimisation/result_delta0.json` |
+| **Within 0.5 % of the reference energy** | **−5.27 % shell** (−9.67 % solid) | `verification/mass_optimisation/pareto.json` |
+| **In kilograms, with the recorded laminate** (2 mm E-glass/epoxy skin, 1920 kg/m³) | x₀ 1.678 kg, x_m **1.622 kg** per blade (−0.057 kg; −0.17 kg per rotor); thin-shell root stress 22.6 MPa against a 196.5 MPa design allowable; tip deflection 111.8 mm | `verification/absolute_material/`, `docs/MATERIALS-STRUCTURAL-INPUTS.md` |
+| Energy–material front, δ = 0 … 2 % | shell saving 3.4 → 7.5 %; exchange rate 11.0 → 1.2 % material per 1 % energy | `pareto.json`, `ablation.json` |
+| Companion energy optimum x_c (root-moment cap active) | +0.1465 % AEP for +6.17 % shell / +14.2 % solid | `verification/load_constraint/`, `mass_optimisation/reference_blades.json` |
+| Multi-start | ten starts agree to 1.1e-6 in u | `mass_optimisation/multistart_delta0.json` |
+| Gradient verification | Tier 1 ≤ 1e-13, Tier 2 ≤ 1e-14, Tier 3 to the FD noise floor with one attributed exception (§ "Validate" below) | `verification/gradient_verification/`, `mass_optimisation/checks.json` |
+| Adjoint cost | 1.09–1.12 objective evaluations per gradient, independent of n; FD costs 2n | `verification/cost_scaling/` |
+| Robustness of x_m | resource corners: −0.006 … +0.011 % energy; lower ceilings: −0.10 % (60 m/s) to −1.84 % (50 m/s) | `mass_optimisation/cross_evaluation.json` |
 
-The forward BEM solver is Phase **0**, not Phase 1, and the adjoint is Phase
-**3**. Dates and exit criteria for each are in
-[`docs/journal/PROJECT_PLAN.md`](docs/journal/PROJECT_PLAN.md).
+Every `verification/` subdirectory has a README stating what was run, what
+came out, how to reproduce it, and what would make it wrong.
+`verification/README.md` is the index and the re-run order.
 
 ---
 
@@ -75,8 +68,8 @@ The forward BEM solver is Phase **0**, not Phase 1, and the adjoint is Phase
 src/
   config/       The only reader of config/. Loader + frozen dataclasses.
     schema.py        frozen dataclasses, one per config file
-    loader.py        YAML read, TODO handling, derived-value checks
-    unresolved.py    the TODO sentinel that raises instead of defaulting
+    loader.py        YAML read, unresolved-field handling, derived-value checks
+    unresolved.py    the sentinel that raises instead of defaulting
   bem/          Solver core. No I/O beyond the polar cache, no plotting.
     airfoil.py       LinearPolar, the analytic fixture (real polars: polars/)
     corrections.py   Prandtl tip/hub loss, Glauert/Buhl high-thrust
@@ -90,26 +83,30 @@ src/
     cache.py         CSV load + ragged->rectangular reindexing into a PolarGrid
     interpolant.py   C1 (alpha, Re) surface with analytic partials
     polar.py         CachedPolar: one station's view of it, no clamping
-  design/       The design vector and what it turns into. Phase 1.6/1.7.
+  design/       The design vector and what it turns into.
     parameterisation.py  B-spline chord/twist; d -> RotorGeometry, linear in d
-    bounds.py            box bounds, scaling, feasibility (bounds are TODO)
+    bounds.py            box bounds, scaling, feasibility
     schmitz.py           Schmitz optimum-rotor closed form, max-L/D point
-    baseline.py          the Schmitz baseline blade and its x0
-  objective/    What the optimiser will minimise. Phase 1.5.
-    power.py         wind-speed bins, aerodynamic power, rated limiting
+    baseline.py          the Schmitz reference blade and its x0
+  objective/    The functionals.
+    power.py         wind-speed bins, aerodynamic power, the operating law, rated limiting
     weibull.py       WeibullResource; bin masses from the CDF
     height_extrapolation.py  Weibull k, c between heights (Justus & Mikhail)
     objective.py     AEP, the unit-weighted surrogate, J, the sanity band
     loads.py         the load set L, root moment, spanwise moments, tip
                      deflection (forward twins of the adjoint functionals), KS
-    mass.py          the material proxies: shell k_P int c dr (the Phase 5
-                     objective, exact gradient) and solid k_A int c^2 dr (reported)
+    mass.py          the material proxies: shell k_P int c dr (the objective,
+                     exact gradient) and solid k_A int c^2 dr (reported)
+  adjoint/      The discrete adjoint: station partials, the energy system,
+                the root-moment and tip-deflection systems.
+  gradients/    ScaledProblem: FD and adjoint gradients, every constraint row,
+                the assembled design problem.
   xfoil/        Polar generation and lookup.
     xfoil_runner.py       XFOIL subprocess wrapper
     build_polar_cache.py  sweep Re, write data/polars/<airfoil>/
     close_polar_gaps.py   repair a committed cache's holes, extend to +/-180
     polar_lookup.py       bilinear (alpha, Re) interpolation -- retired from
-                          the solve path, kept as the Task 3 "before" baseline
+                          the solve path, kept as the "before" baseline
   validation/   Cross-checks against external tools and measured data.
                 Solver checks live in tests/ -- see below.
     validate_polars.py       5-check audit of a polar cache
@@ -126,7 +123,8 @@ src/
 
 config/         Versioned input configuration. Read only through src/config.
   site.yaml            Khomas Hochland site: location, atmosphere, wind resource
-  rotor_design.yaml    the SG6043 design rotor being optimised
+  rotor_design.yaml    the SG6043 design rotor, its operating law, bounds and
+                       the rows of the design problem, each with its basis
   rotor_phase_vi.yaml  the NREL Phase VI validation rotor's operating condition
   polars_s809.yaml     the committed S809 polar cache, as built
   polars_sg6043.yaml   the design rotor's cache, as built
@@ -137,81 +135,59 @@ data/           Inputs only.
   naca0012_validated/  Abbott & von Doenhoff + Ladson experimental data
   qblade/         QBlade .bld/.plr exports and their reference results
 docs/
-  journal/        Obsidian vault: project plan, overview, session notes
-  validation/     cross-validation writeups, plots, reference case files
-  OUTSTANDING-INPUTS.md  external data this project is waiting on — read this
-                  before wondering why something raises
-tests/            pytest suite: the machine-checkable Phase 1 exit criteria.
-  golden/         Task 0 regression snapshot: Cp(lambda), spanwise a/a'/phi
-  golden_reference.py, generate_golden.py   the snapshot's loader and writer
+  DESIGN-BASIS.md        the design purpose, assumptions, model, results, scope
+  OUTSTANDING-INPUTS.md  model assumptions and the inputs that would replace them
+  adjoint_derivation.md  the discrete adjoint: derivation, implementation, tiers
+  validation/            cross-validation write-up, plots, reference case files
+  journal/               project plan, overview, session notes (the working record)
+  (other files in docs/ are historical records, each marked as such at the top)
+tests/            pytest suite: the machine-checkable exit criteria.
+  golden/         regression snapshot: Cp(lambda), spanwise a/a'/phi
   test_invariants.py  AST-checked import rules (e.g. bem/ must not import xfoil)
-  test_loads.py       Phase 4: the root-moment integrand, its adjoint, the KS
-                      constraint on ScaledProblem (Tiers 1-3 at x0)
-  test_mass.py, test_deflection.py, test_mass_problem.py   Phase 5: the
-                      material proxies, the deflection adjoint (Tiers 1-3), and
-                      the mass problem's rows, assembly, shared solve and guard
-  test_operating_law_control.py  the pre-law numbers pinned bit-for-bit
-verification/     Versioned report figures — committed evidence, not scratch.
+  test_loads.py       the root-moment integrand, its adjoint, the KS constraint
+  test_mass.py, test_deflection.py, test_mass_problem.py   the material
+                      proxies, the deflection adjoint, the design problem's rows
+  test_operating_law_control.py  the no-ceiling law pinned bit-for-bit
+verification/     Committed evidence: every report figure and number, with a
+                  README, generator script and JSON beside it.
                   verification/README.md is the index and the re-run order.
   polar_interpolant/     C1 interpolant vs the bilinear staircase
   phase_vi/              solver residual histories across the envelope
   wind_resource/         the 20 m Weibull fit behind AEP
   representation_study/  control-point count, justified against Schmitz
-  baseline/              the Schmitz baseline blade and x0.json, the design
-                         vector every later phase starts from
-  smoothness_gate/       plan step 1.8: is J smooth enough to differentiate
-  spline_fit_error/      the projection error of the baseline's spline
+  baseline/              the Schmitz reference blade and x0.json
+  smoothness_gate/       is J smooth enough to differentiate
+  spline_fit_error/      the projection error of the reference's spline
   fd_step_size/          the per-variable FD step h*_j and scale eps_j
-  fd_optimisation/, fd_optimisation_multistart/   A4: FD-driven SLSQP, and its starts
+  fd_optimisation/, fd_optimisation_multistart/   FD-driven SLSQP, and its starts
   gradient_verification/ Tiers 3-4: adjoint vs FD, and what is left
-  adjoint_optimisation/  B5: adjoint-driven SLSQP, agreement with A4
-  load_constraint/       Phase 4: the root-moment KS constraint, Pareto 0-10 %
-  cost_scaling/          Phase 4: gradient wall time vs n = 10..160
-  mass_optimisation/     Phase 5: the minimum-material blade x_m, multi-start,
+  adjoint_optimisation/  adjoint-driven SLSQP, agreement with the FD run
+  load_constraint/       the root-moment KS constraint, x_c, Pareto 0-10 %
+  cost_scaling/          gradient wall time vs n = 10..160
+  mass_optimisation/     the minimum-material blade x_m, multi-start,
                          the energy-floor front, ablation, checks, cross-evaluation
-  aep_gain_audit/, aep_optimisation_experiment/   frozen records behind
-                         docs/AEP_GAIN_AUDIT.md and the B1/O4 decisions
-results/          Generated plots and polars. results/_archive/ is scratch
-                  (gitignored) — the XFOIL scripts write raw output there.
-misc/             Gitignored. Scratch for things written for MJ rather than for
-                  the record — session briefings and the like.
+  absolute_material/     x₀ / x_c / x_m in kg, MPa and mm with the recorded
+                         laminate; the absolute rows' Tier 3; the swap measurement
+  aep_gain_audit/, aep_optimisation_experiment/   frozen records of two
+                         earlier measurements; each README says so
+results/          Generated plots and polars. results/_archive/ is untracked
+                  raw XFOIL output.
+misc              Untracked working area; nothing in it is part of the record.
 ```
-
-Each `verification/` subdirectory has a README stating what was run, what came
-out, and how to reproduce it. `verification/smoothness_gate/README.md` carries
-the Phase 1 exit verdict: **`J` is C¹ but not C²**, which is what the adjoint
-needs, with the one non-smoothness traced to stations crossing the Buhl
-`a = 0.4` threshold.
-
-**Waiting on external input.** Several exit criteria are blocked on data that
-cannot be inferred or defaulted: the manufacturability bounds, and three papers
-needed for provenance. The wind resource **landed on 2026-09-13** — as a GASP
-point extraction at 50 m, extrapolated to the 20 m hub height and recorded in
-[`verification/wind_resource/`](verification/wind_resource/) — which in turn
-exposed a defective exit criterion: plan §1.4's 4–6 MWh/yr AEP sanity band
-compared an electrical capacity-factor estimate against a model that computes
-aerodynamic shaft energy, and was never consistent with the plan's own resource
-prior in the first place. Revised to 8–12 MWh/yr on 2026-09-13, with the
-derivation recorded beside the numbers and a test asserting the band is still
-narrow enough to catch a bug.
-[`docs/OUTSTANDING-INPUTS.md`](docs/OUTSTANDING-INPUTS.md) is the single list,
-with what each blocks and what happens in the meantime. Code that needs an
-unresolved value raises `UnresolvedConfigError` naming the field, rather than
-substituting anything.
 
 **Rule of thumb:** `data/` and `config/` are inputs, `results/` is generated
 output, `src/` is the only place Python lives.
 
 **Two airfoils, two jobs.** **SG6043** is the **design** airfoil — the section
-on the blade being optimised, chosen for its low-Reynolds performance at this
+on the blade being designed, chosen for its low-Reynolds performance at this
 rotor's scale. **S809** is the **validation** airfoil: it is the NREL Phase VI
 rotor's section, and it exists in this repository so the solver can be checked
 against a rotor other people have also computed. Neither is a default for the
 other, and there is no project-wide "primary" airfoil. `RotorGeometry` takes a
 required `polar_cache` field with **no default anywhere**, so a rotor cannot be
 built without saying which cache it reads: `phase_vi_geometry()` pins `"s809"`,
-the design rotor pins `"sg6043"`. NACA 4412 was the original target before
-either and is retained only as a secondary reference dataset.
+the design rotor pins `"sg6043"`. NACA 4412 is retained only as a secondary
+reference dataset.
 
 **No site value is hard-coded.** Air density and kinematic viscosity are
 **required keyword arguments** on `solve_rotor` and every `powercurve` entry
@@ -220,6 +196,13 @@ wrong number. The two rotors have two different atmospheres (Phase VI at sea
 level because that is where the experiment ran; the design rotor at 1800 m),
 so neither is a default for the other and there is no global fallback. See
 [`config/README.md`](config/README.md).
+
+**Unresolved fields raise.** A config field whose value is not specified
+(the `structure:` tip clearance; the wind-atlas area selection) arrives as
+`Unresolved`, and code that needs it raises `UnresolvedConfigError` naming
+the field rather than substituting anything. No result in this repository
+depends on such a field; `docs/OUTSTANDING-INPUTS.md` lists each one with
+what it would add.
 
 ---
 
@@ -251,45 +234,28 @@ Two working directories, and it matters which:
 pytest          # from the repo root
 ```
 
-**510 passed, 5 xfailed, 1 failed, ~85 s** (2026-09-19). The five `xfail`s
-carry a documented physical reason (the `validate_polars` checks a cache is
-known to fail — see `tests/test_polar_cache.py`, where each carries its
-explanation). The one failure is deliberate and unchanged:
+**572 passed, 5 xfailed, 1 failed, ~2 min.** The five `xfail`s carry a
+documented physical reason (the `validate_polars` checks a cache is known to
+fail — see `tests/test_polar_cache.py`, where each carries its explanation).
+The one failure is by design and is a verification result, not a defect:
 `tests/test_adjoint_gradient.py::test_adjoint_agrees_with_the_committed_fd_reference_at_x0`
-on `chord_4`, ratio 16.302328995917193 — the adjoint is not the suspect, the
-acceptance scale `eps_j` is; see `verification/gradient_verification/README.md`
-("One failure, and what it is"). A different ratio, variable or second failure
-is a regression.
+on `chord_4`, ratio 16.302328995917193 against the acceptance scale `eps_j`.
+Tier 4 attributes the residual to the round-off floor of `J` (2.2 floors),
+i.e. the acceptance-scale estimator is the fragile quantity, not the adjoint;
+see `verification/gradient_verification/README.md` ("One failure, and what it
+is"). The test is left as it is so that the state stays visible: a different
+ratio, variable or second failure is a regression.
 
-**One test is designed to fail later, on purpose.** Where an external input
-is still missing, the mechanism around it is built and tested, and a test
-asserts that it *still raises*:
+One further test asserts that an unspecified input is *still* unspecified:
+`test_gwa_area_is_still_unresolved_and_behaves_like_it` (`test_config.py`)
+fails the day a Global Wind Atlas *area* extraction is recorded. If it fails,
+nothing is broken — a value in `docs/OUTSTANDING-INPUTS.md` has arrived and
+the sentinel needs removing. Documenting a known gap is easy; the point of
+this test is guaranteeing somebody notices when it closes.
 
-| test | file | fails when |
-|---|---|---|
-| `test_gwa_area_is_still_unresolved_and_behaves_like_it` | `test_config.py` | a Global Wind Atlas *area* extraction is done |
-
-Two more were retired on 2026-09-19 when the bounds landed in `config/`
-(`test_bounds_from_config_still_raise` is now
-`test_bounds_from_config_carry_the_decided_values`;
-`test_feasibility_reports_that_it_was_not_checked` is now
-`test_x0_is_feasible_against_the_configured_bounds`), and three on 2026-09-13
-when the wind resource landed.
-**One of the 2026-09-13 three did not fire, and could not have** — it asserted against a
-hard-coded string in `baseline.py` rather than against the thing that actually
-changes state. A guard has to be attached to the mechanism, not to a
-description of it; see the 2026-09-13 journal entry.
-
-If one of these fails, nothing is broken — it means a value in
-`docs/OUTSTANDING-INPUTS.md` arrived and the placeholder needs removing.
-Documenting a known gap is easy; the point of these is guaranteeing somebody
-notices when it closes.
-
-The solver checks that used to be `validation/validate_stage1..4.py` and
-`validate_powercurve.py` are now `tests/test_bem_stages.py` and
-`tests/test_powercurve.py`. Same physics, same tolerances, same reference
-values — what changed is that they are a suite rather than five scripts run
-by hand, two of which used to exit non-zero in their known-good state.
+The solver checks in `tests/test_bem_stages.py` and `tests/test_powercurve.py`
+are the staged validation of the Phase VI solve, run as a suite with the
+reference values recorded beside them.
 
 ### Audit the polar cache
 
@@ -309,13 +275,13 @@ python -m validation.check_stitch_continuity sg6043
 ```
 
 Every one of these audits has documented, deliberately-retained failures — see
-the READMEs in `data/polars/*/` and the 2026-07-26 / 2026-07-28 journal
-entries. **A non-zero exit here is the known state, not a new regression.**
-`validate_polars` applies plausibility heuristics written for thick, mildly
-cambered sections; SG6043 is a thin high-camber low-Reynolds section, and its
-two failures (Cl(0) spread of 0.638, and Cd monotonicity) are the *physics* of
-laminar-separation-bubble behaviour at 40k–100k rather than cache defects. That
-argument is made in full, and checked against UIUC wind-tunnel measurements, in
+the READMEs in `data/polars/*/`. **A non-zero exit here is the known state,
+not a new regression.** `validate_polars` applies plausibility heuristics
+written for thick, mildly cambered sections; SG6043 is a thin high-camber
+low-Reynolds section, and its two failures (Cl(0) spread of 0.638, and Cd
+monotonicity) are the *physics* of laminar-separation-bubble behaviour at
+40k–100k rather than cache defects. That argument is made in full, and
+checked against UIUC wind-tunnel measurements, in
 [`data/polars/sg6043/README.md`](data/polars/sg6043/README.md).
 
 ### Use the solver
@@ -356,11 +322,10 @@ V= 20.0 m/s  Cp=0.0533  P=  20769.2 W
 **Why the sweeps stop at 20 m/s and λ = 7.5.** Above those the blade's station
 Reynolds numbers leave the committed S809 cache (which tops out at 1.3 M) and
 `CachedPolar` raises `PolarDomainError` naming the station. That is deliberate:
-the previous code silently clamped to the cache edge, and removing the clamp
-moved Cp by up to −61 % at low λ. An out-of-range request is now an error
-rather than a plausible wrong number. Sequence S also has a 25 m/s point; it is
-recorded in `tests/test_powercurve.py` as a point this cache **cannot serve**,
-not as a value to compare against.
+silently clamping to the cache edge moves Cp by up to −61 % at low λ. An
+out-of-range request is an error rather than a plausible wrong number.
+Sequence S also has a 25 m/s point; it is recorded in `tests/test_powercurve.py`
+as a point this cache **cannot serve**, not as a value to compare against.
 
 ### Regenerate the polar cache (needs XFOIL)
 
@@ -369,23 +334,27 @@ python -m xfoil.build_polar_cache s809
 python -m xfoil.build_polar_cache sg6043
 ```
 
-Set the XFOIL path via `_DEFAULT_XFOIL` in `src/xfoil/xfoil_runner.py`. This is
-still a hard-coded absolute path into one machine's filesystem and should move
-to an environment variable or `config/` (a known, unfixed chore — the repo-audit
-work order raises it under plan item 1.2). It affects only cache regeneration,
-never the solver, since the caches are committed.
+Set the XFOIL path via `_DEFAULT_XFOIL` in `src/xfoil/xfoil_runner.py` (an
+absolute path into one machine's filesystem; it affects only cache
+regeneration, never the solver, since the caches are committed).
 
 **Neither cache needs regenerating to use this repository**, and the S809 cache
 in particular is deliberately frozen: the golden regression and every
 cross-validation figure are anchored to it exactly as committed.
 
-### Reproduce the Phase 1 evidence
+### Reproduce the evidence
+
+The re-run order and the dependency chain are in `verification/README.md`;
+each subdirectory's README gives its own commands. The design problem's
+production run:
 
 ```bash
-python verification/baseline/generate_baseline.py         # the Schmitz x0
-python verification/representation_study/run_study.py     # control-point count
-python verification/phase_vi/generate_residual_histories.py
-python verification/smoothness_gate/run_gate.py           # ~11 min
+python verification/mass_optimisation/run_mass_slsqp.py --delta 0     # ~20 s
+python verification/mass_optimisation/run_multistart.py               # ~3 min
+python verification/mass_optimisation/run_sweep.py                     # ~4 min
+python verification/mass_optimisation/run_mass_checks.py               # ~1 min
+python verification/mass_optimisation/run_cross_evaluation.py          # ~1 min
+python verification/absolute_material/run_absolute_material.py         # ~1 min
 ```
 
 ---
@@ -405,42 +374,15 @@ Full writeup, per-station diagnostics and exact reproduction steps:
 [`docs/validation/bem-cross-validation.md`](docs/validation/bem-cross-validation.md).
 
 **This is a cross-check between independent BEM codes, not a validation
-against ground truth.** NREL Phase VI *experimental* performance data has not
-been sourced (see the 2026-07-25 journal entry, Stage 5), so the Cp–λ curve
-has never been checked against measurements. That gap is tracked as an open
-item in `PROJECT_PLAN.md` and as item 6 of `docs/OUTSTANDING-INPUTS.md`.
+against ground truth.** Measured NREL Phase VI performance data are not part
+of the verification set, so the Cp–λ curve is compared with other codes'
+predictions, never with measurements (`docs/OUTSTANDING-INPUTS.md` §6).
 
----
-
-## Phase 1 status
-
-The objective function is built, and the question Phase 1 exists to answer has
-been answered:
-
-> **Is `J` smooth enough to differentiate?** Yes. `J` is **C¹ but not C²**,
-> which is what the adjoint requires and what finite differences need to be
-> interpretable.
-
-3000 objective evaluations across all 10 design variables converged, with no
-staircasing, no high-frequency noise and no discontinuous jumps. The single
-non-smoothness is a curvature break where blade stations cross the Buhl
-turbulent-wake threshold `a = 0.4` — inherent to a correction constructed to
-match momentum theory in value and slope and nothing further, not an
-implementation defect. Evidence and the full argument:
+The energy functional `J` is **C¹ but not C²**, which is what the adjoint
+requires and what finite differences need to be interpretable: 3000 objective
+evaluations across all 10 design variables show no staircasing, no
+high-frequency noise and no discontinuous jumps; the single non-smoothness is
+a curvature break where blade stations cross the Buhl turbulent-wake threshold
+`a = 0.4`, inherent to a correction constructed to match momentum theory in
+value and slope and nothing further. Evidence and the full argument:
 [`verification/smoothness_gate/README.md`](verification/smoothness_gate/README.md).
-
-Status of the exit criteria:
-
-| exit criterion | state |
-|---|---|
-| AEP of the baseline blade in the sanity band | **done** — 10.25 MWh/yr (10.2477 under the 300 rpm law, 2026-09-19), inside the 8–12 MWh/yr band. The band was revised from 4–6 on 2026-09-13; see `config/rotor_design.yaml` |
-| Feasibility of `x0` against the bounds | **done** — checked against the configured bounds (`chord_max_m = 0.30 m`, `max_local_solidity 0.5`, decided 2026-09-19; the 0.45 m placeholder is retired), zero violations |
-| Everything else in Phase 1 | done |
-
-The mechanism around each hole is complete and tested; nothing anywhere
-substitutes a default for a missing number, and where a computed result
-disagrees with a stated expectation the disagreement is recorded rather than
-tuned away. See
-[`docs/OUTSTANDING-INPUTS.md`](docs/OUTSTANDING-INPUTS.md) for what is needed,
-and the *"When the data lands"* section of
-`docs/journal/Session Notes/2026-09-10.md` for what to do when it arrives.

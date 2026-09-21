@@ -11,15 +11,15 @@ measured numbers are in §9; the code is `src/adjoint/`, the tests
 `tests/test_adjoint_*.py`, the artefacts `verification/gradient_verification/` and
 `verification/adjoint_optimisation/`.
 
-All bounds referred to are provisional: `chord_max_m = 0.45 m` is a placeholder
-pending the hub-radius / root-attachment decision. Nothing here reads a bound from
-`config/`.
+The bounds used in the measured runs of §9 are the ones recorded in each
+artefact's README; the configured box is in `config/rotor_design.yaml`. Nothing
+here reads a bound from `config/`.
 
 **Revision 2026-09-19 — fixed generator rating.** The objective's cap above rated
 was `P_aero(V_rated; d)`, floating with the design; `docs/AEP_GAIN_AUDIT.md` §3.2
 found that indefensible (a nameplate does not grow because the blade improved) and
-it is now the configured constant `operating.rated_power_w` (provisionally the
-baseline's own `P_aero(11 m/s; x0)`, pending input B2). For the adjoint this
+it is now the configured constant `operating.rated_power_w` (the reference
+blade's own `P_aero(11 m/s; x0)` at λ = 6.5; a nameplate replaces it). For the adjoint this
 removes the rated solve as an operating point — the system is **17 × 25 = 425**
 states, not 450 — and turns the capped bins into a constant term in `J` with no
 weight on any state (§7). §1 and §7 below are restated in the current form; the
@@ -351,8 +351,9 @@ the two optima coincide to 8e-9 in `u`.
 
 Cost basis from Stage A: `J` = 0.207 s per evaluation; central FD gradient at `x0`
 = 20 evaluations ≈ 4.2 s; the 300-evaluation step-size sweep = 62 s; the FD-driven
-SLSQP run (A4) = 34 iterations, 1,419 objective evaluations, 361 s, for a +0.217 %
-AEP gain. Stage B, this run: `pytest -q` went from 391 to 450 passed (5 xfailed
+SLSQP run (A4) = 34 iterations, 1,419 objective evaluations, 361 s, to the
+floating-rating optimum of that system (the committed fixed-rating result is
++0.1467 %, `verification/adjoint_optimisation/`, `verification/load_constraint/`). Stage B, this run: `pytest -q` went from 391 to 450 passed (5 xfailed
 throughout), 12 s to 29 s; the new tests, scripts and this document are ≈ 2,900
 lines. Nothing needed a cache extension (§4.5 of the brief): every point visited
 stayed inside Re 62.6 k … 496 k and α −0.44° … 6.13°.
@@ -514,7 +515,7 @@ Nothing is left unexplained.
 | `nit` / `nfev` / `njev` | 34 / 37 / 34 | 34 / 37 / 34 |
 | objective evaluations | 40 | 1,419 |
 | wall time | 24.7 s | 360.9 s |
-| AEP* | 10.292482 MWh/yr (+0.217 %) | 10.292482 MWh/yr (+0.217 %) |
+| AEP* | 10.292482 MWh/yr (floating-rating system) | 10.292482 MWh/yr (floating-rating system) |
 | `‖u*_adj − u*_fd‖∞` | 8.2e-9 | tolerance 8.6e-3 (10 × the multi-start spread) |
 | `AEP*_adj − AEP*_fd` | +1.4e-13 MWh/yr | tolerance ≈ 1e-6 (from `ftol`) |
 | trajectory: `max_k ‖u_k − u_k^fd‖∞` | 6.8e-7 | — |
@@ -522,8 +523,8 @@ Nothing is left unexplained.
 The optima coincide, and so do the 34 iterates on the way: the Tier 3 agreement
 carried through every quasi-Newton update without the paths separating. No active
 bound, no active envelope row, no `PolarDomainError`, α and Re inside the cache.
-The gain is 0.22 % as in A4 (below the brief's 2–6 % expectation, above neither
-defect gate; flagged for MJ there and confirmed global by the multi-start study).
+The optimum is the same as A4's, inside the defect gates and confirmed global by
+the multi-start study; the committed fixed-rating figure is +0.1467 %.
 
 ### 9.7 B6 — this document (`Phase 3: derivation`)
 
@@ -549,8 +550,8 @@ optimisation comparison (§9.6).
   no 1e-6 plateau anywhere in Tier 1.
 - **Per-station DOF**: `N_c`, `N_θ` are the only route from stations to `d`;
   `dR_dd`, `dJ_dd`, `apply_dR_dd(_T)` all go through them.
-- **Placeholders**: bounds provisional in every artefact; nothing in `config/`;
-  no cache extension was needed.
+- **Bounds**: read from each artefact's README; nothing in `config/` was changed
+  by this work; no cache extension was needed.
 - **Loosening a tier**: none loosened. Tier 3's residual disagreement was
   unexplained until Tier 4 explained it, and Tier 4 explained it as round-off with
   the polar interpolation contributing zero at `h*_j`.
@@ -839,7 +840,7 @@ One Euler–Bernoulli cantilever, one section, one shell of constant thickness,
 static, out-of-plane loads at the B3-independent points, no centrifugal
 stiffening, no gravity, no twist–bend coupling, no shear deformation, no
 tower-clearance allowable (the absolute form needs `E`, `k_I`, `t_shell` and
-a clearance, all `TODO`). It is a *proxy* whose purpose is to stop a material
+a clearance, none of which the relative row requires). It is a *proxy* whose purpose is to stop a material
 minimiser trading stiffness it does not see; the report states it as such
 beside the root-stress proxy `KS_ρ(M̂)/c_0²`. Buckling and fatigue are not
 modelled, for the reasons `docs/PROPOSAL-mass-objective-2026-09-19.md` §4.6

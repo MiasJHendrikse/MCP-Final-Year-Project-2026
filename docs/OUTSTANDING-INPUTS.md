@@ -1,413 +1,278 @@
-# Outstanding external inputs
+# Model assumptions and the inputs that would replace them
 
-**Things only MJ can supply.** Everything on this list blocks a specific,
-named exit criterion, and none of it can be filled in by inference, convention
-or a sensible default — that is ground rule 3 of the work order:
+Every value the design rests on is either measured, derived, or an engineering
+assumption with a stated basis. This file lists, section by section, the
+assumptions that a specific external input would replace, what that input
+is, where it goes, and what re-runs when it lands. No value here was invented
+to fill a gap: where an input is absent, the mechanism around it is built and
+tested, and the code raises rather than defaults.
 
-> **No invented values.** The site `TODO`s in the plan (GWA coordinates,
-> Weibull `k` and `c`, material allowable stress) stay `TODO` until real data
-> arrives.
-
-Each entry says exactly what is needed, where it goes, and what unblocks when
-it lands. Keep this file current: an item that gets filled should be deleted
-from here in the same commit that fills it.
-
-> **When one of these arrives, read the resumption checklist first:**
-> `docs/journal/Session Notes/2026-09-10.md`, section *"When the data lands"*,
-> and then the 2026-09-13 entry, which records where that checklist was
-> wrong when it was first used in anger — two of the three tests it named
-> were not the tests that actually went red, and one of them could not have.
-> This file says **what** is missing; that section says **what to do** with it
-> — which config line, which tests will deliberately go red and what to replace
-> them with, what evidence to regenerate, and how to tell whether the result is
-> actually right rather than merely green.
-
-Last reviewed: **2026-09-19 (evening)**. Phases 1–3 are complete. Since the
-14th: the generator rating is **frozen in code** (audit recommendation 2,
-section 9) at a provisional, baseline-derived value, so B2 asks for a number
-to *replace* a placeholder. **On the 19th MJ decided B1 (maximum rotor
-speed, 300 rpm, provisional with a stated basis) and the bounds (section 2,
-`chord_max_m = 0.30 m` with a solidity cap)** on the evidence of the
-isolated experiment now recorded in `verification/aep_optimisation_experiment/`.
-Both are in `config/rotor_design.yaml`. Nothing on this list blocks Phase 4
-or Phase 5 any more; B2 and B3 remain open as *replacements* and *scope
-limits* (section 9), and section 10 is a confirmation.
+The design purpose, the model and the settled results are in
+`docs/DESIGN-BASIS.md`; this file is the companion list of replaceable
+inputs. Section numbers are stable because other documents cite them.
 
 ---
 
-## 1. Wind resource — Weibull `k` and `c` ✅ **RESOLVED 2026-09-13**
+## 1. Wind resource — Weibull `k` and `c`
 
-Kept in place rather than deleted, because what landed is not quite what this
-entry asked for and the differences are load-bearing. Nothing inherits the 🔴 — the one
-follow-on it raised (section 7) was decided the same day.
+**As used.** A GASP point extraction at the site at 50 m (omni-directional):
+`A = 8.8 m/s`, `k = 1.87`, `V̄ = 7.8 m/s`; extrapolated to the 20 m hub height
+by the Justus & Mikhail (1976) correlation with shear exponent 0.2079, giving
+`k = 1.7092`, `c = 7.2738 m/s`, `V̄ = 6.4876 m/s`. Recorded with a log-law
+cross-check in `verification/wind_resource/` and carried in
+`config/site.yaml` (`wind_resource:`), with `latitude_deg` and
+`longitude_deg`.
 
-**What landed:** a **GASP point-data** extraction supplied by MJ
-(`misc/Screenshot 2026-09-13 114138.png`), omni-directional, at **50 m**:
-`A = 8.8 m/s`, `k = 1.87`, `U = 7.8 m/s`.
+**Assumptions.** The extraction is a single point, not an area selection, so
+`location.gwa_area` is unresolved and stays so; the source atlas is GASP. The
+longitude is recorded as East (16°33′28.2″ E), consistent with the pinned site
+imagery. Nothing downstream reads the area field or the longitude.
 
-**What was done with it:** extrapolated 50 m → 20 m hub height by the Justus &
-Mikhail (1976) correlation, per the resumption checklist's instruction that a
-height mismatch "must be done and recorded, not fudged". Recorded in
-`verification/wind_resource/` — **read that README before quoting these
-numbers.**
-
-`config/site.yaml` now carries `weibull_k = 1.709226`,
-`weibull_c_ms = 7.273759`, `mean_wind_speed_ms = 6.487612`, plus
-`latitude_deg` and `longitude_deg`.
-
-**Three things this did NOT resolve:**
-
-- **`location.gwa_area` is still `TODO`.** Not an oversight. The extraction is
-  a single *point*, not a Global Wind Atlas *area*, so there is no area
-  selection to record; filling it would assert an extraction never performed.
-- **The source is GASP, not globalwindatlas.info,** which is what plan §1.3
-  names. Probably fine — same family of mesoscale atlas — but the report should
-  say GASP, and MJ may want to confirm the substitution was intended.
-- **The longitude sign.** GASP labelled the point `W16.558`; the pinned
-  satellite views read `16°33′28.2″E`. East is recorded, west being open ocean.
-  Worth one confirming glance; nothing downstream reads longitude today.
-
-**And one thing it exposed, which is now the more interesting problem:** the
-baseline AEP is **10.27 MWh/yr** against plan §1.4's 4–6 MWh/yr sanity band.
-The band has **not** been widened (ground rule 5). The diagnosis is in the
-2026-09-13 journal entry; the short version is that the discrepancy is mostly
-*not* caused by this data — at the calmest corner of plan §1.3's own prior
-resource range the rotor already returns 5.9 MWh/yr — and is an inconsistency
-between plan §1.3, plan §1.4 and the fact that the AEP model produces
-aerodynamic shaft energy with no drivetrain efficiency applied.
-
-MJ decided the same day: widen the band. Done, to **8–12 MWh/yr**, with the
-derivation recorded rather than the numbers merely stretched to fit. See
-section 7, which is closed.
-
-So section 1 leaves nothing blocking behind it. The bounds entry (section
-2) was the most blocking item until 2026-09-13's provisional set unblocked
-Phases 2–3, and was resolved on 2026-09-19; section 9 carries the machine
-facts, of which B1 was resolved provisionally the same day.
+**What would replace it.** A site measurement campaign or an area-averaged
+atlas extraction at hub height. Then `config/site.yaml` changes and the chain
+from `verification/baseline/` onward re-runs in the order given in
+`verification/README.md`. The sensitivity of the settled blades to the
+resource is bounded by evaluation in
+`verification/mass_optimisation/cross_evaluation.json` (four Weibull corners:
+x_m within −0.006 … +0.011 % of the reference energy).
 
 ---
 
-## 2. Design-variable bounds ✅ **RESOLVED 2026-09-19 — MJ's decision (O4)**
+## 2. Design-variable bounds and the buildable-tip floor
 
-Kept in place rather than deleted, because the fourth value is an
-engineering judgement with a recorded basis, not a measured hub/attachment
-limit, and the basis has to stay findable.
-
-**What landed:** `config/rotor_design.yaml`, `parameterisation.bounds`:
+**As used** (`config/rotor_design.yaml`, `parameterisation.bounds` and
+`manufacturing:`):
 
 | field | value | basis |
 |---|---|---|
-| `chord_min_m` | 0.045 m | SG6043 10 % t/c at 32.1 % chord → ~4.5 mm laminate minimum (2026-09-13). **Superseded as a buildability statement on 2026-09-20** — it is the thickness of the *whole* section, and the mass objective put the tip on it (−4.24 % shell, 6:1 taper) — but **kept as the box** because the box sets the `u` scaling every Phase 1–4 artefact was measured in. The buildable-tip floor is the separate row below |
-| `manufacturing.min_chord_m` | **0.060 m** (new 2026-09-20, MJ's decision) | Five linear rows `c_i ≥ 0.060` in the mass problem (plan decision 6). 60 mm = a 6 mm section (two 2 mm skins + bond + web); below the Schmitz tip (67 mm), so `x0` and every reference are unchanged. 80 mm was measured and rejected (infeasible at δ = 0; would need a re-fitted reference; `misc/blade_shape_experiment`, scratch). Replaced by a laminate concept |
-| `chord_max_m` | **0.30 m** | local solidity at the root cut-out r = 0.3 m: 0.45 m gives σ = 0.72 (blades nearly touching; BEM's independent-annuli assumption and the Prandtl loss model no longer hold), 0.30 m gives σ = 0.48, the conventional edge of BEM validity; c/R = 0.15 is the top of the small-turbine commercial range (~0.08–0.15); the Schmitz root is 276 mm, so the baseline stays feasible and unclipped (audit §3.4) and the fairness argument is unchanged; measured neither generous nor punitive — +0.147 % at 300 rpm with either 0.30 or 0.45 m, and 2.33 → 2.28 % at 263 rpm |
-| `twist_min_deg` | −2° | Schmitz tip twist 0.57° with margin (2026-09-13). **Active at the optimum** from every start |
-| `twist_max_deg` | 35° | Schmitz root twist 23.07° with margin (2026-09-13) |
+| `chord_min_m` | 0.045 m | the box bound; it sets the scaling of the design variables in which every gradient artefact was measured, and is therefore fixed |
+| `manufacturing.min_chord_m` | 0.060 m | the buildable-tip floor, five linear rows `c_i ≥ 0.060` of the design problem: a 60 mm SG6043 section is about 6 mm thick, room for two 2 mm skins, a bond line and a web; below the Schmitz tip (67 mm), so the reference is unchanged |
+| `chord_max_m` | 0.30 m | local solidity at the root cut-out (r = 0.3 m): 0.30 m gives σ = 0.48, the conventional edge of BEM validity (0.45 m would give 0.72, blades nearly touching); c/R = 0.15 is the top of the small-turbine commercial range; the Schmitz root is 276 mm, so the reference is feasible and unclipped |
+| `twist_min_deg` | −2° | Schmitz tip twist 0.57° with margin |
+| `twist_max_deg` | 35° | Schmitz root twist 23.07° with margin |
+| `constraints.max_local_solidity` | 0.5 | `σ_i = B c_i / (2π r_i) ≤ 0.5` at every station; with the 0.30 m box it cannot bind (350 mm would be needed at the first station) and reports inactive |
 
-plus `constraints.max_local_solidity: 0.5` — the radius-aware form of the
-same limit, `σ_i = B c_i / (2π r_i) ≤ 0.5` at every station, wired through
-`ScaledProblem.solidity_constraint(cap)`. Honesty note, recorded in the YAML
-too: with the 0.30 m box on the control points and the spline's convex-hull
-property, the cap cannot be reached (at the first station, r = 0.334 m,
-σ = 0.5 needs 350 mm), so it will report *inactive* in every run; the box is
-what bites at the root.
-
-**What changed in code:** `DesignBounds.from_config()` now loads instead of
-raising; the provisional set in `tests/test_parameterisation.py::PROVISIONAL_BOUNDS`
-(0.45 m placeholder, 2026-09-13) is retired and every script and test reads
-the config. Three tests that were written to go red when this landed did,
-and were replaced (`test_design_bounds_are_resolved_with_their_recorded_values`,
-`test_bounds_from_config_carry_the_decided_values`,
-`test_x0_is_feasible_against_the_configured_bounds`). Because the box
-changed, the `u` scaling changed with it, so every gradient and optimisation
-artefact was re-run — see the 2026-09-19 journal entry.
-
-**What would replace it:** a hub radius and root-attachment concept that
-fixes a different upper chord, or a laminate concept that fixes a different
-minimum section. Then the value is replaced, not reconciled, and the
-artefacts re-run. **2026-09-20:** the buildable-tip floor was needed and
-was added as a *row of the mass problem* (`manufacturing.min_chord_m`,
-above) precisely so that the box — and with it the scaling and every
-committed gradient artefact, including the red test's FD reference — stays
-as it is. Phase 4's `x_c` (tip 47.7 mm) violates that row by 12 mm and is
-kept as the energy reference, evaluated only.
+**What would replace it.** A hub radius and root-attachment concept (a
+different upper chord) or a laminate concept (a different minimum section).
+Changing the box re-scales the design variables and re-runs every gradient
+and optimisation artefact; changing the floor re-runs
+`verification/mass_optimisation/` only. The energy-optimum companion blade
+x_c has a 47.7 mm tip and is below the floor; it is kept as an evaluated
+reference, not as a feasible design.
 
 ---
 
-## 3. Buhl (2005), NREL/TP-500-36834 🟡 provenance
+## 3. Buhl (2005), NREL/TP-500-36834 — provenance
 
-**Needed for:** plan step 1.3's checkbox — verify the Glauert/Buhl constants
-against the original paper, *not* from secondary sources or from prior notes in
-this repo.
+**As used.** The Glauert/Buhl high-induction relation in Ning's γ-form, with
+the blend at `a = 0.4`; `tests/test_corrections.py` asserts C⁰ and C¹
+continuity against momentum theory at `a = 0.4` and the F-independent anchor
+`C_T(1) = 2`, the three conditions that pin all three coefficients uniquely.
 
-**Where it goes:** `docs/references/` (create it), then a short commit
-recording the equation number and the stated `a_c`.
+**Assumption.** The constants are transcribed correctly from the original
+report. The tests would catch a transcription error but not constants
+faithfully transcribed from a secondary source.
 
-**Why it is not already done:** the report could not be retrieved on
-2026-09-10. `nrel.gov` and `docs.nrel.gov` do not resolve from the tooling;
-`web.archive.org` is unreachable; UNT's Digital Library copy sits behind a
-scripted interstitial; and OSTI's full-text link redirects to **`nlr.gov`** —
-note `nlr`, not `nrel` — which is a look-alike domain and must not be used as a
-citation source.
-
-**What is established meanwhile:** internal consistency, as committed tests.
-`tests/test_corrections.py` asserts C⁰ and C¹ against momentum theory at
-`a = 0.4` and the F-independent anchor `Ct(1) = 2` — the three conditions that
-pin all three coefficients uniquely. That would catch a transcription error but
-**not** constants faithfully transcribed from the wrong source, which is
-precisely what the checkbox is for. See the PROVENANCE block in
-`src/bem/corrections.py`.
+**What would replace it.** The primary report, filed under `docs/references/`,
+with the equation number and the stated `a_c` recorded beside the PROVENANCE
+block in `src/bem/corrections.py`. No re-run.
 
 ---
 
-## 4. Ning (2014), *Wind Energy* 17(9), 1327–1345 🟡 provenance
+## 4. Ning (2014), *Wind Energy* 17(9), 1327–1345 — provenance
 
-**Needed for:** the claim that the solver implements "the Ning formulation".
+**As used.** The single-residual formulation and the momentum-region
+classification in `src/bem/station.py`, derived from the residual's
+structure and verified numerically over 247 stations
+(`verification/phase_vi/`). The propeller-brake region on `φ ∈ (−π/4, 0)` is
+deliberately not implemented: a station that would need it is reported, not
+solved by an untested branch.
 
-**Where it goes:** `docs/references/`, then a commit reconciling
-`bem.station.momentum_region_bracket` against Ning's own region definitions.
-
-**Why it is not already done:** paywalled Wiley journal article, no reachable
-copy.
-
-**What is established meanwhile:** the region classification was **derived**
-from the residual's structure and verified numerically over 247 stations
-(`verification/phase_vi/`). The mathematics is checked to machine precision.
-What is *not* established is that it matches Ning's own definitions — and
-Ning's propeller-brake region on `φ ∈ (−π/4, 0)` is deliberately not
-implemented, with a station that would need it reported rather than solved by
-an untested branch. See the PROVENANCE block in `src/bem/station.py`.
+**What would replace it.** The primary article, filed under
+`docs/references/`, with `momentum_region_bracket` reconciled against Ning's
+region definitions. No re-run.
 
 ---
 
-## 5. Root cut-out fraction 🟢 confirm only
+## 5. Root cut-out fraction
 
-**Needed for:** nothing is blocked; this is a confirmation.
+**As used.** `geometry.root_fraction: 0.15` in `config/rotor_design.yaml` — a
+conventional root cut-out for a rotor of this size, and a modelling choice. It
+sized the SG6043 cache's Reynolds bounds and sets the inboard end of the
+parameterised span; the segment inside `r_hub = 0.30 m` carries no chord, no
+load and no material in any result. The root cylinder in the rendered blades
+is drawn only.
 
-**Where it lives:** `config/rotor_design.yaml`, `geometry.root_fraction: 0.15`.
-
-A conventional root cut-out for a rotor this size, and a **modelling choice**
-rather than a measured or derived quantity. It is already load-bearing: it
-sized the SG6043 cache's Reynolds bounds during work order Task 2, and it sets
-the inboard end of the parameterised span. Promoted from a duplicated private
-constant in `polars/envelope.py` into config during step 1.6 so there is one
-definition rather than two.
-
-If the real hub/root attachment geometry differs materially, the SG6043 cache
-bounds and the baseline should both be re-checked.
+**What would replace it.** A hub and root-attachment geometry. Then the
+SG6043 cache bounds and the reference blade are re-checked.
 
 ---
 
-## 6. NREL Phase VI experimental performance data ⚫ blocked, external
+## 6. NREL Phase VI measured performance data
 
-**Status:** marked `[!]` in the plan and believed unobtainable — no numeric
-measured Cp–λ dataset from any primary source.
+**As used.** None. Every Phase VI number in this repository is a prediction
+cross-checked against other predictions (CCBlade 0.51 %, pyBEMT 1.83 % mean
+|C_P| deviation; `docs/validation/bem-cross-validation.md`).
 
-**Consequence, stated plainly:** every Phase VI number this project produces is
-a prediction cross-checked against other predictions, never against
-measurement. The infrastructure to plot measurements as a fourth series exists
-(`src/validation/plot_bem_comparison.py`) should a dataset ever surface.
-
----
-
-## 7. The AEP sanity band ✅ **RESOLVED 2026-09-13 — MJ's decision**
-
-Raised and closed the same day. Kept in place rather than deleted because it
-records a deliberate revision of a stated expectation, which this repo's ground
-rule 5 otherwise forbids, and the basis for that needs to stay findable.
-
-**The problem:** when the wind resource landed, plan §1.4's 4–6 MWh/yr AEP
-sanity band could be evaluated for the first time. The baseline returns
-**10.27 MWh/yr**.
-
-**MJ's decision, as given:** widen the band — if the blade already makes
-substantially more power than the original band, the original band was simply
-too narrow.
-
-**Acted on.** `config/rotor_design.yaml` now carries **8–12 MWh/yr**, with the
-full derivation written out beside the numbers. Summary:
-
-- **Why 4–6 was wrong, on two counts, both predating the data.** It compared
-  an *electrical* capacity-factor estimate (~3.1 kW at `Cp = 0.42`,
-  `η = 0.90`) against a model that produces *aerodynamic* shaft energy at the
-  solver's actual `Cp = 0.472` with no drivetrain efficiency in the chain —
-  3.82 kW rated, not 3.1 kW. And it was never consistent with plan §1.3's own
-  resource prior: at the calmest corner of that prior the rotor already returns
-  5.9 MWh/yr, at the middle 7.7.
-- **How 8–12 was derived** — from the resource uncertainty this project has
-  recorded, not by fitting to 10.27. ±10 % on `c` and `k` spans 8.21–12.01; the
-  log-law roughness band on the height extrapolation spans 9.73–11.10 and sits
-  inside. Rounded outward. Capacity factor 0.24–0.36 on the aerodynamic rating.
-- **It is still a check.** Verified to fail on unlimited power (14.6),
-  sea-level density (13.0), unnormalised bin masses (12.9) and any factor of
-  two. `test_the_sanity_band_is_still_narrow_enough_to_catch_a_bug` asserts
-  exactly this, so a future widening cannot quietly turn the band into a note.
-
-**One sub-question is deliberately left open**, because it is a report
-decision rather than a blocker: whether the Phase 1 exit criterion should be
-stated in **aerodynamic** or **delivered electrical** energy. The band as
-written is aerodynamic, matching what the model computes and labelling itself
-as such. Stating it electrically means an `η` entering the AEP chain and a
-config field to hold it; `10.27 × 0.90 = 9.24 MWh/yr`, which is inside the new
-band either way. Nothing is blocked on this.
+**What would replace it.** A numeric measured Cp–λ dataset from a primary
+source. `src/validation/plot_bem_comparison.py` plots measurements as a
+fourth series should one be obtained. No re-run of the design.
 
 ---
 
-## 8. Justus & Mikhail (1976) 🟡 provenance
+## 7. The AEP sanity band
 
-**Raised 2026-09-13.** The third entry of the same shape as Buhl and Ning.
+**As used.** `config/rotor_design.yaml` `sanity:` 8–12 MWh/yr of aerodynamic
+shaft energy, derived from the recorded resource uncertainty (±10 % on `c`
+and `k` spans 8.21–12.01; the log-law roughness band on the height
+extrapolation spans 9.73–11.10) and rounded outward; capacity factor
+0.24–0.36 on the aerodynamic rating. The reference blade's 10.2477 MWh/yr
+lies inside it. `test_the_sanity_band_is_still_narrow_enough_to_catch_a_bug`
+asserts that the band still fails on unlimited power (14.6), sea-level
+density (13.0), unnormalised bin masses (12.9) and any factor of two.
 
-**Needed for:** the claim that `src/objective/height_extrapolation.py`
-implements the Justus & Mikhail correlation, and therefore for the 20 m `k`
-and `c` in `config/site.yaml`.
-
-**Where it goes:** `docs/references/`, then a commit confirming the two
-constants (`0.37` and `0.0881`), the 10 m anchor height, and the form of the
-`k(z)` relation against the paper.
-
-**Why it is not already done:** the formulae were transcribed from general
-knowledge of the method; no primary copy was retrieved.
-
-**What is established meanwhile:** `tests/test_height_extrapolation.py` — the
-identity at `z = z_ref`, monotonicity in `z`, the *sign* of both height
-relations (the `k` relation being upside down is the most plausible
-transcription error and would pass any check that looked only at the scale),
-and agreement with an independent log-law calculation across the plausible
-roughness range for this terrain. That would catch a mangled transcription. It
-would not catch a faithful transcription of the wrong correlation, which is
-what this item is for.
-
-**Weight it carries:** more than Buhl's or Ning's. Those two verify
-implementations whose behaviour is separately pinned by 247 stations and a
-golden regression. This one sets two numbers that multiply straight through
-every AEP figure in the report.
+**Assumption.** The band and every AEP figure are aerodynamic shaft energy;
+no drivetrain efficiency is applied anywhere in the chain. Stating energy
+electrically would introduce an `η` and a config field
+(`10.25 × 0.90 = 9.2 MWh/yr`, still inside the band).
 
 ---
 
-## 9. The machine — three facts that decide the Phase 5 objective 🟡 B1 resolved provisionally, B2 provisional, B3 open (scope limit)
+## 8. Justus & Mikhail (1976) — provenance
 
-**Raised 2026-09-13** by `docs/AEP_GAIN_AUDIT.md` §5, after the FD-driven
-and adjoint-driven optimisations both stopped at **+0.217 %** over Schmitz
-against the plan's 2–6 % expectation. The audit's finding: under plan §6.2's
-strategy — fixed λ = 6.5 at every wind speed, ideal power hold above rated —
-AEP is proportional to a single number, `Cp(λ = 6.5)`, up to Reynolds
-effects, and the polar-consistent Schmitz `x0` is the analytic maximiser of
-exactly that. The optimiser is right; the problem as posed has almost nothing
-in it to optimise. A larger honest number requires the machine model to
-contain a feature the real machine has. Which features it has is hardware,
-not a modelling choice.
+**As used.** `src/objective/height_extrapolation.py` implements the
+correlation with constants `0.37` and `0.0881` and the 10 m anchor height;
+`tests/test_height_extrapolation.py` checks the identity at `z = z_ref`,
+monotonicity in `z`, the sign of both height relations, and agreement with an
+independent log-law calculation across the plausible roughness range.
 
-**Status 2026-09-19 (evening).** Nothing here blocks Phase 4 or Phase 5.
+**What would replace it.** The primary paper, filed under `docs/references/`,
+confirming the constants and the form of the `k(z)` relation. This item
+carries more weight than §3 or §4: the two numbers it sets multiply through
+every AEP figure.
 
-### B1 — maximum rotor speed ✅ **resolved provisionally 2026-09-19: 300 rpm**
+---
 
-`config/rotor_design.yaml`, `operating.max_rotor_speed_rpm: 300` (62.8 m/s
-tip speed at R = 2 m; the ceiling bites at V_c = 9.67 m/s). The operating
-law in `src/objective/power.py` is `λ(V) = min(6.5, Ω_max R / V)`. Basis,
-recorded in the YAML:
+## 9. The machine — rotor-speed ceiling, rating, above-rated limiting
 
-- 341 rpm (= no ceiling below rated) is 71.4 m/s tip speed at rated — above
-  the ~60–65 m/s noise-conscious upper limit generally applied to
-  residential-scale small turbines.
-- The closest commercial analogue in size and rating (Skystream 3.7, 2.4 kW,
-  3.72 m rotor) runs to ~330 rpm ≈ 64 m/s tip speed; off-the-shelf
-  direct-drive 3 kW PMGs cluster at 250–300 rpm rated.
-- 263 and 239 rpm (55 / 50 m/s) were explicitly *not* chosen: they are the
-  cases that inflate the gain and would amount to designing for an
-  under-sped generator. 300 rpm gives **+0.147 %** (from +0.121 %), i.e. the
-  decision does not flatter the optimiser.
-- Evidence: `verification/aep_optimisation_experiment/` (2026-09-19).
+Three machine facts set the structure of the energy functional. Each is an
+assumption of the model with a stated basis (`config/rotor_design.yaml`
+`operating:` and its comments); a specified generator replaces the first two.
 
-**Provisional** in the sense that it is a stated engineering basis, not a
-generator datasheet. A specified generator's rated rpm replaces it, and the
-artefacts re-run. Section 10 is the confirmation item.
+### Maximum rotor speed — 300 rpm
 
-### B2 — generator nameplate rating 🟡 provisional (unchanged since the 19th, morning)
+`operating.max_rotor_speed_rpm: 300` (62.8 m/s tip speed at R = 2 m; the
+ceiling bites at V_c = 9.67 m/s). The operating law is
+`λ(V) = min(6.5, Ω_max R / V)` (`src/objective/power.py::tsr_schedule`).
+Basis: without a ceiling the rotor would run 341 rpm = 71.4 m/s tip speed at
+rated, above the ~60–65 m/s noise-conscious upper limit generally applied to
+residential-scale small turbines; the nearest commercial analogue in size and
+rating (Skystream 3.7, 2.4 kW, 3.72 m rotor) runs to ~330 rpm ≈ 64 m/s;
+off-the-shelf direct-drive 3 kW permanent-magnet generators cluster at
+250–300 rpm rated. Lower ceilings (263 rpm / 55 m/s, 239 rpm / 50 m/s) would
+amount to designing for an under-sped generator and were not adopted. The
+sensitivity of the settled blades to the ceiling is by evaluation
+(`mass_optimisation/cross_evaluation.json`: x_m loses 0.10 / 0.44 / 1.84 % of
+energy relative to the reference at 60 / 55 / 50 m/s).
 
-The cap no longer floats: `power_per_bin` holds power above rated at
-`operating.rated_power_w`, and the adjoint carries the capped bins as a
-constant (`adjoint.system.BEMSystem.J_capped`). The value is **provisional**
-— `P_aero(11 m/s; x0) = 3822.189755449124 W`, the Schmitz baseline's own
-aerodynamic power at the rated wind speed at full precision — and
-`tests/test_baseline.py::test_configured_rating_is_the_baselines_aerodynamic_rated_power`
-pins it to that basis. Note that under the 300 rpm ceiling the baseline runs
-λ = 5.71 at 11 m/s, not 6.5, so `P_aero(11 m/s; x0)` on the *schedule* is no
-longer exactly the configured rating; the test pins the basis as stated
-(λ = 6.5), and the config comment says so. What B2 still needs is the
-nameplate, which replaces the number and retires that test.
+**What would replace it.** A generator datasheet rated rpm. Then the value is
+replaced and every optimisation artefact re-runs. See also §10.
 
-### B3 — above-rated limiting mechanism 🟠 open; a scope limit, not a blocker
+### Generator rating — 3 822.19 W
 
-Ideal hold (current model): a capped bin contributes a constant to the
-objective and nothing to the gradient. That is defensible for the *energy*
-axis. It is **not** a model of the *loads* above rated: at (V > 11 m/s,
-Ω_max) the BEM state produces P_aero > P_rated with no mechanism shedding
-the difference, so the thrust and root moment there are those of a machine
-that is not the one modelled — and at 20 m/s / 300 rpm, λ = 3.1 and the
-inboard stations are at α ≈ 30° on the Viterna extrapolation. Consequence
-for Phase 4: the load constraint is applied at **rated wind speed at Ω_max
-(11 m/s, 300 rpm, λ = 5.71)**, the highest B3-independent point, inside the
-polar cache's α band; the cut-out moment is reported as a labelled
-post-check only. B3 would be needed to constrain above rated, and would
-change the adjoint structure (a trim equation). Not required for the
-project's stated scope.
+`operating.rated_power_w` is the reference blade's aerodynamic power at
+11 m/s and λ = 6.5, at full precision
+(`tests/test_baseline.py::test_configured_rating_is_the_baselines_aerodynamic_rated_power`
+pins that basis). Above rated, `power_per_bin` holds power at this value and
+the adjoint carries the capped bins as constants
+(`adjoint.system.BEMSystem.J_capped`). Under the 300 rpm ceiling the
+reference runs λ = 5.71 at 11 m/s, so its power on the schedule is a little
+below the rating; the rating is a nameplate and does not move with the
+schedule.
 
-**Phase 4 delivered 2026-09-19.** The root-moment KS constraint at ≤ rated is
-implemented and verified (`verification/load_constraint/`,
-`docs/adjoint_derivation.md` §10): the `ε = 0` run is the Phase 5 production
-optimum (+0.1465 % AEP over `x0` at the baseline's own moment cap), and the
-2/5/10 % Pareto costs 0.0206/0.1282/0.5785 % AEP. Loads **above** rated remain
-B3's, kept as a labelled cut-out post-check.
+**What would replace it.** A nameplate rating. Then the number is replaced,
+that test is retired, and every AEP artefact re-runs.
 
-| # | fact | status | measured sensitivity |
+### Above-rated limiting — ideal power hold
+
+The model holds `P = P_rated` above 11 m/s with no mechanism (stall, torque
+control or furling) modelled. A capped bin contributes a constant to the
+energy and nothing to its gradient, which is defensible for the energy axis.
+It is **not** a model of the loads above rated: at (V > 11 m/s, Ω_max) the
+BEM state produces P_aero > P_rated with nothing shedding the difference, and
+at 20 m/s / 300 rpm the inboard stations sit at α ≈ 30° on the Viterna
+extrapolation. Consequently every load constraint is applied at and below
+rated (nine operating points; the rated point at 11 m/s, 300 rpm, λ = 5.71
+carries KS weight 0.957), and the cut-out moment is reported as a labelled
+post-check only (`verification/load_constraint/README.md`).
+
+**What would replace it.** The actual machine's limiting mechanism. It would
+add a trim equation to the adjoint structure and allow loads above rated to
+be constrained; it is outside the project's stated scope.
+
+---
+
+## 10. Kestrel e400 rated rotor speed — citation to strengthen §9
+
+The Kestrel e400 (3 kW, 4.0 m rotor diameter, manufactured in Gqeberha) is
+the nearest regional comparable in size and rating. Its datasheet rated rotor
+speed and, if given, tip speed or noise rating would be cited beside the
+Skystream 3.7 figure in the config comment and the report. If it does not
+support ~300 rpm, the basis is recorded and the value revisited; artefacts
+re-run only if the config value changes.
+
+---
+
+## 11. The laminate and the tip clearance — `structure:`
+
+**As used.** The committed optimisation uses none of them: the objective is
+the shell material proxy `k_P ∫ c dr` per blade and every production
+constraint row is relative to the reference blade, so the headline is a
+percentage (−3.38 % shell material at the reference energy, −7.28 % on the
+solid proxy; −5.27 % within 0.5 % of it) and stays one whatever the laminate.
+
+**Resolved: the laminate** (`laminate_density_kg_m3 = 1920`,
+`shell_thickness_m = 0.002`, `youngs_modulus_pa = 41.8e9`,
+`allowable_stress_pa = 702e6`, `safety_factor = 3.5725`). One laminate, one
+stated construction — a 2 mm skin of the E-LT-5500/EP-3 unidirectional
+E-glass/epoxy laminate of Griffith & Ashwill (2011) SAND2011-3779 Table 19,
+tied to the 60 mm buildable tip ("two 2 mm skins + bond + web"), under the
+GL combined safety factor for a wet hand-laid, non-post-cured laminate.
+Provenance, value by value: `docs/MATERIALS-STRUCTURAL-INPUTS.md`. These
+are representative laminate values for that construction, not measurements
+of a built blade. What they give (`verification/absolute_material/`):
+
+| | x₀ | x_c | x_m |
 |---|---|---|---|
-| **B1** | maximum rotor speed | **300 rpm, provisional with basis** | none: +0.121 %; 300 rpm: **+0.147 %**; 286 rpm (60 m/s): +0.34 %; 263 rpm: +2.33 %; 239 rpm: +7.84 % |
-| **B2** | generator nameplate rating | provisional, `P_aero(11 m/s; x0)` at λ = 6.5 | floating: +0.217 %; fixed: +0.121 % |
-| **B3** | above-rated limiting mechanism | open; the ≤ rated load constraint is **done** (Phase 4, 2026-09-19), above-rated still B3 | not measured |
+| shell mass per blade | 1.678 kg | 1.782 kg | **1.622 kg** (−0.057 kg; −0.17 kg per rotor) |
+| thin-shell root stress `KS M_ref / (k_Z c₀² t)` | 22.6 MPa | 19.1 MPa | 22.6 MPa — 11.5 % of the 196.5 MPa design allowable |
+| tip deflection `δ_ref D / (E k_I t)` | 111.8 mm | 85.2 mm | 111.8 mm |
 
-**What is NOT acceptable as a way of resolving this** (audit §3.5): choosing
-a ceiling because it makes the number bigger; swapping the baseline for a
-linear-taper blade (report it as context only); keeping the floating rating;
-building Schmitz at a datasheet α; lowering `n_crit`. The 300 rpm decision
-was taken with those exclusions in front of it, which is why 263/239 rpm are
-recorded as rejected.
+The absolute stress row (`1 − σ/(σ_allow/SF) ≥ 0`) is built, verified
+(Tier 3 at x₀ and x_m) and **additional**: added to the committed set it
+leaves x_m unchanged (slack 0.885); put *in place of* the relative stress
+row it returns the "no stress row" ablation optimum (−4.53 %, a root at 1.70×
+the reference's stress per unit load, still only 38 MPa), because at the
+operating loads of the load set the allowable is never within a factor of
+five of binding. The sizing loads for a small blade's root are the IEC
+61400-2 parked, gust and fatigue cases this model does not compute, so the
+relative rows stay the design rows and the absolute figures are checks with
+the label "thin-shell": no spar cap, no web, no root insert. The moment cap
+`KS ≤ KS₀` is a load cap on the hub, shaft and tower, kept beside the stress
+rows, which are strength checks.
 
----
+**Outstanding: `tip_clearance_m`.** Machine geometry — tower diameter, hub
+overhang, cone, tilt — of the same class as §9's nameplate and rotor speed.
+GL states the allowed *remaining* clearance as a percentage of the unloaded
+one, and the unloaded one is the machine's; no number for it can be
+defended from the literature, so it stays `Unresolved`. The absolute
+deflection row (`1 − δ_tip/tip_clearance ≥ 0`) is built and passes Tier 3
+under an injected test clearance; `ScaledProblem.absolute_rows_available()`
+reports why it is not assembled. When the clearance lands: set the field,
+`verification/absolute_material/` re-runs, and the row joins the checks. It
+changes the optimum only if the clearance is below the thin-shell blade's
+111.8 mm at the rated point — in which case the laminate, not the planform,
+is what would be revisited.
 
-## 10. Kestrel e400 rated rotor speed 🟢 confirm only
-
-**Raised 2026-09-19** with the B1 decision. Nothing is blocked; this is a
-citation to strengthen the basis of `max_rotor_speed_rpm: 300`.
-
-**Needed for:** the report's justification of the rotor-speed ceiling. The
-Kestrel e400 (3 kW, 4.0 m rotor diameter, manufactured in Gqeberha) is the
-nearest regional comparable in size and rating.
-
-**What to pull:** the datasheet rated rotor speed (rpm) and, if given, the
-rated tip speed or noise rating. If it supports ~300 rpm, cite it beside the
-Skystream 3.7 figure in the config comment and the methodology chapter. If it
-does not, record what it says and whether the basis should move; the
-artefacts re-run only if the config value changes.
-
-## 11. The laminate — `structure.laminate_density_kg_m3`, `structure.shell_thickness_m` 🟢 non-gating
-
-Raised 2026-09-20 with the re-pitch to minimum-material design
-(`docs/PLAN-mass-objective-2026-09-20.md`). The Phase 5 objective is the
-shell material proxy `k_P ∫ c dr` per blade and every structural row is
-relative to the Schmitz `x₀`, so **no material input is needed for any
-result**: the headline is `−3.38 %` shell material (`−7.28 %` on the solid
-proxy) at equal energy, `−5.27 %` within 0.5 % of it, and stays a percentage.
-
-The two fields are `TODO` in `config/rotor_design.yaml` (`structure:`) and
-arrive as `Unresolved`; `MaterialModel.mass_kg` returns `None` while they
-are. What each would unlock, none of it gating:
-
-| input | unlocks | changes the optimum? |
-|---|---|---|
-| `laminate_density_kg_m3` × `shell_thickness_m` | a kilogram figure for `x₀`, `x_c`, `x_m` (`m = ρ_lam t k_P ∫ c dr`) | no — a common factor |
-| Young's modulus `E` (with the two above) | an absolute tip deflection in mm from the deflection proxy | no, unless a tip clearance is then imposed |
-| a tip clearance | an absolute deflection row `δ ≤ δ_max` in place of `D ≤ D₀` | yes, if it binds before Schmitz's own deflection |
-| an allowable stress `σ_a` (with a section modulus) | an absolute stress row in place of `KS/c₀² ≤ KS₀/c₀₀²` | yes, likewise |
-
-Item 7.3's `TODO: material and allowable stress` in `PROJECT_PLAN.md` is
-the same input seen from the constraint side. Owner MJ; needed only if the
-report wants a number in kilograms or millimetres beside the percentage.
+A laminate schedule (spar cap, variable thickness) replaces `t`, `k_I` and
+`k_Z` by a schedule; until one exists the thin-shell label stays.
