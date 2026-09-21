@@ -160,6 +160,26 @@ def test_title_refuses_long_parenthesised_or_precise_text():
     plt.close(_fig)
 
 
+def test_sci_leaves_log_axes_alone_and_formats_linear_ones():
+    import matplotlib.ticker
+    _fig, ax = plt.subplots()
+    ax.set_yscale("log")
+    ax.set_xscale("log")
+    figstyle.sci(ax)
+    assert isinstance(ax.yaxis.get_major_formatter(),
+                      matplotlib.ticker.LogFormatterSciNotation)
+    assert isinstance(ax.xaxis.get_major_formatter(),
+                      matplotlib.ticker.LogFormatterSciNotation)
+
+    _fig2, ax2 = plt.subplots()
+    ax2.set_yscale("linear")
+    figstyle.sci(ax2)
+    formatter = ax2.yaxis.get_major_formatter()
+    assert isinstance(formatter, matplotlib.ticker.ScalarFormatter)
+    assert formatter.get_useMathText()
+    plt.close("all")
+
+
 def test_apply_sets_the_stated_parameters():
     figstyle.apply()
     assert matplotlib.rcParams["font.family"] == ["serif"]

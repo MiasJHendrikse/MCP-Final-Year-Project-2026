@@ -191,13 +191,17 @@ def sci(ax, which="both"):
     """
     Math-text tick formatting for the given axes, so powers of ten read
     `10^{-6}` rather than `1e-06`. Returns the axes.
+
+    A logarithmic axis already carries `LogFormatterSciNotation`, which
+    renders the exponent as math text; forcing `ScalarFormatter` on it
+    mislabels the ticks, so a log axis is left alone.
     """
 
     formatter = matplotlib.ticker.ScalarFormatter(useMathText=True)
     formatter.set_powerlimits((0, 0))
-    if which in ("both", "x"):
+    if which in ("both", "x") and ax.xaxis.get_scale() != "log":
         ax.xaxis.set_major_formatter(formatter)
-    if which in ("both", "y"):
+    if which in ("both", "y") and ax.yaxis.get_scale() != "log":
         ax.yaxis.set_major_formatter(formatter)
     return ax
 
