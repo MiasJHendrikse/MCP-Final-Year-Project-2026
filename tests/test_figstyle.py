@@ -151,6 +151,7 @@ def test_save_writes_a_clean_two_panel_figure(tmp_path):
 def test_title_refuses_long_parenthesised_or_precise_text():
     _fig, ax = plt.subplots()
     figstyle.title(ax, "Chord control points")  # three words: fine
+    figstyle.title(ax, "SG6043 at 60 mm chord")  # a name's digits are not a number
     with pytest.raises(figstyle.FigureStyleError):
         figstyle.title(ax, "One two three four five six seven eight")
     with pytest.raises(figstyle.FigureStyleError):

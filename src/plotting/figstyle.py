@@ -173,7 +173,9 @@ def title(ax, text):
     if "(" in text or ")" in text:
         raise FigureStyleError(
             f"panel title carries parentheses: {text!r}")
-    for number in re.findall(r"\d+(?:\.\d+)?", text):
+    # A digit run that starts a word: "60" and "9.5" are numbers, the digits in
+    # a name like "SG6043" are not.
+    for number in re.findall(r"(?<![A-Za-z0-9])\d+(?:\.\d+)?", text):
         digits = number.replace(".", "").lstrip("0")
         if len(digits) > 3:
             raise FigureStyleError(
