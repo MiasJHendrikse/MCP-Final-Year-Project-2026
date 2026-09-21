@@ -1,21 +1,27 @@
 """
 Stage 6: combine compare_pybemt.py's and compare_ccblade.py's results into
-the three-way Cp-lambda plot and deviation tables for
+the two-panel three-way Cp-lambda / Ct-lambda plot and deviation tables for
 docs/validation/bem-cross-validation.md.
 
 Third of three scripts in the Stage 6 cross-check pipeline (see
 compare_pybemt.py's module docstring) -- this one needs only numpy and
 matplotlib, both already used elsewhere in this repo, so it runs with the
-plain repo python (no external virtualenv):
+plain repo python (no external virtualenv). It runs no solver: its only
+inputs are the two committed result files written by the other two scripts,
+and its only output is the figure (and the markdown tables on stdout).
 
-    cd src
-    python -m validation.plot_bem_comparison
+    cd <repo root>
+    python src/validation/plot_bem_comparison.py
+
+(or, as the doc originally stated, `python -m validation.plot_bem_comparison`
+from `src/` -- both work.)
 
 Reads docs/validation/pybemt_case/results.json and
 docs/validation/ccblade_case/results.json (written by the other two
 scripts -- run those first) and writes
 docs/validation/bem_cross_validation_comparison.png plus prints the
-markdown tables used in the doc above.
+markdown tables used in the doc above. The figure is written through
+`plotting.figstyle.save` (one style for every committed plot).
 
 Author: MJ Hendrikse
 Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
@@ -23,8 +29,14 @@ Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
 
 import json
 import os
+import sys
 
-from validation.compare_pybemt import DOCS_VALIDATION_DIR
+_HERE = os.path.dirname(os.path.abspath(__file__))
+_SRC = os.path.abspath(os.path.join(_HERE, ".."))
+if _SRC not in sys.path:
+    sys.path.insert(0, _SRC)
+
+from validation.compare_pybemt import DOCS_VALIDATION_DIR  # noqa: E402
 
 
 def load_results():
@@ -57,30 +69,34 @@ def load_results():
 
 
 def make_plot(rows, out_path):
+    """The committed two-panel figure: power and thrust coefficient vs TSR."""
+
     import matplotlib
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
+    from plotting import figstyle
+
+    figstyle.apply()
+
     tsr = [r["tsr"] for r in rows]
-    fig, (ax_cp, ax_ct) = plt.subplots(1, 2, figsize=(11, 4.5))
+    fig, (ax_cp, ax_ct) = plt.subplots(1, 2, figsize=figstyle.DOUBLE)
 
-    for ax, key, ylabel, title in (
-        (ax_cp, "Cp", "$C_p$", "Power coefficient"),
-        (ax_ct, "Ct", "$C_t$", "Thrust coefficient"),
+    for ax, key, title, ylabel in (
+        (ax_cp, "Cp", "Power coefficient", figstyle.LABELS["power_coefficient"]),
+        (ax_ct, "Ct", "Thrust coefficient", figstyle.LABELS["thrust_coefficient"]),
     ):
-        ax.plot(tsr, [r[f"{key}_ours"] for r in rows], "o-", label="Our solver (Ning residual + Buhl)", linewidth=2)
-        ax.plot(tsr, [r[f"{key}_ccblade"] for r in rows], "^-.", label="CCBlade (Ning, same formulation)")
-        ax.plot(tsr, [r[f"{key}_pybemt"] for r in rows], "s--", label="pyBEMT (classic BEM)")
-        ax.set_xlabel("Tip-speed ratio")
+        ax.plot(tsr, [r[f"{key}_ours"] for r in rows], "o-", label="present solver")
+        ax.plot(tsr, [r[f"{key}_ccblade"] for r in rows], "^-.", label="CCBlade")
+        ax.plot(tsr, [r[f"{key}_pybemt"] for r in rows], "s--", label="pyBEMT")
+        ax.set_xlabel(figstyle.LABELS["tip_speed_ratio"])
         ax.set_ylabel(ylabel)
-        ax.set_title(title)
-        ax.legend(fontsize=8)
-        ax.grid(alpha=0.3)
+        figstyle.title(ax, title)
+        ax.legend()
 
-    fig.suptitle("Three BEM codes on NREL Phase VI geometry (solver cross-check, not vs. experiment)")
-    fig.tight_layout()
-    fig.savefig(out_path, dpi=150)
+    figstyle.save(fig, out_path)
+    plt.close(fig)
     print(f"Wrote plot: {out_path}")
 
 

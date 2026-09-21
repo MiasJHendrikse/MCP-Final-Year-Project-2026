@@ -21,25 +21,36 @@ compared range that came from a gap retry or a local fit are counted and
 reported separately, so a low RMSE achieved partly across filled points (not
 independent XFOIL solutions) is visible rather than hidden inside one number.
 
-Run directly (from `src/`): python -m validation.compare_sg6043_uiuc
+Run from the repo root (no XFOIL: both paths read the committed SG6043
+cache CSVs under `data/polars/sg6043/` and the committed UIUC tables under
+`data/sg6043_uiuc_lsat/`):
+
+    python src/validation/compare_sg6043_uiuc.py           # compute the RMSEs, write the JSON, plot
+    python src/validation/compare_sg6043_uiuc.py --replot  # redraw the six PNGs only, no JSON write
 
 Author: MJ Hendrikse
 Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
 """
 
+import argparse
 import json
 import os
+import sys
 
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from polars.cache_format import load_xfoil_band, SOURCE_LABELS
-from validation.uiuc_sg6043 import load_lift_clean, load_drag_clean, NOMINAL_RE
-from xfoil.xfoil_runner import RESULTS_DIR
-
 _HERE = os.path.dirname(os.path.abspath(__file__))
+_SRC = os.path.abspath(os.path.join(_HERE, ".."))
+if _SRC not in sys.path:
+    sys.path.insert(0, _SRC)
+
+from polars.cache_format import load_xfoil_band, SOURCE_LABELS  # noqa: E402
+from validation.uiuc_sg6043 import load_lift_clean, load_drag_clean, NOMINAL_RE  # noqa: E402
+from xfoil.xfoil_runner import RESULTS_DIR  # noqa: E402
+
 DATA_DIR = os.path.abspath(os.path.join(_HERE, "..", "..", "data"))
 CACHE_DIR = os.path.join(DATA_DIR, "polars", "sg6043")
 OUT_DIR = os.path.join(RESULTS_DIR, "sg6043_uiuc_validation")
@@ -119,52 +130,69 @@ def compare():
 
 
 def make_plots(lift, drag):
+    """The committed two-panel figures, one per shared Reynolds number.
+
+    The Reynolds number is not drawn: it goes in the report caption. The
+    figure is written through `plotting.figstyle.save`, which is also the
+    check that no project history leaks into the image.
+    """
+
+    from plotting import figstyle
+
+    figstyle.apply()
+
     for re in NOMINAL_RE:
         path = os.path.join(CACHE_DIR, f"SG6043_Re{re}.csv")
         if not os.path.exists(path):
             continue
-        table, source = load_xfoil_band(path)
+        table, _source = load_xfoil_band(path)
         alpha = table[:, 0]
 
-        fig, (ax_cl, ax_cd) = plt.subplots(1, 2, figsize=(11, 4.5))
+        fig, (ax_cl, ax_cd) = plt.subplots(1, 2, figsize=figstyle.DOUBLE)
 
-        from polars.cache_format import SOURCE_XFOIL, SOURCE_GAP_RETRY, SOURCE_LOCAL_FIT
-        colors = {SOURCE_XFOIL: "C0", SOURCE_GAP_RETRY: "C1", SOURCE_LOCAL_FIT: "C3"}
-        for code, label in SOURCE_LABELS.items():
-            if code not in colors:
-                continue
-            m = source == code
-            if not m.any():
-                continue
-            ax_cl.plot(alpha[m], table[m, 1], "o", ms=4, color=colors[code], label=f"cache ({label})")
-            ax_cd.plot(alpha[m], table[m, 2], "o", ms=4, color=colors[code], label=f"cache ({label})")
-        ax_cl.plot(alpha, table[:, 1], "-", lw=0.8, color="C0", alpha=0.5)
-        ax_cd.plot(alpha, table[:, 2], "-", lw=0.8, color="C0", alpha=0.5)
+        for ax, cache_values, measured, value_col, title, ylabel in (
+            (ax_cl, table[:, 1], lift[re], 1, "Lift",
+             figstyle.LABELS["lift_coefficient"]),
+            (ax_cd, table[:, 2], drag[re], 2, "Drag",
+             figstyle.LABELS["drag_coefficient"]),
+        ):
+            ax.plot(alpha, cache_values, "o-", ms=3.0, color="#1f3b8b",
+                    label=r"XFOIL, $N_{crit}$ = 9")
+            ax.plot(measured[:, 0], measured[:, value_col], "s", ms=4, mfc="none",
+                    color="#b3452a", label="UIUC measurement")
+            ax.set_xlabel(figstyle.LABELS["angle_of_attack"])
+            ax.set_ylabel(ylabel)
+            figstyle.title(ax, title)
+            ax.legend()
 
-        ax_cl.plot(lift[re][:, 0], lift[re][:, 1], "ks", ms=4, mfc="none", label="UIUC LSAT")
-        ax_cd.plot(drag[re][:, 0], drag[re][:, 2], "ks", ms=4, mfc="none", label="UIUC LSAT")
-
-        ax_cl.set_xlabel("alpha (deg)"); ax_cl.set_ylabel("Cl")
-        ax_cl.set_title(f"Cl vs alpha, Re={re:,}")
-        ax_cl.legend(fontsize=7); ax_cl.grid(alpha=0.3)
-
-        ax_cd.set_xlabel("alpha (deg)"); ax_cd.set_ylabel("Cd")
-        ax_cd.set_title(f"Cd vs alpha, Re={re:,}")
-        ax_cd.legend(fontsize=7); ax_cd.grid(alpha=0.3)
-
-        fig.tight_layout()
         out_path = os.path.join(OUT_DIR, f"sg6043_vs_uiuc_Re{re}.png")
-        fig.savefig(out_path, dpi=150)
+        figstyle.save(fig, out_path)
         plt.close(fig)
         print(f"  wrote {os.path.relpath(out_path, DATA_DIR)}")
 
 
-if __name__ == "__main__":
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    parser.add_argument("--replot", action="store_true",
+                        help="redraw the six comparison PNGs from the committed "
+                             "polar cache and UIUC files; no JSON write")
+    args = parser.parse_args(argv)
+
     os.makedirs(OUT_DIR, exist_ok=True)
 
     print("=" * 78)
     print("SG6043 built cache vs UIUC LSAT Vol. 3 clean-model measurements")
     print("=" * 78)
+
+    if args.replot:
+        print("--replot: reading the committed SG6043 cache CSVs and "
+              "data/sg6043_uiuc_lsat/; no XFOIL, no JSON write.")
+        lift = load_lift_clean()
+        drag = load_drag_clean()
+        print()
+        print("Writing comparison plots ...")
+        make_plots(lift, drag)
+        return 0
 
     rows, lift, drag = compare()
 
@@ -183,3 +211,8 @@ if __name__ == "__main__":
     print()
     print("Writing comparison plots ...")
     make_plots(lift, drag)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

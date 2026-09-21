@@ -35,11 +35,16 @@ Inputs: `verification/baseline/x0.json`, `load_constraint/result_eps0.json`
 the Tier 3 / Taylor helpers of `mass_optimisation/run_mass_checks.py`.
 
     python verification/absolute_material/run_absolute_material.py     # ~2 min
+    python verification/absolute_material/run_absolute_material.py --replot
+
+`--replot` redraws `absolute_material.png` from the committed `result.json`
+(the only path that re-runs the structural evaluation is the one above it).
 
 Author: MJ Hendrikse
 Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
 """
 
+import argparse
 import dataclasses
 import datetime
 import json
@@ -154,80 +159,93 @@ def optimise(problem, u0, u_start, include, label, names):
 
 def plot(blades, path):
     """
-    Two panels, one axis each: the masses in kg (shell and solid, per blade)
-    and the thin-shell root stress against its allowable. The deflection is
-    a third panel in mm with no allowable line (there is none yet). House
-    colours (the `mass_optimisation` figures'); every bar carries its value.
+    Two panels, side by side: the mass per blade of the recorded laminate
+    (shell skin and solid section, grouped bars) and the thin-shell root
+    stress with the tip deflection on a twin axis, the 196.5 MPa design
+    allowable drawn as a dashed line. Every axis label is built through
+    `plotting.figstyle.label` and the figure is written through
+    `plotting.figstyle.save`.
     """
 
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    labels = [b["label"] for b in blades]
-    x = np.arange(len(labels))
-    blue, light, ink, grid = "#1f5fbf", "#5aa9e6", "#333333", "#dddddd"
-    fig, axes = plt.subplots(1, 3, figsize=(13.5, 4.4))
+    from plotting import figstyle
 
-    ax = axes[0]
+    figstyle.apply()
+
+    labels = [b["label"] for b in blades]
+    tick_labels = {"x0": r"$\mathbf{x}_0$", "x_c": r"$\mathbf{x}_c$",
+                   "x_m": r"$\mathbf{x}_m$"}
+    x = np.arange(len(labels))
+    ink, blue, light, red = "#333333", "#1f3b8b", "#5aa9e6", "#b3452a"
+
+    fig, (ax_mass, ax_load) = plt.subplots(1, 2, figsize=figstyle.DOUBLE)
+
     shell = [b["absolute"]["shell_mass_kg_per_blade"] for b in blades]
     solid = [b["absolute"]["solid_mass_kg_per_blade"] for b in blades]
-    bars = ax.bar(x - 0.21, shell, 0.4, color=blue, label="shell skin, 2 mm E-glass/epoxy")
-    bars2 = ax.bar(x + 0.21, solid, 0.4, color=light, label="solid section, same laminate")
+    bars = ax_mass.bar(x - 0.20, shell, 0.4, color=blue, label="shell skin")
+    bars2 = ax_mass.bar(x + 0.20, solid, 0.4, color=light, label="solid section")
     for group in (bars, bars2):
         for bar in group:
-            ax.annotate(f"{bar.get_height():.2f}", (bar.get_x() + bar.get_width() / 2, bar.get_height()),
-                        ha="center", va="bottom", fontsize=8, color=ink, xytext=(0, 2),
-                        textcoords="offset points")
-    ax.set_xticks(x)
-    ax.set_xticklabels(labels)
-    ax.set_ylabel("mass per blade [kg]")
-    ax.set_title("material in kilograms (1920 kg/m^3)", fontsize=10)
-    ax.legend(fontsize=8, frameon=False, loc="upper left")
-    ax.set_ylim(0.0, max(solid) * 1.25)
-    ax.grid(True, axis="y", color=grid, lw=0.6)
+            ax_mass.annotate(f"{bar.get_height():.2f}",
+                             (bar.get_x() + bar.get_width() / 2.0, bar.get_height()),
+                             ha="center", va="bottom", fontsize=7, color=ink,
+                             xytext=(0, 2), textcoords="offset points")
+    ax_mass.set_xticks(x)
+    ax_mass.set_xticklabels([tick_labels.get(label, label) for label in labels])
+    ax_mass.set_ylabel(figstyle.label("Mass per blade", None, "kg"))
+    ax_mass.set_ylim(0.0, max(solid) * 1.28)
+    ax_mass.legend(loc="upper left")
+    figstyle.title(ax_mass, "Mass per blade")
 
-    ax = axes[1]
     stress = [b["absolute"]["root_stress_mpa"] for b in blades]
-    allowable = blades[0]["absolute"]["design_allowable_mpa"]
-    bars = ax.bar(x, stress, 0.5, color=blue)
-    for bar in bars:
-        ax.annotate(f"{bar.get_height():.1f}", (bar.get_x() + bar.get_width() / 2, bar.get_height()),
-                    ha="center", va="bottom", fontsize=8, color=ink, xytext=(0, 2),
-                    textcoords="offset points")
-    ax.axhline(allowable, color=ink, lw=1.0, ls="--")
-    ax.annotate(f"design allowable {allowable:.1f} MPa (702 / 3.5725)", (0.03, allowable),
-                xycoords=("axes fraction", "data"), fontsize=8, color=ink, va="bottom",
-                xytext=(0, 2), textcoords="offset points")
-    ax.set_xticks(x)
-    ax.set_xticklabels(labels)
-    ax.set_ylabel("thin-shell root stress [MPa]")
-    ax.set_title("KS root moment over k_Z c0^2 t, operating loads", fontsize=10)
-    ax.set_ylim(0.0, allowable * 1.15)
-    ax.grid(True, axis="y", color=grid, lw=0.6)
-
-    ax = axes[2]
     deflection = [b["absolute"]["tip_deflection_mm"] for b in blades]
-    bars = ax.bar(x, deflection, 0.5, color=blue)
+    allowable = blades[0]["absolute"]["design_allowable_mpa"]
+    bars = ax_load.bar(x, stress, 0.5, color=blue)
     for bar in bars:
-        ax.annotate(f"{bar.get_height():.1f}", (bar.get_x() + bar.get_width() / 2, bar.get_height()),
-                    ha="center", va="bottom", fontsize=8, color=ink, xytext=(0, 2),
-                    textcoords="offset points")
-    ax.set_xticks(x)
-    ax.set_xticklabels(labels)
-    ax.set_ylabel("tip deflection [mm]")
-    ax.set_title("delta_ref D / (E k_I t), E = 41.8 GPa; no clearance specified", fontsize=10)
-    ax.set_ylim(0.0, max(deflection) * 1.25)
-    ax.grid(True, axis="y", color=grid, lw=0.6)
+        ax_load.annotate(f"{bar.get_height():.1f}",
+                         (bar.get_x() + bar.get_width() / 2.0, bar.get_height()),
+                         ha="center", va="bottom", fontsize=7, color=ink,
+                         xytext=(0, 2), textcoords="offset points")
+    ax_load.axhline(allowable, color=ink, lw=1.0, ls="--")
+    ax_load.annotate(f"design allowable {allowable:.1f} MPa", (0.03, allowable),
+                     xycoords=("axes fraction", "data"), fontsize=7, color=ink,
+                     va="bottom", xytext=(0, 2), textcoords="offset points")
+    ax_load.set_xticks(x)
+    ax_load.set_xticklabels([tick_labels.get(label, label) for label in labels])
+    ax_load.set_ylabel(figstyle.label("Root stress", r"\sigma", "MPa"))
+    ax_load.set_ylim(0.0, allowable * 1.18)
+    figstyle.title(ax_load, "Root stress and tip deflection")
 
-    fig.suptitle("x0 / x_c / x_m with the recorded laminate -- thin-shell blade, "
-                 "E-LT-5500/EP-3 (Griffith & Ashwill 2011, Table 19)", fontsize=10)
-    fig.tight_layout()
-    fig.savefig(path, dpi=150)
+    ax_tip = ax_load.twinx()
+    ax_tip.plot(x, deflection, "o-", color=red, label="tip deflection")
+    ax_tip.set_ylabel(figstyle.label("Tip deflection", r"\delta", "mm"),
+                      color=red)
+    ax_tip.tick_params(axis="y", colors=red)
+    ax_tip.set_ylim(0.0, max(deflection) * 1.25)
+    ax_tip.legend(loc="upper right")
+
+    figstyle.save(fig, path)
     plt.close(fig)
 
 
 def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    parser.add_argument("--replot", action="store_true",
+                        help="redraw absolute_material.png from the committed "
+                             "result.json; no evaluation runs")
+    args = parser.parse_args(argv)
+
+    if args.replot:
+        with open(RESULT_PATH, encoding="utf-8") as handle:
+            committed = json.load(handle)
+        plot(committed["blades"], FIGURE_PATH)
+        print(f"redrew {FIGURE_PATH} from {RESULT_PATH}; no evaluation run",
+              flush=True)
+        return 0
+
     started = time.perf_counter()
     h_star = float(C.load_json(C.SWEEP_PATH)["h_star_global"])
     problem, u0 = C.prepared_problem()
