@@ -49,6 +49,8 @@ import math
 import os
 import sys
 
+import numpy as np
+
 sys.path.insert(0, os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "..", "..", "src"))
 
@@ -56,6 +58,7 @@ from objective.height_extrapolation import (  # noqa: E402
     extrapolate_weibull, log_law_scale_ms)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+X0_PATH = os.path.join(HERE, "..", "baseline", "x0.json")
 
 # ---------------------------------------------------------------------------
 # The extraction, exactly as displayed. Nothing here is derived.
@@ -95,6 +98,57 @@ ROUGHNESS_RANGE_M = (0.05, 0.10, 0.20, 0.30, 0.50)
 # Plan 1.3's prior expectation, for comparison only. Never a substitute.
 PRIOR_K_RANGE = (1.8, 2.4)
 PRIOR_C_RANGE = (6.0, 7.0)
+
+
+def held_k_penalty(extrapolated):
+    """
+    The energy cost of pinning `k` at its 50 m value.
+
+    Both annual energies are `objective.annual_energy_mwh` for the reference
+    blade `verification/baseline/x0.json`, under the committed operating law
+    and rating (`config/rotor_design.yaml`): one with the extrapolated
+    (configured) pair, one with `k` held at the 50 m value and the
+    extrapolated scale. The only thing that changes between the two is the
+    shape parameter, so the difference is what the height extrapolation's `k`
+    reduction buys -- the penalty a fixed-`k` resource assumption would pay.
+
+    The configured pair is built from this run's own extrapolation rather
+    than read from `config/site.yaml`: that file is this script's output, and
+    an artefact that reads what it fills cannot be regenerated from scratch.
+    `tests/test_wind_resource.py` is what holds the two equal.
+    """
+
+    from objective.objective import annual_energy_mwh
+    from objective.weibull import WeibullResource
+
+    with open(X0_PATH, encoding="utf-8") as handle:
+        record = json.load(handle)
+    x0 = np.array(record["chord_control_points_m"]
+                  + record["twist_control_points_rad"], dtype=float)
+
+    configured = WeibullResource(k=extrapolated.k, c=extrapolated.scale_ms)
+    held = WeibullResource(k=REFERENCE_K, c=extrapolated.scale_ms)
+    aep_configured = annual_energy_mwh(x0, resource=configured)
+    aep_held = annual_energy_mwh(x0, resource=held)
+
+    return {
+        "what": (
+            "AEP of the reference blade under the committed operating law "
+            "and rating, with the resource at the extrapolated (configured) "
+            "shape parameter and with k pinned at its 50 m value, c held at "
+            "the extrapolated scale. The difference is the energy the k "
+            "reduction buys."
+        ),
+        "blade": "verification/baseline/x0.json",
+        "law": "the committed operating law and rating (config/rotor_design.yaml)",
+        "k_configured": float(configured.k),
+        "c_configured_ms": float(configured.c),
+        "k_held": float(held.k),
+        "c_held_ms": float(held.c),
+        "aep_configured": float(aep_configured),
+        "aep_k_held": float(aep_held),
+        "penalty_pct": float(100.0 * (aep_held / aep_configured - 1.0)),
+    }
 
 
 def main():
@@ -156,6 +210,7 @@ def main():
             "central_case_inside_band": inside,
         },
         "against_plan_prior_expectation": prior,
+        "held_k_penalty": held_k_penalty(result),
     }
 
     path = os.path.join(HERE, "wind_resource_20m.json")
@@ -182,6 +237,15 @@ def main():
           f"{'inside' if prior['k_inside'] else 'OUTSIDE -- a finding'}")
     print(f"Plan prior c {PRIOR_C_RANGE}: "
           f"{'inside' if prior['c_inside'] else 'OUTSIDE -- a finding'}")
+    print()
+    penalty = artefact["held_k_penalty"]
+    print(f"Held-k penalty (reference blade, committed law and rating):")
+    print(f"  AEP(configured k = {penalty['k_configured']:.6f}, "
+          f"c = {penalty['c_configured_ms']:.6f}) = "
+          f"{penalty['aep_configured']:.6f} MWh/yr")
+    print(f"  AEP(k held at {penalty['k_held']:.6f})            = "
+          f"{penalty['aep_k_held']:.6f} MWh/yr  "
+          f"({penalty['penalty_pct']:+.4f} %)")
     print()
     print(f"Wrote {path}")
 

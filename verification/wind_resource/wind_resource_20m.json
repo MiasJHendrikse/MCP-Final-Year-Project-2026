@@ -64,5 +64,17 @@
     ],
     "k_inside": false,
     "c_inside": false
+  },
+  "held_k_penalty": {
+    "what": "AEP of the reference blade under the committed operating law and rating, with the resource at the extrapolated (configured) shape parameter and with k pinned at its 50 m value, c held at the extrapolated scale. The difference is the energy the k reduction buys.",
+    "blade": "verification/baseline/x0.json",
+    "law": "the committed operating law and rating (config/rotor_design.yaml)",
+    "k_configured": 1.7092259817328979,
+    "c_configured_ms": 7.273759033048761,
+    "k_held": 1.87,
+    "c_held_ms": 7.273759033048761,
+    "aep_configured": 10.247707476999635,
+    "aep_k_held": 10.15421324785962,
+    "penalty_pct": -0.9123428761979913
   }
 }

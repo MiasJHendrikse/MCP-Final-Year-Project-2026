@@ -286,3 +286,29 @@ def test_the_plan_prior_disagreement_is_recorded(artefact):
 
     assert prior["k_inside"] is False, "k moved back inside the prior band"
     assert prior["c_inside"] is False, "c moved back inside the prior band"
+
+
+# ---------------------------------------------------------------------------
+# 5. The held-k penalty (the design basis's own sensitivity)
+# ---------------------------------------------------------------------------
+
+def test_the_held_k_penalty_block_is_present_and_small(artefact):
+    """
+    Pinning k at its 50 m value costs the reference blade about 0.9 % of its
+    annual energy, under the committed law and rating.
+
+    The block is the artefact the design basis quotes when it says the
+    extrapolated shape parameter is worth having; a missing block, or a
+    penalty an order of magnitude from the recorded one, is a defect either
+    way round.
+    """
+
+    block = artefact["held_k_penalty"]
+
+    assert block["k_held"] == pytest.approx(artefact["reference_level"]["k"],
+                                            rel=1e-12)
+    assert (block["c_held_ms"]
+            == pytest.approx(artefact["extrapolation"]["scale_ms"], rel=1e-12))
+    assert (block["aep_k_held"] < block["aep_configured"]), (
+        "holding k at its 50 m value must cost energy, not gain it")
+    assert block["penalty_pct"] == pytest.approx(-0.91, abs=0.05)
