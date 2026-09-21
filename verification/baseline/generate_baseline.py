@@ -14,16 +14,24 @@ Run from the repo root:
 
     python verification/baseline/generate_baseline.py
 
+Redraw the committed figures from the committed JSON, without recomputing
+anything:
+
+    python verification/baseline/generate_baseline.py --replot
+
+Writes `x0.json`, `baseline_reference.json`, `baseline_geometry.png` and
+`baseline_operating_line.png` next to this file. The earlier three-panel
+`baseline.png` is superseded by the two figure files and is no longer written.
+
 Author: MJ Hendrikse
 Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
 """
 
+import argparse
 import json
 import math
 import os
 import sys
-
-import numpy as np
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.abspath(os.path.join(_HERE, "..", ".."))
@@ -83,74 +91,124 @@ def build():
     return baseline, x0, performance
 
 
-def plot(baseline, performance, path):
+def plot_geometry(performance, x0, out_dir):
+    """`baseline_geometry.png`: chord and twist | the C_P-lambda curve."""
+
     try:
         import matplotlib
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
+        from plotting import figstyle
     except ImportError:
-        print("matplotlib not available; skipping the figure")
+        print("matplotlib not available; skipping the figures")
         return
 
+    figstyle.apply()
+    fig, axes = plt.subplots(1, 2, figsize=figstyle.DOUBLE,
+                             layout="constrained")
     blue, orange, green = "#0072B2", "#E69F00", "#009E73"
-    parameterisation = baseline.parameterisation
-    r_over_R = parameterisation.radii / parameterisation.radius_m
 
-    fig, axes = plt.subplots(1, 3, figsize=(13.5, 4.2))
+    spanwise = performance["spanwise"]
+    radius = [row["r"] for row in spanwise]
 
     ax = axes[0]
-    ax.plot(r_over_R, baseline.chord_target_m * 1000, "k--", linewidth=1.6,
-            label="analytic Schmitz")
-    ax.plot(r_over_R, baseline.chord_m * 1000, color=blue, linewidth=1.6,
-            label="fitted (x0)")
-    ax.set_xlabel("$r/R$")
-    ax.set_ylabel("chord [mm]")
-    ax.set_title("Baseline chord")
-    ax.legend(fontsize=8, frameon=False)
-    ax.grid(True, linewidth=0.3, alpha=0.4)
+    ax.plot(radius, [1000.0 * row["chord_m"] for row in spanwise], color=blue,
+            label=r"$\mathbf{x}_0$")
+    ax.set_xlabel(figstyle.LABELS["radius"])
+    ax.set_ylabel(figstyle.LABELS["chord"], color=blue)
+    ax.tick_params(axis="y", labelcolor=blue)
+    ax.legend()
+    figstyle.title(ax, "Blade geometry")
 
-    ax2 = axes[0].twinx()
-    ax2.plot(r_over_R, np.degrees(baseline.twist_rad), color=orange,
-             linewidth=1.2, alpha=0.8)
-    ax2.set_ylabel("twist [deg]", color=orange)
-    ax2.tick_params(axis="y", labelcolor=orange)
+    ax_twist = ax.twinx()
+    ax_twist.plot(radius, [row["twist_deg"] for row in spanwise], color=orange)
+    ax_twist.set_ylabel(figstyle.LABELS["twist"], color=orange)
+    ax_twist.tick_params(axis="y", labelcolor=orange)
+    ax_twist.grid(False)
 
     ax = axes[1]
-    tsr = [row["tsr"] for row in performance["cp_lambda"]]
-    cp = [row["Cp"] for row in performance["cp_lambda"]]
-    ax.plot(tsr, cp, color=blue, linewidth=1.6)
-    ax.axvline(performance["design_point"]["tsr"], color=green, linestyle=":",
-               linewidth=1.2, label=f"design $\\lambda$ = {performance['design_point']['tsr']}")
+    ax.plot([row["tsr"] for row in performance["cp_lambda"]],
+            [row["Cp"] for row in performance["cp_lambda"]], color=blue)
     ax.axhline(16.0 / 27.0, color="0.5", linestyle="--", linewidth=1.0,
                label="Betz limit")
-    ax.set_xlabel("$\\lambda$")
-    ax.set_ylabel("$C_p$")
-    ax.set_title("Baseline $C_p$-$\\lambda$")
-    ax.legend(fontsize=8, frameon=False)
-    ax.grid(True, linewidth=0.3, alpha=0.4)
 
-    ax = axes[2]
-    speeds = [row["v_inf"] for row in performance["operating_line"]]
-    power = [row["power_w"] for row in performance["operating_line"]]
-    thrust = [row["thrust_n"] for row in performance["operating_line"]]
-    ax.plot(speeds, power, color=blue, linewidth=1.6, label="power [W]")
-    ax.set_xlabel("wind speed [m/s]")
-    ax.set_ylabel("power [W]", color=blue)
-    ax.tick_params(axis="y", labelcolor=blue)
-    ax.set_title("Below-rated operating line")
-    ax.grid(True, linewidth=0.3, alpha=0.4)
-    ax3 = ax.twinx()
-    ax3.plot(speeds, thrust, color=orange, linewidth=1.4, label="thrust [N]")
-    ax3.set_ylabel("thrust [N]", color=orange)
-    ax3.tick_params(axis="y", labelcolor=orange)
+    design_tsr = float(x0["rotor"]["design_tsr"])
+    design_row = next(row for row in performance["cp_lambda"]
+                      if abs(row["tsr"] - design_tsr) < 1e-9)
+    ax.plot([design_tsr], [design_row["Cp"]], marker="o", linestyle="none",
+            color=green, label=fr"design $\lambda$ = {design_tsr:g}")
 
-    fig.tight_layout()
-    fig.savefig(path, dpi=150)
+    rated = performance["design_point"]
+    ax.plot([rated["tsr"]], [rated["Cp"]], marker="s", linestyle="none",
+            color=orange, label=fr"rated point $\lambda$ = {rated['tsr']:.2f}")
+
+    ax.set_xlabel(figstyle.LABELS["tip_speed_ratio"])
+    ax.set_ylabel(figstyle.LABELS["power_coefficient"])
+    ax.legend(loc="lower right")
+    figstyle.title(ax, "Power coefficient")
+
+    path = os.path.join(out_dir, "baseline_geometry.png")
+    figstyle.save(fig, path)
+    plt.close(fig)
     print(f"wrote {path}")
 
 
-def main():
-    baseline, x0, performance = build()
+def plot_operating_line(performance, out_dir):
+    """`baseline_operating_line.png`: power and thrust against wind speed."""
+
+    try:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        from plotting import figstyle
+    except ImportError:
+        print("matplotlib not available; skipping the figures")
+        return
+
+    figstyle.apply()
+    fig, ax = plt.subplots(figsize=figstyle.SINGLE)
+    blue, orange = "#0072B2", "#E69F00"
+
+    speeds = [row["v_inf"] for row in performance["operating_line"]]
+
+    ax.plot(speeds, [row["power_w"] for row in performance["operating_line"]],
+            color=blue)
+    ax.set_xlabel(figstyle.LABELS["wind_speed"])
+    ax.set_ylabel(figstyle.label("Power", "P", "W"), color=blue)
+    ax.tick_params(axis="y", labelcolor=blue)
+
+    ax_thrust = ax.twinx()
+    ax_thrust.plot(speeds,
+                   [row["thrust_n"] for row in performance["operating_line"]],
+                   color=orange)
+    ax_thrust.set_ylabel(figstyle.label("Thrust", "T", "N"), color=orange)
+    ax_thrust.tick_params(axis="y", labelcolor=orange)
+    ax_thrust.grid(False)
+
+    path = os.path.join(out_dir, "baseline_operating_line.png")
+    figstyle.save(fig, path)
+    plt.close(fig)
+    print(f"wrote {path}")
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--replot", action="store_true",
+                        help="redraw the figures from the committed JSON, "
+                             "without recomputing anything")
+    args = parser.parse_args(argv)
+
+    if args.replot:
+        with open(os.path.join(_HERE, "baseline_reference.json"),
+                  encoding="utf-8") as handle:
+            performance = json.load(handle)
+        with open(os.path.join(_HERE, "x0.json"), encoding="utf-8") as handle:
+            x0 = json.load(handle)
+        plot_geometry(performance, x0, _HERE)
+        plot_operating_line(performance, _HERE)
+        return
+
+    _, x0, performance = build()
 
     for name, payload in (("x0.json", x0),
                           ("baseline_reference.json", performance)):
@@ -159,7 +217,8 @@ def main():
             json.dump(payload, handle, indent=1)
         print(f"wrote {path}")
 
-    plot(baseline, performance, os.path.join(_HERE, "baseline.png"))
+    plot_geometry(performance, x0, _HERE)
+    plot_operating_line(performance, _HERE)
 
     point = performance["design_point"]
     print()

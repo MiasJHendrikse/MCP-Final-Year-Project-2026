@@ -10,13 +10,23 @@ Run from the repo root:
 
     python verification/phase_vi/generate_residual_histories.py
 
+Redraw the committed figure from the committed JSON, without recomputing
+anything:
+
+    python verification/phase_vi/generate_residual_histories.py --replot
+
 Writes `residual_histories.json` and `residual_convergence.png` next to this
-file.
+file. The JSON holds each station's residual history -- the root-finder's own
+sequence of `[phi, R]` evaluations -- and the initial residual each history is
+normalised by, but not the convergence criterion: that is the solver's own
+`RESIDUAL_RTOL`, imported from `bem.station` and labelled on the criterion
+line.
 
 Author: MJ Hendrikse
 Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
 """
 
+import argparse
 import json
 import math
 import os
@@ -27,7 +37,7 @@ REPO_ROOT = os.path.abspath(os.path.join(_HERE, "..", ".."))
 sys.path.insert(0, os.path.join(REPO_ROOT, "src"))
 
 from bem.rotor import PHASE_VI_RATED_RPM, phase_vi_geometry  # noqa: E402
-from bem.station import StationParams, solve_station  # noqa: E402
+from bem.station import RESIDUAL_RTOL, StationParams, solve_station  # noqa: E402
 from config import load_phase_vi_rotor  # noqa: E402
 from polars.polar import CachedPolar, interpolant_for  # noqa: E402
 
@@ -123,39 +133,93 @@ def summarise(cases):
     }
 
 
-def plot(cases, path):
+def require_histories(data):
+    """
+    Return the cases, or refuse the replot naming exactly what is missing.
+
+    The figure needs each station's `history` and the `residual_initial` it
+    is normalised by. The convergence criterion is not a JSON field: it is
+    the solver's `RESIDUAL_RTOL`, imported from `bem.station`.
+    """
+
+    cases = data.get("cases")
+    missing = []
+    if not cases:
+        missing.append("the top-level 'cases' array")
+    else:
+        for case in cases:
+            for station in case.get("stations", []):
+                where = (f"case {case.get('name', '?')!r}, "
+                         f"station {station.get('station', '?')}")
+                if not station.get("history"):
+                    missing.append(f"{where}: 'history'")
+                if not station.get("residual_initial"):
+                    missing.append(f"{where}: 'residual_initial'")
+    if missing:
+        extra = (f" (and {len(missing) - 5} more)" if len(missing) > 5 else "")
+        raise SystemExit("residual_histories.json cannot support the figure; "
+                         "missing " + "; ".join(missing[:5]) + extra)
+    return cases
+
+
+def plot_histories(data, out_dir):
+    """
+    Draw `residual_convergence.png` from the per-station histories.
+
+    Each history is divided by its own initial residual, so the figure shows
+    the relative residual the solver drives to the criterion.
+    """
+
     try:
         import matplotlib
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
+        from plotting import figstyle
     except ImportError:
         print("matplotlib not available; skipping the figure")
         return
 
-    fig, ax = plt.subplots(figsize=(8.0, 5.0))
-    for case in cases:
-        for station in case["stations"]:
-            values = [abs(value) for _phi, value in station["history"]]
-            running = []
-            best = math.inf
-            for value in values:
-                best = min(best, value)
-                running.append(max(best, 1e-18))
-            ax.semilogy(range(len(running)), running, linewidth=0.6, alpha=0.35,
-                        color="#0072B2")
+    figstyle.apply()
+    fig, ax = plt.subplots(figsize=figstyle.SINGLE)
 
-    ax.set_xlabel("residual evaluation")
-    ax.set_ylabel(r"best $|R|$ so far")
-    ax.set_title("Phase VI: per-station residual convergence\n"
-                 f"{sum(len(c['stations']) for c in cases)} stations over "
-                 f"{len(cases)} operating points and perturbed geometries")
-    ax.grid(True, which="both", linewidth=0.3, alpha=0.4)
-    fig.tight_layout()
-    fig.savefig(path, dpi=150)
+    for case in require_histories(data):
+        for station in case["stations"]:
+            initial = station["residual_initial"]
+            best = math.inf
+            running = []
+            for _phi, value in station["history"]:
+                best = min(best, abs(value) / initial)
+                running.append(max(best, 1e-18))
+            ax.semilogy(range(len(running)), running, linewidth=0.6,
+                        alpha=0.35, color="#0072B2")
+
+    # `bem.station.RESIDUAL_RTOL`: the relative-residual criterion itself,
+    # not a stored copy that could drift from the solver.
+    ax.axhline(RESIDUAL_RTOL, color="0.3", linestyle="--", linewidth=1.0,
+               label=r"$10^{-9} R_0$")
+    ax.set_xlabel(figstyle.LABELS["evaluations"])
+    ax.set_ylabel(figstyle.LABELS["residual"])
+    ax.legend()
+    path = os.path.join(out_dir, "residual_convergence.png")
+    figstyle.save(fig, path)
+    plt.close(fig)
     print(f"wrote {path}")
 
 
-def main():
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--replot", action="store_true",
+                        help="redraw residual_convergence.png from the "
+                             "committed JSON, without recomputing anything")
+    args = parser.parse_args(argv)
+
+    if args.replot:
+        with open(os.path.join(_HERE, "residual_histories.json"),
+                  encoding="utf-8") as handle:
+            data = json.load(handle)
+        plot_histories(data, _HERE)
+        return
+
     cases = build()
     summary = summarise(cases)
 
@@ -164,7 +228,7 @@ def main():
         json.dump({"summary": summary, "cases": cases}, handle, indent=1)
     print(f"wrote {out}")
 
-    plot(cases, os.path.join(_HERE, "residual_convergence.png"))
+    plot_histories({"cases": cases}, _HERE)
 
     print()
     for key, value in summary.items():

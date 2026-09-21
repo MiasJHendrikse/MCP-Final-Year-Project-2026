@@ -38,10 +38,21 @@ Run from the repo root:
 
     python verification/representation_study/run_study.py
 
+Redraw the committed figure from the committed JSON, without recomputing the
+study:
+
+    python verification/representation_study/run_study.py --replot
+
+The JSON holds the reference profile and each count's error record, not the
+fitted curves; the replot rebuilds each fit with `BladeParameterisation` (the
+same linear least-squares solve) and refuses to draw if the rebuilt RMS error
+disagrees with the committed one.
+
 Author: MJ Hendrikse
 Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
 """
 
+import argparse
 import json
 import math
 import os
@@ -157,64 +168,131 @@ def study():
     }
 
 
-def plot(results, path):
+def fit_curve(results, total, chord_target, twist_target):
+    """
+    Rebuild one control-point count's fitted curves from the committed study.
+
+    The JSON stores the fit errors, not the fitted curves; the fit is the
+    deterministic linear least-squares solve of `BladeParameterisation`, so
+    the curves are rebuilt here and checked against the committed RMS values
+    before they are drawn. No solver is involved.
+    """
+
+    row = next(record for record in results["counts"]
+               if record["total_control_points"] == total)
+    parameterisation = BladeParameterisation(
+        n_chord=row["n_chord"], n_twist=row["n_twist"],
+        n_stations=len(chord_target), degree=row["degree"],
+        radius_m=results["rotor"]["radius_m"],
+        root_fraction=results["rotor"]["root_fraction"])
+    vector, chord_rms, twist_rms = parameterisation.fit(chord_target,
+                                                        twist_target)
+
+    if not math.isclose(chord_rms, row["chord_rms_error_m"], rel_tol=1e-9):
+        raise SystemExit(
+            f"refit at {total} control points gives chord RMS "
+            f"{chord_rms:.6e} m, committed {row['chord_rms_error_m']:.6e} m; "
+            "the figure would misrepresent the study")
+    twist_rms_deg = math.degrees(twist_rms)
+    if not math.isclose(twist_rms_deg, row["twist_rms_error_deg"], rel_tol=1e-9):
+        raise SystemExit(
+            f"refit at {total} control points gives twist RMS "
+            f"{twist_rms_deg:.6e} deg, committed "
+            f"{row['twist_rms_error_deg']:.6e} deg; the figure would "
+            "misrepresent the study")
+    return parameterisation, vector
+
+
+def plot_study(results, out_dir):
+    """Draw `representation_study.png`: the fits | the fitting error."""
+
     try:
         import matplotlib
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
+        from plotting import figstyle
     except ImportError:
         print("matplotlib not available; skipping the figure")
         return
 
-    # Okabe-Ito, fixed order (never cycled or reassigned).
-    palette = ["#0072B2", "#E69F00", "#009E73", "#D55E00", "#CC79A7"]
-    counts = [row["total_control_points"] for row in results["counts"]]
-    r_over_R = np.array(results["reference"]["r_over_R"])
-    chord_target = np.array(results["reference"]["chord_m"])
+    figstyle.apply()
+    fig, axes = plt.subplots(1, 2, figsize=figstyle.DOUBLE,
+                             layout="constrained")
 
-    fig, axes = plt.subplots(1, 3, figsize=(13.5, 4.2))
+    reference = results["reference"]
+    radius = [results["rotor"]["radius_m"] * value
+              for value in reference["r_over_R"]]
+    chord_target = reference["chord_m"]
+    twist_target = [math.radians(value) for value in reference["twist_deg"]]
 
+    # Chord on the left axis (solid), twist on the right (dashed); the
+    # control-point colours are the same for both blocks.
     ax = axes[0]
-    ax.plot(r_over_R, chord_target, "k-", linewidth=2.0, label="Schmitz reference")
-    parameterisation_stations = None
-    for colour, total in zip(palette, counts):
-        n_chord = total // 2
-        p = BladeParameterisation(n_chord=n_chord, n_twist=total - n_chord,
-                                  n_stations=len(chord_target))
-        vector, *_ = p.fit(chord_target, np.zeros_like(chord_target))
-        ax.plot(r_over_R, p.chord(vector), color=colour, linewidth=1.1,
-                label=f"{total} control points")
-        parameterisation_stations = p.stations
-    ax.set_xlabel("$r/R$")
-    ax.set_ylabel("chord [m]")
-    ax.set_title("Fit to the Schmitz chord")
-    ax.legend(fontsize=7, frameon=False)
-    ax.grid(True, linewidth=0.3, alpha=0.4)
+    ax.plot(radius, [1000.0 * value for value in chord_target], color="0.2",
+            label="analytic")
+    ax.set_xlabel(figstyle.LABELS["radius"])
+    ax.set_ylabel(figstyle.LABELS["chord"])
+    figstyle.title(ax, "Fit to the analytic blade")
+
+    ax_twist = ax.twinx()
+    ax_twist.plot(radius, reference["twist_deg"], color="0.2", linestyle="--")
+    ax_twist.set_ylabel(figstyle.LABELS["twist"])
+    ax_twist.grid(False)
+
+    for colour, total in zip(("#0072B2", "#E69F00", "#009E73"), (6, 10, 16)):
+        parameterisation, vector = fit_curve(results, total, chord_target,
+                                             twist_target)
+        ax.plot(radius,
+                [1000.0 * value for value in parameterisation.chord(vector)],
+                color=colour, label=f"{total} control points")
+        ax_twist.plot(radius,
+                      [math.degrees(value)
+                       for value in parameterisation.twist(vector)],
+                      color=colour, linestyle="--")
+
+    ax.legend(loc="upper right")
 
     ax = axes[1]
-    errors = [row["chord_rms_error_pct_of_mean"] for row in results["counts"]]
-    ax.semilogy(counts, errors, "o-", color=palette[0])
-    ax.set_xlabel("total control points")
-    ax.set_ylabel("chord RMS error [% of mean chord]")
-    ax.set_title("Fitting error")
+    counts = [row["total_control_points"] for row in results["counts"]]
+    ax.semilogy(counts,
+                [1000.0 * row["chord_rms_error_m"]
+                 for row in results["counts"]], "o-", color="#0072B2")
+    ax.set_xlabel(figstyle.LABELS["design_variables"])
+    ax.set_ylabel(figstyle.label("Chord RMS error", "e_c", "mm"),
+                  color="#0072B2")
+    ax.tick_params(axis="y", labelcolor="#0072B2")
     ax.set_xticks(counts)
-    ax.grid(True, which="both", linewidth=0.3, alpha=0.4)
+    figstyle.title(ax, "Fitting error")
 
-    ax = axes[2]
-    conditions = [row["chord_basis_condition"] for row in results["counts"]]
-    ax.plot(counts, conditions, "o-", color=palette[3], label="basis condition number")
-    ax.set_xlabel("total control points")
-    ax.set_ylabel("cond(N)")
-    ax.set_title("Conditioning")
-    ax.set_xticks(counts)
-    ax.grid(True, linewidth=0.3, alpha=0.4)
+    ax_twist = ax.twinx()
+    ax_twist.semilogy(counts,
+                      [row["twist_rms_error_deg"] for row in results["counts"]],
+                      "s--", color="#E69F00")
+    ax_twist.set_ylabel(figstyle.label("Twist RMS error", r"e_\theta", "°"),
+                        color="#E69F00")
+    ax_twist.tick_params(axis="y", labelcolor="#E69F00")
+    ax_twist.grid(False)
 
-    fig.tight_layout()
-    fig.savefig(path, dpi=150)
+    path = os.path.join(out_dir, "representation_study.png")
+    figstyle.save(fig, path)
+    plt.close(fig)
     print(f"wrote {path}")
 
 
-def main():
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--replot", action="store_true",
+                        help="redraw representation_study.png from the "
+                             "committed JSON, without recomputing the study")
+    args = parser.parse_args(argv)
+
+    if args.replot:
+        with open(os.path.join(_HERE, "representation_study.json"),
+                  encoding="utf-8") as handle:
+            results = json.load(handle)
+        plot_study(results, _HERE)
+        return
+
     results = study()
 
     out = os.path.join(_HERE, "representation_study.json")
@@ -222,7 +300,7 @@ def main():
         json.dump(results, handle, indent=1)
     print(f"wrote {out}")
 
-    plot(results, os.path.join(_HERE, "representation_study.png"))
+    plot_study(results, _HERE)
 
     point = results["airfoil_design_point"]
     print(f"\nSG6043 design point at Re = {point['reynolds']:,.0f}: "
