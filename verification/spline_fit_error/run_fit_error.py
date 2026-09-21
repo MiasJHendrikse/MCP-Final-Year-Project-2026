@@ -253,7 +253,6 @@ def plot(summary, path):
         ax.grid(True, color="#dddddd", lw=0.6)
         ax.legend(fontsize=8, frameon=False)
 
-    fig.suptitle("Schmitz baseline: analytic vs spline projection (x0) -- " + BOUNDS_LABEL, fontsize=10)
     fig.tight_layout()
     fig.savefig(path, dpi=150)
     plt.close(fig)

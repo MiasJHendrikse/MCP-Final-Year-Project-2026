@@ -1,5 +1,5 @@
 """
-Phase 4, Step 2d -- SLSQP on the AEP objective with the root-moment KS
+Step 2d -- SLSQP on the AEP objective with the root-moment KS
 constraint at reduction fraction `eps`.
 
     minimise   fun(u) = J(u) / |J(u0)|,   J = -AEP [MWh/yr]
@@ -318,7 +318,7 @@ def plot(problem, x0, x_star, x_c, eps, path):
         ("chord", "m", p.chord, slice(0, p.n_chord)),
         ("twist", "deg", lambda d: np.degrees(p.twist(d)), slice(p.n_chord, None)),
     ]):
-        ax.plot(radii, get(x0), "-", color="#888888", lw=1.6, label="x0 (fitted Schmitz)")
+        ax.plot(radii, get(x0), "-", color="#888888", lw=1.6, label=r"$\mathbf{x}_0$ Schmitz reference")
         ax.plot(radii, get(x_star), "--", color="#d1495b", lw=1.8,
                 label="unconstrained optimum u*")
         ax.plot(radii, get(x_c), "-", color="#1f5fbf", lw=2.4,
@@ -336,8 +336,6 @@ def plot(problem, x0, x_star, x_c, eps, path):
         ax.grid(True, color="#dddddd", lw=0.6)
         ax.legend(fontsize=8, frameon=False)
 
-    fig.suptitle(f"Phase 4 constrained optimum (eps = {eps:g}, moment cap) vs x0 and u* -- "
-                 + BOUNDS_LABEL, fontsize=10)
     fig.tight_layout()
     fig.savefig(path, dpi=150)
     plt.close(fig)

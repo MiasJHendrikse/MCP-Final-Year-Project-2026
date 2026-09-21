@@ -190,7 +190,7 @@ def plot(problem, x0, x_star, path):
         ("chord", "m", p.chord, slice(0, p.n_chord)),
         ("twist", "deg", lambda d: np.degrees(p.twist(d)), slice(p.n_chord, None)),
     ]):
-        ax.plot(r, get(x0), "-", color="#888888", lw=1.6, label="x0 (fitted Schmitz)")
+        ax.plot(r, get(x0), "-", color="#888888", lw=1.6, label=r"$\mathbf{x}_0$ Schmitz reference")
         ax.plot(r, get(x_star), "-", color="#1f5fbf", lw=1.6, label="FD-SLSQP optimum")
         scale = np.degrees(1.0) if label == "twist" else 1.0
         # control points drawn at their Greville abscissae (mean of `degree`
@@ -207,7 +207,6 @@ def plot(problem, x0, x_star, path):
         ax.grid(True, color="#dddddd", lw=0.6)
         ax.legend(fontsize=8, frameon=False)
 
-    fig.suptitle("FD-driven SLSQP optimum vs x0 -- " + BOUNDS_LABEL, fontsize=10)
     fig.tight_layout()
     fig.savefig(path, dpi=150)
     plt.close(fig)

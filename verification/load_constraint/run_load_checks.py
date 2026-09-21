@@ -1,5 +1,5 @@
 """
-Phase 4, Step 2d -- the root-moment KS functional and its constraint: the
+Step 2d -- the root-moment KS functional and its constraint: the
 four-tier checks at `x0` and at the unconstrained optimum `u*`.
 
 At each point:
@@ -364,7 +364,6 @@ def plot(points, names, path):
     for ax in axes:
         ax.grid(True, color="#dddddd", lw=0.6)
         ax.legend(fontsize=8, frameon=False)
-    fig.suptitle("Phase 4 root moment and its KS aggregate -- " + BOUNDS_LABEL, fontsize=10)
     fig.tight_layout()
     fig.savefig(path, dpi=150)
     plt.close(fig)
@@ -403,7 +402,7 @@ def main(argv=None):
     plot(points, names, FIGURE_PATH)
 
     summary = {
-        "description": ("Phase 4 root-moment KS functional and constraint: Tiers 1-3, "
+        "description": ("Root-moment KS functional and constraint: Tiers 1-3, "
                         "the per-point moments and weights, and the B3-dependent cut-out "
                         "post-check at x0 and the unconstrained optimum u*."),
         "bounds_label": BOUNDS_LABEL,

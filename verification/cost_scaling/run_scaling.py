@@ -1,5 +1,5 @@
 """
-Phase 4, Step 3 -- the cost-scaling study: gradient wall time against the
+Step 3 -- the cost-scaling study: gradient wall time against the
 number of design variables.
 
 Plan section 8.6: the parameterisation is run at 5, 10, 20, 40 and 80 control
@@ -17,7 +17,7 @@ gradient by each of the three methods is measured:
                          products alone (the part that grows with `n`).
   * adjoint           -- `BEMSystem.gradient(d)`: one solve, the partials over
                          17 x 25 stations, `psi`, one assembly.
-  * moment adjoint    -- `RootMomentSystem.gradient(d)`: the Phase 4
+  * moment adjoint    -- `RootMomentSystem.gradient(d)`: the load
                          constraint's gradient, the same chain over the
                          9-point load set `L` (9 x 25 stations).
 
@@ -89,7 +89,7 @@ CONTROL_POINTS = (5, 10, 20, 40, 80)
 #: Best-of repeats, the same rule as `tests/test_cost.py`.
 REPEATS = 5
 
-#: `M(x0)` at the design condition, the Phase 4 normalising moment. One number
+#: `M(x0)` at the design condition, the normalising moment. One number
 #: in one place: `ScaledProblem.load_system()` reads it from the committed
 #: baseline, but that path only works for the 5 + 5 parameterisation (it scales
 #: `x0` with the problem's own bounds), so here it is passed explicitly and
@@ -427,7 +427,7 @@ def main(argv=None):
     plot(rows, fitted, FIGURE_PATH)
 
     summary = {
-        "description": ("Phase 4 Step 3 cost-scaling study: wall time of one objective "
+        "description": ("Step 3 cost-scaling study: wall time of one objective "
                         "evaluation and of one gradient by central FD, tangent (direct) "
                         "mode, the discrete adjoint and the root-moment adjoint, against "
                         "the number of design variables n = 2k, at the least-squares "

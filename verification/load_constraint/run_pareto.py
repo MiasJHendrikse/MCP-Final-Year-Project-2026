@@ -1,5 +1,5 @@
 """
-Phase 4, Step 2d -- the eps-sweep Pareto front for the root-moment constraint.
+Step 2d -- the eps-sweep Pareto front for the root-moment constraint.
 
 For `eps in {0, 0.02, 0.05, 0.10}` the constrained problem of
 `run_constrained_slsqp.py` is solved twice: **cold** from `x0` and **warm**
@@ -167,8 +167,6 @@ def plot(rc, probe, steps, x0, x_star, star_reduction_pct, star_cost_pct, path):
         ax.grid(True, color="#dddddd", lw=0.6)
         ax.legend(fontsize=8, frameon=False)
 
-    fig.suptitle("Phase 4 root-moment constraint: AEP cost vs load reduction -- "
-                 + rc.BOUNDS_LABEL, fontsize=10)
     fig.tight_layout()
     fig.savefig(path, dpi=150)
     plt.close(fig)
@@ -218,7 +216,7 @@ def main(argv=None):
     plot(rc, probe, steps, x0, x_star, star_reduction_pct, star_cost_pct, FIGURE_PATH)
 
     summary = {
-        "description": "Phase 4 eps-sweep: cold and warm constrained SLSQP at "
+        "description": "eps-sweep: cold and warm constrained SLSQP at "
                        "eps in {0, 0.02, 0.05, 0.10}.",
         "bounds_label": rc.BOUNDS_LABEL,
         "law_label": rc.LAW_LABEL,

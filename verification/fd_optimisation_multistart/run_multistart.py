@@ -300,7 +300,7 @@ def plot(runs, a4, starts_payload, path):
         for run_ in runs:
             ax.plot(r, get(np.array(run_["x_star"])), "-", color="#2a9d8f", lw=1.0, alpha=0.8,
                     label="multi-start optima" if run_ is runs[0] else None)
-        ax.plot(r, get(x0), "--", color="#888888", lw=1.4, label="x0 (fitted Schmitz)")
+        ax.plot(r, get(x0), "--", color="#888888", lw=1.4, label=r"$\mathbf{x}_0$ Schmitz reference")
         ax.plot(r, get(x_a4), "-", color="#1f5fbf", lw=1.8, label="A4 single-start optimum")
         ax.set_xlabel("radius r [m]")
         ax.set_ylabel(f"{label} [{unit}]")
@@ -323,7 +323,6 @@ def plot(runs, a4, starts_payload, path):
     ax.grid(True, color="#dddddd", lw=0.6)
     ax.legend(fontsize=8, frameon=False)
 
-    fig.suptitle("Multi-start FD-driven SLSQP -- " + BOUNDS_LABEL, fontsize=10)
     fig.tight_layout()
     fig.savefig(path, dpi=150)
     plt.close(fig)

@@ -22,7 +22,7 @@ Operating strategy per case, exactly as reoptimise.py (audit section 3.1):
 
 Above rated, power is held at the FIXED generator rating from config
 (operating.rated_power_w, the same number for every blade and every case).
-Bins, masses, air properties, polar cache: the project's. The audit's
+Bins, masses, air properties, polar cache: the project's. The independent check's
 ceiling-optimised blades (opt_{60,55,50}_fixed.json) are evaluated too, as
 context for how far x* is from the blade a ceiling actually wants.
 
@@ -140,7 +140,7 @@ def main():
                           "(max_tip_speed_ms)"),
         "bounds": ("configured bounds (chord_max_m = 0.30 m, "
                    "max_local_solidity = 0.5). x* and x0 satisfy them; the "
-                   "audit's ceiling-optimised context blades opt_60/55/50 do "
+                   "independently computed ceiling-optimised context blades opt_60/55/50 do "
                    "not -- they were optimised under the retired 0.45 m "
                    "provisional cap, so they are context, not candidates"),
         "generated": datetime.datetime.now().isoformat(timespec="seconds"),

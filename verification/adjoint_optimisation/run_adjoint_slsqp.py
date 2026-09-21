@@ -25,7 +25,7 @@ below -- SLSQP's `ftol` on `fun`, and the spread the multi-start study
 converged optima of this flat objective in `u`.
 
 The summary also carries `Ct`, rotor thrust and the per-blade root bending
-moment at `x0` and at `x*`, evaluated at the Phase 4 design condition -- the
+moment at `x0` and at `x*`, evaluated at the design condition -- the
 rated wind speed at the tip-speed ceiling, `lambda(11) = 5.71` (audit
 recommendation 4). Those are the loads the root-moment constraint will be
 built on, so they are recorded next to the optimum that produces them.
@@ -109,7 +109,7 @@ def build_problem(margin):
 
 def loads_at(problem, d):
     """
-    Ct, rotor thrust and per-blade root bending moment at the Phase 4 design
+    Ct, rotor thrust and per-blade root bending moment at the design
     condition for design vector `d`: the rated wind speed at the tip-speed
     ceiling, i.e. `lambda(11) = 5.71` under 300 rpm (audit recommendation 4).
 
@@ -225,7 +225,7 @@ def plot(problem, x0, x_star, x_fd, path):
         ("chord", "m", p.chord, slice(0, p.n_chord)),
         ("twist", "deg", lambda d: np.degrees(p.twist(d)), slice(p.n_chord, None)),
     ]):
-        ax.plot(r, get(x0), "-", color="#888888", lw=1.6, label="x0 (fitted Schmitz)")
+        ax.plot(r, get(x0), "-", color="#888888", lw=1.6, label=r"$\mathbf{x}_0$ Schmitz reference")
         ax.plot(r, get(x_fd), "-", color="#d1495b", lw=2.6, alpha=0.45, label="FD-SLSQP optimum (A4)")
         ax.plot(r, get(x_star), "-", color="#1f5fbf", lw=1.4, label="adjoint-SLSQP optimum")
         scale = np.degrees(1.0) if label == "twist" else 1.0
@@ -241,8 +241,6 @@ def plot(problem, x0, x_star, x_fd, path):
         ax.grid(True, color="#dddddd", lw=0.6)
         ax.legend(fontsize=8, frameon=False)
 
-    fig.suptitle("Adjoint-driven SLSQP optimum vs x0 and the FD optimum -- " + BOUNDS_LABEL,
-                 fontsize=10)
     fig.tight_layout()
     fig.savefig(path, dpi=150)
     plt.close(fig)
@@ -382,7 +380,7 @@ def main(argv=None):
         "active_set": problem.active_set(u_star),
         "loads_at_rated_ceiling": {
             "description": ("Ct, rotor thrust and per-blade root bending moment at the "
-                            "rated wind speed on the tip-speed ceiling (Phase 4's "
+                            "rated wind speed on the tip-speed ceiling (the "
                             "design condition; audit recommendation 4)."),
             "x0": loads_at(problem, x0),
             "x_star": loads_at(problem, x_star),

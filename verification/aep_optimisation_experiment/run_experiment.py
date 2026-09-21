@@ -81,7 +81,7 @@ CASES = {"none": None, "60": 60.0, "55": 55.0, "50": 50.0}
 FD_STEPS = (3e-6, 1e-5)
 ACTIVE_TOL = 1e-6
 ENVELOPE_ACTIVE_TOL = 1e-6
-#: The wind speed the Cp reporting is done at: the audit's spanwise
+#: The wind speed the Cp reporting is done at: the spanwise
 #: reference speed, near the energy-weighted centre of the below-rated bins.
 CP_REPORT_SPEED_MS = 8.5
 CP_SWEEP_TSR = [3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0, 7.5]
@@ -407,7 +407,7 @@ def run_case(label, vtip_max, x0, x_star, args):
     # The energies in the report's own rows sum to the total.
     energy_sum = float(sum(r["energy_mwh"] for r in indep["bins"]))
 
-    # Against the audit's FD-driven optimum for the same ceiling.
+    # Against the independently computed FD-driven optimum for the same ceiling.
     audit_path = os.path.join(AUDIT_DIR, f"opt_{label}_fixed.json")
     fd_comparison = None
     if os.path.exists(audit_path):
@@ -416,7 +416,7 @@ def run_case(label, vtip_max, x0, x_star, args):
         aep_fd_here = -problem.J(u_fd)
         fd_comparison = {
             "source": os.path.relpath(audit_path, REPO_ROOT),
-            "note": "the audit's run used the rating rounded to 3822.2 W and central FD "
+            "note": "the independent run used the rating rounded to 3822.2 W and central FD "
                     "at h = 3e-6; this run uses the configured 3822.189755 W and the adjoint",
             "du_inf": float(np.max(np.abs(u_new - u_fd))),
             "aep_fd_optimum_evaluated_here_mwh": float(aep_fd_here),
@@ -545,8 +545,6 @@ def plot_geometry(records, path):
                 ax.set_xlabel("radius r [m]")
             if row == 0 and col == 0:
                 ax.legend(fontsize=8, frameon=False)
-    fig.suptitle("EXPERIMENT: AEP optimum under a rotor-speed ceiling vs x0 and x* -- "
-                 + PROVISIONAL_LABEL, fontsize=9)
     fig.tight_layout()
     fig.savefig(path, dpi=150)
     plt.close(fig)
@@ -575,8 +573,6 @@ def plot_cp_lambda(records, path):
         ax.grid(True, color="#e6e6e6", lw=0.6)
     axes[0].set_ylabel(f"Cp at V = {CP_REPORT_SPEED_MS} m/s")
     axes[0].legend(fontsize=8, frameon=False)
-    fig.suptitle("EXPERIMENT: Cp-lambda of the three blades (shaded: the lambda band the "
-                 "schedule sweeps below rated)", fontsize=9)
     fig.tight_layout()
     fig.savefig(path, dpi=150)
     plt.close(fig)
