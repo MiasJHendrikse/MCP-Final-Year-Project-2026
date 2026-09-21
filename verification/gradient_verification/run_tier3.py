@@ -42,6 +42,7 @@ are stated under those bounds; the 0.45 m placeholder is retired.
 Run from the repo root (about 1.5 min):
 
     python verification/gradient_verification/run_tier3.py
+    python verification/gradient_verification/run_tier3.py --replot   # figure only
 
 Author: MJ Hendrikse
 Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
@@ -252,44 +253,82 @@ def replot_v_curves(sweep, adjoint_x0):
 
     steps = np.array([r["h"] for r in sweep["sweep"]])
     grads = run_sweep.gradient_matrix(sweep["sweep"])
-    reference, label = run_sweep.load_reference(ADJOINT_X0_PATH, sweep["J0_mwh_per_yr"])
+    reference = run_sweep.load_reference(ADJOINT_X0_PATH, sweep["J0_mwh_per_yr"])[0]
     run_sweep.plot(steps, grads, reference, sweep["variables"], sweep["n_chord"],
-                   np.array(sweep["h_star_per_variable"]), sweep["h_star_global"],
-                   label, VCURVE_PATH)
+                   sweep["h_star_global"], VCURVE_PATH,
+                   run_sweep.spans_from_bounds(sweep["bounds"], sweep["variables"]),
+                   sweep["J0_mwh_per_yr"])
 
 
-def plot_agreement(points, names, path):
+#: Display names for the three points, in the order they are measured.
+POINT_NAMES = ("reference", "mid-run iterate", "optimum")
+
+
+def variable_symbol(name):
+    """`chord_3` -> `$c_3$`, `twist_2` -> `$\\theta_2$`."""
+
+    family, index = name.rsplit("_", 1)
+    symbol = "c" if family.startswith("chord") else r"\theta"
+    return rf"${symbol}_{{{index}}}$"
+
+
+def plot_agreement(data, out_dir):
+    """
+    `tier3_agreement.png`: `|adjoint - FD(h*_j)| / eps_j` and the relative
+    error, per variable at the three points, against their acceptance lines.
+    Writes through `figstyle.save` and returns the path written.
+    """
+
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    from plotting import figstyle
+
+    figstyle.apply()
+
+    points, names = data["points"], data["variables"]
+    path = os.path.join(out_dir, "tier3_agreement.png")
 
     colours = ["#1f5fbf", "#d1495b", "#2a9d8f"]
-    fig, axes = plt.subplots(1, 2, figsize=(12, 4.6))
+    fig, axes = plt.subplots(1, 2, figsize=figstyle.DOUBLE)
     x = np.arange(len(names))
     width = 0.26
 
     for k, point in enumerate(points):
-        ratio = np.array(point["abs_error_over_eps"])
-        axes[0].bar(x + (k - 1) * width, ratio, width, color=colours[k], label=point["label"])
-        axes[1].bar(x + (k - 1) * width, point["rel_error"], width, color=colours[k],
-                    label=point["label"])
+        label = POINT_NAMES[k] if k < len(POINT_NAMES) else point["label"]
+        axes[0].bar(x + (k - 1) * width, point["abs_error_over_eps"], width,
+                    color=colours[k], label=label)
+        axes[1].bar(x + (k - 1) * width, point["rel_error"], width,
+                    color=colours[k], label=label)
 
-    axes[0].axhline(EPS_FACTOR, color="#444444", lw=0.9, ls="--", label=f"acceptance {EPS_FACTOR:g} eps")
-    axes[0].set_ylabel("|adjoint - FD(h*)| / eps_j")
-    axes[0].set_title("disagreement in units of the FD noise floor", fontsize=11)
+    axes[0].axhline(EPS_FACTOR, color="#444444", lw=0.9, ls="--",
+                    label=rf"${EPS_FACTOR:g}\,\varepsilon_j$")
+    axes[0].set_yscale("log")
+    axes[0].set_ylabel(figstyle.label(
+        "Disagreement",
+        r"\|g_j^{\mathrm{FD}} - g_j^{\mathrm{adj}}\|/\varepsilon_j", "--"))
+    figstyle.title(axes[0], "Disagreement over acceptance scale")
+    axes[0].legend(ncol=2, loc="upper right")
+
+    axes[1].axhline(REL_TRIPWIRE, color="#444444", lw=0.9, ls="--",
+                    label=r"$10^{-3}$ tripwire")
     axes[1].set_yscale("log")
-    axes[1].axhline(REL_TRIPWIRE, color="#444444", lw=0.9, ls="--", label=f"tripwire {REL_TRIPWIRE:g}")
-    axes[1].set_ylabel("|adjoint - FD(h*)| / |FD(h*)|")
-    axes[1].set_title("relative disagreement", fontsize=11)
+    axes[1].set_ylabel(figstyle.label(
+        "Relative error",
+        r"\|g_j^{\mathrm{FD}} - g_j^{\mathrm{adj}}\|/\|g_j^{\mathrm{FD}}\|", "--"))
+    figstyle.title(axes[1], "Relative error")
+    axes[1].legend(ncol=2, loc="upper right")
+
     for ax in axes:
         ax.set_xticks(x)
-        ax.set_xticklabels(names, rotation=45, ha="right", fontsize=8)
-        ax.grid(True, axis="y", color="#dddddd", lw=0.6)
-        ax.legend(fontsize=8, frameon=False)
-    fig.suptitle("Tier 3: adjoint vs central FD at h*_j -- " + BOUNDS_LABEL, fontsize=10)
+        ax.set_xticklabels([variable_symbol(name) for name in names],
+                           rotation=45, ha="right")
+        # A log axis labels its decades in math text already; the
+        # ScalarFormatter behind figstyle.sci would label mantissas only.
     fig.tight_layout()
-    fig.savefig(path, dpi=150)
+    figstyle.save(fig, path)
     plt.close(fig)
+    return path
 
 
 # ---------------------------------------------------------------------------
@@ -300,7 +339,14 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--mid-iterate", type=int, default=None,
                         help="default: nit // 2 of fd_optimisation/result.json")
+    parser.add_argument("--replot", action="store_true",
+                        help="redraw tier3_agreement.png from the committed tier3.json; "
+                             "no re-run")
     args = parser.parse_args(argv)
+    if args.replot:
+        print(f"redrew {plot_agreement(load_json(TIER3_PATH), _HERE)} "
+              f"from {TIER3_PATH}")
+        return
     if args.mid_iterate is None:
         args.mid_iterate = mid_iterate_from_result()
         assert args.mid_iterate == MID_ITERATE_TODAY, (
@@ -346,7 +392,6 @@ def main(argv=None):
             "J0_mwh_per_yr": J0,
         }, handle, indent=1)
     replot_v_curves(sweep, x0_point)
-    plot_agreement(points, names, AGREEMENT_PATH)
 
     summary = {
         "description": "Tier 3: discrete-adjoint gradient vs central FD at h*_j at three "
@@ -375,6 +420,7 @@ def main(argv=None):
     }
     with open(TIER3_PATH, "w", encoding="utf-8") as handle:
         json.dump(summary, handle, indent=1)
+    plot_agreement(summary, _HERE)
 
     print(f"\nall pass: {summary['all_pass']}   ({wall:.1f} s, "
           f"{problem.n_fun_evals} objective evaluations, {problem.n_adjoint_evals} adjoint)")

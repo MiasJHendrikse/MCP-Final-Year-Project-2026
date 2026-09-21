@@ -34,7 +34,8 @@ round-off floor, so the whole V-curve is attributed: truncation slope on
 the large-`h` side, crossings counted there, round-off on the small-`h`
 side. Nothing left unexplained.
 
-Outputs, next to this script: `tier4.json`, `tier4_attribution.png`, and
+Outputs, next to this script: `tier4.json`, `tier4_attribution.png` (reference
+| optimum), `tier4_attribution_iterate.png` (the mid-run iterate alone), and
 the Tier 4 section of `README.md` (by hand, from the JSON).
 
 Bounds: the configured set (`DesignBounds.from_config()`), grounded
@@ -43,6 +44,7 @@ Bounds: the configured set (`DesignBounds.from_config()`), grounded
 Run from the repo root (about 1 min):
 
     python verification/gradient_verification/run_tier4.py
+    python verification/gradient_verification/run_tier4.py --replot   # figures only
 
 Author: MJ Hendrikse
 Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
@@ -71,7 +73,6 @@ from objective import WeibullResource  # noqa: E402
 SWEEP_PATH = os.path.join(REPO_ROOT, "verification", "fd_step_size", "sweep.json")
 TIER3_PATH = os.path.join(_HERE, "tier3.json")
 TIER4_PATH = os.path.join(_HERE, "tier4.json")
-FIGURE_PATH = os.path.join(_HERE, "tier4_attribution.png")
 
 BOUNDS_LABEL = ("under the configured bounds (chord_max_m = 0.30 m, resolved "
                 "2026-09-19; chord_min_m, twist_min, twist_max grounded 2026-09-13)")
@@ -337,54 +338,119 @@ def analyse_point(problem, point, sweep_steps, alpha_nodes, re_rows, names, a3_s
 
 
 # ---------------------------------------------------------------------------
-# figure
+# figures
 # ---------------------------------------------------------------------------
 
-def plot(points, path):
+#: Display names for the three points, in the order they are measured.
+POINT_NAMES = ("reference", "mid-run iterate", "optimum")
+
+
+def variable_symbol(name):
+    """`chord_3` -> `$c_3$`, `twist_2` -> `$\\theta_2$`."""
+
+    family, index = name.rsplit("_", 1)
+    symbol = "c" if family.startswith("chord") else r"\theta"
+    return rf"${symbol}_{{{index}}}$"
+
+
+def crossing_counts(row):
+    """The crossings of one step as a short annotation, e.g. `37$\\alpha$+4Re`."""
+
+    parts = []
+    if row["alpha_knot_crossings"]:
+        parts.append(f"{row['alpha_knot_crossings']}$\\alpha$")
+    if row["reynolds_row_crossings"]:
+        parts.append(f"{row['reynolds_row_crossings']}Re")
+    if row["buhl_crossings"]:
+        parts.append(f"{row['buhl_crossings']}B")
+    return "+".join(parts)
+
+
+def draw_attribution_panel(ax, point, panel_title=None):
+    """
+    One point's `|FD(h) - adjoint|` V over the 15-step grid, with the fitted
+    `C h^2` law, the measured round-off floor and the crossing counts.
+    """
+
+    from plotting import figstyle
+
+    rows = point["sweep_worst_variable"]
+    h = np.array([r["h"] for r in rows])
+    err = np.array([np.nan if r["abs_error_mwh_per_u"] is None
+                    else r["abs_error_mwh_per_u"] for r in rows])
+    floor = np.array([r["roundoff_floor_mwh_per_u"] for r in rows])
+    law = np.array([np.nan if r["smooth_h2_prediction_mwh_per_u"] is None
+                    else r["smooth_h2_prediction_mwh_per_u"] for r in rows])
+
+    ax.plot(h, err, "-o", color="#1f5fbf", lw=1.4, ms=4, label="FD $-$ adjoint")
+    if np.isfinite(law).any():
+        ax.plot(h, law, "--", color="#888888", lw=1.0, label="$C h^2$ fit")
+    ax.plot(h, floor, ":", color="#888888", lw=1.2, label="round-off floor")
+    for row, value in zip(rows, err):
+        if (row["alpha_knot_crossings"] + row["reynolds_row_crossings"]
+                + row["buhl_crossings"]) and np.isfinite(value):
+            ax.annotate(crossing_counts(row), (row["h"], value),
+                        textcoords="offset points", xytext=(6, 5), fontsize=6.5,
+                        color="#b3452a")
+
+    h_star = next(r["h_star"] for r in point["per_variable_at_h_star"]
+                  if r["variable"] == point["worst_variable"])
+    ax.axvline(h_star, color="#444444", lw=0.8, alpha=0.6)
+    ax.text(h_star, 0.04, r"$h^*$", transform=ax.get_xaxis_transform(),
+            fontsize=8, color="#444444")
+
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    # A log axis already labels its decades in math text (`10^{-3}`); the
+    # ScalarFormatter behind figstyle.sci would label mantissas only.
+    ax.invert_xaxis()
+    ax.set_xlabel(figstyle.LABELS["fd_step"])
+    if panel_title is not None:
+        figstyle.title(ax, panel_title)
+
+
+def plot_attribution(points, out_dir):
+    """
+    The two Tier 4 figures, both written through `figstyle.save`:
+    `tier4_attribution.png` = reference | optimum (two panels);
+    `tier4_attribution_iterate.png` = the mid-run iterate alone.
+    """
+
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    from plotting import figstyle
 
-    fig, axes = plt.subplots(1, len(points), figsize=(5.0 * len(points), 4.8), sharey=True)
-    for ax, point in zip(np.atleast_1d(axes), points):
-        rows = point["sweep_worst_variable"]
-        h = np.array([r["h"] for r in rows])
-        err = np.array([np.nan if r["abs_error_mwh_per_u"] is None else r["abs_error_mwh_per_u"]
-                        for r in rows])
-        floor = np.array([r["roundoff_floor_mwh_per_u"] for r in rows])
-        knots = np.array([r["alpha_knot_crossings"] for r in rows])
-        buhl = np.array([r["buhl_crossings"] for r in rows])
-        re_rows = np.array([r["reynolds_row_crossings"] for r in rows])
+    figstyle.apply()
 
-        ax.plot(h, err, "-o", color="#1f5fbf", lw=1.4, ms=4, label="|FD(h) − adjoint|")
-        ax.plot(h, floor, ":", color="#888888", lw=1.2, label="round-off floor δJ/h (measured)")
-        anchor = err[0]
-        ax.plot(h, anchor * (h / h[0]) ** 2, "--", color="#888888", lw=1.0, label="$h^2$ through h=1e-2")
-        clean = (knots + buhl + re_rows) == 0
-        ax.plot(h[~clean], err[~clean], "o", color="#d1495b", ms=7, mfc="none", mew=1.4,
-                label="stencil crosses a C² break")
-        for hk, ek, nk, nb, nr in zip(h, err, knots, buhl, re_rows):
-            if nk + nb + nr and np.isfinite(ek):
-                ax.annotate(f"{nk}α{'' if nb == 0 else f'+{nb}B'}{'' if nr == 0 else f'+{nr}Re'}",
-                            (hk, ek), textcoords="offset points", xytext=(6, 6), fontsize=7,
-                            color="#d1495b")
-        h_star = next(r["h_star"] for r in point["per_variable_at_h_star"]
-                      if r["variable"] == point["worst_variable"])
-        ax.axvline(h_star, color="#444444", lw=0.8, alpha=0.6)
-        ax.text(h_star, np.nanmin(err) * 0.5, f" h*={h_star:.0e}", fontsize=8, color="#444444")
-        ax.set_xscale("log")
-        ax.set_yscale("log")
-        ax.invert_xaxis()
-        ax.set_xlabel("step h (scaled variable u)")
-        ax.set_title(f"{point['label']}: {point['worst_variable']}", fontsize=11)
-        ax.grid(True, which="major", color="#dddddd", lw=0.6)
-        ax.legend(fontsize=7, frameon=False, loc="upper center")
-    np.atleast_1d(axes)[0].set_ylabel("|FD(h) − adjoint|   [MWh/yr per unit u]")
-    fig.suptitle("Tier 4: FD error vs step, with C² crossings counted (α knots, Buhl, Re rows) — "
-                 + BOUNDS_LABEL, fontsize=9)
-    fig.tight_layout()
-    fig.savefig(path, dpi=150)
-    plt.close(fig)
+    ylabel = figstyle.label(r"$\|g_j^{\mathrm{FD}}(h) - g_j^{\mathrm{adj}}\|$",
+                            None, r"MWh yr$^{-1}$")
+    # The points are stored in the measured order: reference, mid-run iterate,
+    # optimum (the order of `tier3.json`'s points).
+    reference, iterate, optimum = points[0], points[1], points[2]
+
+    attribution = os.path.join(out_dir, "tier4_attribution.png")
+    figure, axes = plt.subplots(1, 2, figsize=figstyle.DOUBLE, sharey=True)
+    for ax, point, name in ((axes[0], reference, POINT_NAMES[0]),
+                            (axes[1], optimum, POINT_NAMES[2])):
+        draw_attribution_panel(
+            ax, point, f"{name.capitalize()}: {variable_symbol(point['worst_variable'])}")
+        ax.legend(loc="upper center", fontsize=7)
+    axes[0].set_ylabel(ylabel)
+    figure.tight_layout()
+    figstyle.save(figure, attribution)
+    plt.close(figure)
+
+    iterate_path = os.path.join(out_dir, "tier4_attribution_iterate.png")
+    iterate_figure, iterate_ax = plt.subplots(figsize=figstyle.SINGLE)
+    draw_attribution_panel(iterate_ax, iterate)
+    iterate_ax.set_ylabel(ylabel)
+    iterate_ax.legend(loc="upper center", fontsize=7)
+    iterate_figure.tight_layout()
+    figstyle.save(iterate_figure, iterate_path)
+    plt.close(iterate_figure)
+
+    return [attribution, iterate_path]
 
 
 # ---------------------------------------------------------------------------
@@ -393,7 +459,14 @@ def plot(points, path):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    parser.parse_args(argv)
+    parser.add_argument("--replot", action="store_true",
+                        help="redraw the two Tier 4 figures from the committed "
+                             "tier4.json; no solve")
+    args = parser.parse_args(argv)
+    if args.replot:
+        for written in plot_attribution(load_json(TIER4_PATH)["points"], _HERE):
+            print(f"redrew {written} from {TIER4_PATH}")
+        return
 
     tier3 = load_json(TIER3_PATH)
     sweep = load_json(SWEEP_PATH)
@@ -417,7 +490,8 @@ def main(argv=None):
                                     a3_sweep=a3 if k == 0 else None))
     wall = time.perf_counter() - started
 
-    plot(points, FIGURE_PATH)
+    for written in plot_attribution(points, _HERE):
+        print(f"wrote {written}")
 
     summary = {
         "description": "Tier 4: what the FD stencil crosses (alpha knots, Reynolds rows, "
@@ -440,7 +514,7 @@ def main(argv=None):
         json.dump(summary, handle, indent=1)
     print(f"\ncrossings at h* anywhere: {summary['any_crossing_at_h_star_anywhere']}   "
           f"({wall:.1f} s, {problem.n_fun_evals} objective evaluations)")
-    print(f"wrote {TIER4_PATH}\n      {FIGURE_PATH}")
+    print(f"wrote {TIER4_PATH}")
     return summary
 
 

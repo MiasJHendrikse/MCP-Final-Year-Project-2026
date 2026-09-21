@@ -327,44 +327,65 @@ def fits(rows):
     return out
 
 
+#: The methods drawn in the figure, in draw order, with the legend name the
+#: report uses; the fitted exponent is appended from the JSON's `fits` block.
+PLOTTED = (
+    ("J", "objective"),
+    ("fd", "central FD"),
+    ("tangent_total", "tangent"),
+    ("adjoint", "adjoint"),
+    ("moment_adjoint", "moment adjoint"),
+)
+
+#: Marker and colour per method.
+STYLES = {
+    "J": ("x", "0.4"),
+    "fd": ("o", "C3"),
+    "tangent_total": ("s", "C1"),
+    "adjoint": ("^", "C0"),
+    "moment_adjoint": ("v", "C2"),
+}
+
+
+def power_text(p):
+    """`p` to two decimals, without a signed zero."""
+
+    return f"{0.0 if abs(p) < 0.005 else p:.2f}"
+
+
 def plot(rows, fitted, path):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    from plotting import figstyle
+
+    figstyle.apply()
 
     n = np.array([row["n"] for row in rows], dtype=float)
     grid = np.geomspace(n[0], n[-1], 100)
-    styles = {
-        "fd": ("o", "C3"),
-        "tangent_total": ("s", "C1"),
-        "tangent_products": ("s", "C1"),
-        "adjoint": ("^", "C0"),
-        "moment_adjoint": ("v", "C2"),
-        "J": ("x", "0.4"),
-    }
 
-    fig, ax = plt.subplots(figsize=(7.5, 6.0))
-    for key, label in METHODS:
+    fig, ax = plt.subplots(figsize=figstyle.SINGLE)
+    for key, name in PLOTTED:
         t = np.array([row["wall_s"][key] for row in rows])
-        marker, colour = styles[key]
-        a, p = fitted[key]["power_law"]["a"], fitted[key]["power_law"]["p"]
-        filled = key != "tangent_products"
-        ax.plot(n, t, marker, color=colour, ms=7,
-                mfc=colour if filled else "none",
-                label=f"{label}: p = {p:.2f}")
-        ax.plot(grid, a * grid ** p, "-" if filled else "--", color=colour, lw=1, alpha=0.7)
+        marker, colour = STYLES[key]
+        entry = fitted.get(key, {}).get("power_law")
+        label = name if entry is None else f"{name}, $p = {power_text(entry['p'])}$"
+        ax.plot(n, t, marker, color=colour, ms=5, label=label)
+        if entry is not None:
+            ax.plot(grid, entry["a"] * grid ** entry["p"], "-", color=colour,
+                    lw=1, alpha=0.7)
+
     ax.set_xscale("log")
     ax.set_yscale("log")
-    ax.set_xticks(n)
-    ax.set_xticklabels([str(int(v)) for v in n])
-    ax.set_xlabel("design variables n = 2k (k control points per block, 25 strips)")
-    ax.set_ylabel("wall time per gradient, best of 5 [s]")
-    ax.grid(True, which="both", alpha=0.3)
-    ax.set_title("Gradient cost vs n at the projected Schmitz blade -- t = a n^p fits",
-                 fontsize=10)
-    fig.legend(fontsize=8, loc="lower center", ncol=2, frameon=False)
-    fig.tight_layout(rect=(0, 0.12, 1, 1))
-    fig.savefig(path, dpi=150)
+    # A log axis already labels its decades in math text (`10^{-3}`); the
+    # ScalarFormatter behind figstyle.sci would label mantissas only.
+    ax.set_xlabel(figstyle.LABELS["design_variables"])
+    ax.set_ylabel(figstyle.LABELS["wall_time"])
+    ax.grid(True, which="both")
+    handles, labels = ax.get_legend_handles_labels()
+    fig.legend(handles, labels, loc="lower center", ncol=2)
+    fig.tight_layout(rect=(0.0, 0.22, 1.0, 1.0))
+    figstyle.save(fig, path)
     plt.close(fig)
 
 

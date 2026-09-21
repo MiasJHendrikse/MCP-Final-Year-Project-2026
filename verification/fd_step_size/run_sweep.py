@@ -14,8 +14,9 @@ the central-difference gradient of `fun(u) = J(u) / |J(u0)|` at 15 steps
              -- the FD **noise floor** the adjoint (Tier 3) is measured against.
 
 Outputs, next to this script: `sweep.json` (every gradient at every step),
-`v_curve.png` (`|g_j(h) - g_j(h*_j)|` vs `h`, log-log, with `h^2` and `1/h`
-guide lines), `README.md` (written by hand; the numbers come from the JSON).
+`v_curve.png` (`|g_j(h) - g_j(h*_j)|` in MWh yr^-1 per unit physical variable
+vs `h`, log-log, with `h^2` and `1/h` guide lines), `README.md` (written by
+hand; the numbers come from the JSON).
 
 Why a plateau, not a V
 -----------------------
@@ -175,51 +176,85 @@ def choose_steps(steps, grads):
 # the figure
 # ---------------------------------------------------------------------------
 
-def plot(steps, grads, reference, names, n_chord, h_star, h_star_global,
-         reference_label, path):
+def variable_symbol(name):
+    """`chord_3` -> `$c_3$`, `twist_2` -> `$\\theta_2$`."""
+
+    family, index = name.rsplit("_", 1)
+    symbol = "c" if family.startswith("chord") else r"\theta"
+    return rf"${symbol}_{{{index}}}$"
+
+
+def spans_from_bounds(bounds, names):
+    """
+    The physical span of each scaled variable, from the committed
+    `sweep.json` -> `bounds`: the chord span for the chord variables, the
+    twist span for the twist variables.
+    """
+
+    chord_span = float(bounds["chord_max_m"] - bounds["chord_min_m"])
+    twist_span = float(bounds["twist_max_rad"] - bounds["twist_min_rad"])
+    return np.array([chord_span if name.startswith("chord") else twist_span
+                     for name in names])
+
+
+def plot(steps, grads, reference, names, n_chord, h_star_global, path, spans, J0):
+    """
+    `v_curve.png`: `|g_j(h) - reference_j|` against `h`, log-log, two panels
+    (chord | twist), written through `figstyle.save`.
+    """
+
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    from plotting import figstyle
+
+    figstyle.apply()
+
+    # The sweep stores gradients in units of `fun(u) = J(u)/|J(u0)|` per unit
+    # scaled variable `u`: multiplying by |J0| and dividing by the variable's
+    # span (bounds) states the deviation in MWh yr^-1, per unit physical
+    # variable.
+    scale = np.abs(J0) / spans
 
     # Fixed hue order per panel, never cycled; one series per control point.
     colours = ["#1f5fbf", "#d1495b", "#2a9d8f", "#e9a03b", "#6f4bb3"]
 
-    fig, axes = plt.subplots(1, 2, figsize=(12, 5), sharey=True)
-    blocks = [("chord control points", range(0, n_chord)),
-              ("twist control points", range(n_chord, grads.shape[1]))]
+    fig, axes = plt.subplots(1, 2, figsize=figstyle.DOUBLE, sharey=True)
+    blocks = [("Chord control points", range(0, n_chord)),
+              ("Twist control points", range(n_chord, grads.shape[1]))]
 
-    for ax, (title, block) in zip(axes, blocks):
+    for ax, (panel_title, block) in zip(axes, blocks):
         for colour, j in zip(colours, block):
-            diff = np.abs(grads[:, j] - reference[j])
+            diff = np.abs(grads[:, j] - reference[j]) * scale[j]
             mask = np.isfinite(diff) & (diff > 0.0)
             ax.plot(steps[mask], diff[mask], "-o", color=colour, lw=1.4, ms=4,
-                    label=f"{names[j]}  (h*={h_star[j]:.0e})")
+                    label=variable_symbol(names[j]))
 
         # Guide lines through the geometric centre of the plotted data.
-        finite = [np.abs(grads[:, j] - reference[j]) for j in block]
+        finite = [np.abs(grads[:, j] - reference[j]) * scale[j] for j in block]
         finite = np.concatenate([d[np.isfinite(d) & (d > 0)] for d in finite])
         anchor = float(np.exp(np.mean(np.log(finite)))) if finite.size else 1e-6
         mid = steps[len(steps) // 2]
         ax.plot(steps, anchor * (steps / mid) ** 2, "--", color="#888888", lw=1,
-                label="$h^2$ (truncation)")
+                label="$h^2$")
         ax.plot(steps, anchor * (mid / steps), ":", color="#888888", lw=1,
-                label="$1/h$ (round-off)")
+                label="$1/h$")
         ax.axvline(h_star_global, color="#444444", lw=0.8, alpha=0.6)
-        ax.text(h_star_global, ax.get_ylim()[0] if False else anchor * 1e-3,
-                f" h*={h_star_global:.0e}", fontsize=8, color="#444444")
+        ax.text(h_star_global, 0.04, r"$h^*$", transform=ax.get_xaxis_transform(),
+                fontsize=8, color="#444444")
 
         ax.set_xscale("log")
         ax.set_yscale("log")
+        # A log axis already labels its decades in math text (`10^{-3}`); the
+        # ScalarFormatter behind figstyle.sci would label mantissas only.
         ax.invert_xaxis()
-        ax.set_xlabel("step h (scaled variable u)")
-        ax.set_title(title, fontsize=11)
-        ax.grid(True, which="major", color="#dddddd", lw=0.6)
-        ax.legend(fontsize=8, frameon=False)
+        ax.set_xlabel(figstyle.LABELS["fd_step"])
+        figstyle.title(ax, panel_title)
+        ax.legend(ncol=2)
 
-    axes[0].set_ylabel(f"|g_j(h) - {reference_label}|   [fun units per unit u]")
-    fig.suptitle("Central-FD step-size study at x0 -- " + BOUNDS_LABEL, fontsize=10)
+    axes[0].set_ylabel(figstyle.LABELS["gradient_deviation"])
     fig.tight_layout()
-    fig.savefig(path, dpi=150)
+    figstyle.save(fig, path)
     plt.close(fig)
 
 
@@ -253,14 +288,14 @@ def main(argv=None):
         grads = gradient_matrix(saved["sweep"])
         names = saved["variables"]
         n_chord = saved["n_chord"]
-        h_star = np.array(saved["h_star_per_variable"])
         if args.reference:
             reference, label = load_reference(args.reference, saved["J0_mwh_per_yr"])
         else:
             reference = np.array(saved["gradient_at_h_star_scaled"])
             label = "g_j(h*_j)"
-        plot(steps, grads, reference, names, n_chord, h_star,
-             saved["h_star_global"], label, FIGURE_PATH)
+        plot(steps, grads, reference, names, n_chord, saved["h_star_global"],
+             FIGURE_PATH, spans_from_bounds(saved["bounds"], names),
+             saved["J0_mwh_per_yr"])
         print(f"re-plotted against {label}: {FIGURE_PATH}")
         return
 
@@ -320,7 +355,8 @@ def main(argv=None):
         json.dump(summary, handle, indent=1)
 
     plot(STEPS, grads, g_star, names, problem.parameterisation.n_chord,
-         chosen["h_star"], chosen["h_star_global"], "g_j(h*_j)", FIGURE_PATH)
+         chosen["h_star_global"], FIGURE_PATH,
+         spans_from_bounds(summary["bounds"], names), J0)
 
     print(f"\n{'variable':<9} {'h*_j':>8} {'g_j(h*_j) [MWh/yr per u]':>26} {'eps_j':>12} {'eps_j/|g_j|':>12}")
     for j, name in enumerate(names):
