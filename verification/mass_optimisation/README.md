@@ -130,8 +130,9 @@ adjoints, 22 load solves.
 
 (`reference_blades.json`, `reference_blades.png`; the `x_c` row is the
 "+6.2 % material for +0.15 % energy" motivation of the re-pitch, measured on
-the same code. `blades_rendered.png` draws the three blades (isometric |
-plan) and `blades_rendered_edge.png` the edge-on view; the root cylinder and
+the same code. `blades_rendered_iso.png` and `blades_rendered_plan.png` draw
+the three blades in isometric and plan view, and `blades_rendered_edge.png`
+the edge-on view; the root cylinder and
 the tip rounding are drawn only: neither is modelled, and the blade the
 numbers describe starts at the 0.30 m cut-out.)
 
