@@ -179,7 +179,9 @@ def plot(blades, path):
     tick_labels = {"x0": r"$\mathbf{x}_0$", "x_c": r"$\mathbf{x}_c$",
                    "x_m": r"$\mathbf{x}_m$"}
     x = np.arange(len(labels))
-    ink, blue, light, red = "#333333", "#1f3b8b", "#5aa9e6", "#b3452a"
+    ink = "#333333"
+    blue, red = figstyle.PALETTE[0], figstyle.PALETTE[1]
+    light = figstyle.LIGHT[blue]
 
     fig, (ax_mass, ax_load) = plt.subplots(1, 2, figsize=figstyle.DOUBLE)
 
@@ -203,7 +205,7 @@ def plot(blades, path):
     stress = [b["absolute"]["root_stress_mpa"] for b in blades]
     deflection = [b["absolute"]["tip_deflection_mm"] for b in blades]
     allowable = blades[0]["absolute"]["design_allowable_mpa"]
-    bars = ax_load.bar(x, stress, 0.5, color=blue)
+    bars = ax_load.bar(x, stress, 0.5, color=blue, label="root stress")
     for bar in bars:
         ax_load.annotate(f"{bar.get_height():.1f}",
                          (bar.get_x() + bar.get_width() / 2.0, bar.get_height()),
@@ -219,13 +221,17 @@ def plot(blades, path):
     ax_load.set_ylim(0.0, allowable * 1.18)
     figstyle.title(ax_load, "Root stress and tip deflection")
 
-    ax_tip = ax_load.twinx()
+    ax_tip = figstyle.twin(ax_load)
     ax_tip.plot(x, deflection, "o-", color=red, label="tip deflection")
     ax_tip.set_ylabel(figstyle.label("Tip deflection", r"\delta", "mm"),
                       color=red)
     ax_tip.tick_params(axis="y", colors=red)
     ax_tip.set_ylim(0.0, max(deflection) * 1.25)
-    ax_tip.legend(loc="upper right")
+    # Bars, line, allowable and value labels fill the panel: one legend for
+    # both axes, under it.
+    h1, l1 = ax_load.get_legend_handles_labels()
+    h2, l2 = ax_tip.get_legend_handles_labels()
+    figstyle.legend_below(ax_load, h1 + h2, l1 + l2, ncol=2, offset=0.16)
 
     figstyle.save(fig, path)
     plt.close(fig)

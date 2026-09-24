@@ -106,44 +106,48 @@ def plot_geometry(performance, x0, out_dir):
     figstyle.apply()
     fig, axes = plt.subplots(1, 2, figsize=figstyle.DOUBLE,
                              layout="constrained")
-    blue, orange, green = "#0072B2", "#E69F00", "#009E73"
+    navy, rust, teal = figstyle.PALETTE[:3]
 
     spanwise = performance["spanwise"]
     radius = [row["r"] for row in spanwise]
 
+    # Both curves are the one reference blade; the panel title names it and
+    # the legend names the two quantities, one per axis.
     ax = axes[0]
-    ax.plot(radius, [1000.0 * row["chord_m"] for row in spanwise], color=blue,
-            label=r"$\mathbf{x}_0$")
+    ax.plot(radius, [1000.0 * row["chord_m"] for row in spanwise], color=navy,
+            label=r"chord $c$")
     ax.set_xlabel(figstyle.LABELS["radius"])
-    ax.set_ylabel(figstyle.LABELS["chord"], color=blue)
-    ax.tick_params(axis="y", labelcolor=blue)
-    ax.legend()
-    figstyle.title(ax, "Blade geometry")
+    ax.set_ylabel(figstyle.LABELS["chord"], color=navy)
+    ax.tick_params(axis="y", labelcolor=navy)
+    figstyle.title(ax, r"Schmitz reference $\mathbf{x}_0$")
 
-    ax_twist = ax.twinx()
-    ax_twist.plot(radius, [row["twist_deg"] for row in spanwise], color=orange)
-    ax_twist.set_ylabel(figstyle.LABELS["twist"], color=orange)
-    ax_twist.tick_params(axis="y", labelcolor=orange)
-    ax_twist.grid(False)
+    ax_twist = figstyle.twin(ax)
+    ax_twist.plot(radius, [row["twist_deg"] for row in spanwise], color=rust,
+                  linestyle="--", label=r"twist $\theta$")
+    ax_twist.set_ylabel(figstyle.LABELS["twist"], color=rust)
+    ax_twist.tick_params(axis="y", labelcolor=rust)
+    figstyle.merged_legend(ax, ax_twist, loc="upper right")
 
     ax = axes[1]
     ax.plot([row["tsr"] for row in performance["cp_lambda"]],
-            [row["Cp"] for row in performance["cp_lambda"]], color=blue)
-    ax.axhline(16.0 / 27.0, color="0.5", linestyle="--", linewidth=1.0,
+            [row["Cp"] for row in performance["cp_lambda"]], color=navy,
+            label=r"$C_P(\lambda)$")
+    ax.axhline(16.0 / 27.0, color="0.45", linestyle="--", linewidth=1.0,
                label="Betz limit")
 
     design_tsr = float(x0["rotor"]["design_tsr"])
     design_row = next(row for row in performance["cp_lambda"]
                       if abs(row["tsr"] - design_tsr) < 1e-9)
     ax.plot([design_tsr], [design_row["Cp"]], marker="o", linestyle="none",
-            color=green, label=fr"design $\lambda$ = {design_tsr:g}")
+            color=teal, label=fr"design $\lambda$ = {design_tsr:g}")
 
     rated = performance["design_point"]
     ax.plot([rated["tsr"]], [rated["Cp"]], marker="s", linestyle="none",
-            color=orange, label=fr"rated point $\lambda$ = {rated['tsr']:.2f}")
+            color=rust, label=fr"rated point $\lambda$ = {rated['tsr']:.2f}")
 
     ax.set_xlabel(figstyle.LABELS["tip_speed_ratio"])
     ax.set_ylabel(figstyle.LABELS["power_coefficient"])
+    ax.set_ylim(0.0, 0.7)
     ax.legend(loc="lower right")
     figstyle.title(ax, "Power coefficient")
 
@@ -167,23 +171,23 @@ def plot_operating_line(performance, out_dir):
 
     figstyle.apply()
     fig, ax = plt.subplots(figsize=figstyle.SINGLE)
-    blue, orange = "#0072B2", "#E69F00"
+    navy, rust = figstyle.PALETTE[:2]
 
     speeds = [row["v_inf"] for row in performance["operating_line"]]
 
     ax.plot(speeds, [row["power_w"] for row in performance["operating_line"]],
-            color=blue)
+            color=navy, label=r"power $P$")
     ax.set_xlabel(figstyle.LABELS["wind_speed"])
-    ax.set_ylabel(figstyle.label("Power", "P", "W"), color=blue)
-    ax.tick_params(axis="y", labelcolor=blue)
+    ax.set_ylabel(figstyle.label("Power", "P", "W"), color=navy)
+    ax.tick_params(axis="y", labelcolor=navy)
 
-    ax_thrust = ax.twinx()
+    ax_thrust = figstyle.twin(ax)
     ax_thrust.plot(speeds,
                    [row["thrust_n"] for row in performance["operating_line"]],
-                   color=orange)
-    ax_thrust.set_ylabel(figstyle.label("Thrust", "T", "N"), color=orange)
-    ax_thrust.tick_params(axis="y", labelcolor=orange)
-    ax_thrust.grid(False)
+                   color=rust, linestyle="--", label=r"thrust $T$")
+    ax_thrust.set_ylabel(figstyle.label("Thrust", "T", "N"), color=rust)
+    ax_thrust.tick_params(axis="y", labelcolor=rust)
+    figstyle.merged_legend(ax, ax_thrust, loc="lower right")
 
     path = os.path.join(out_dir, "baseline_operating_line.png")
     figstyle.save(fig, path)

@@ -281,6 +281,7 @@ def plot_agreement(data, out_dir):
 
     import matplotlib
     matplotlib.use("Agg")
+    import matplotlib.lines
     import matplotlib.pyplot as plt
     from plotting import figstyle
 
@@ -289,7 +290,7 @@ def plot_agreement(data, out_dir):
     points, names = data["points"], data["variables"]
     path = os.path.join(out_dir, "tier3_agreement.png")
 
-    colours = ["#1f5fbf", "#d1495b", "#2a9d8f"]
+    colours = figstyle.PALETTE[:3]
     fig, axes = plt.subplots(1, 2, figsize=figstyle.DOUBLE)
     x = np.arange(len(names))
     width = 0.26
@@ -308,7 +309,7 @@ def plot_agreement(data, out_dir):
         "Disagreement",
         r"\|g_j^{\mathrm{FD}} - g_j^{\mathrm{adj}}\|/\varepsilon_j", "--"))
     figstyle.title(axes[0], "Disagreement over acceptance scale")
-    axes[0].legend(ncol=2, loc="upper right")
+
 
     axes[1].axhline(REL_TRIPWIRE, color="#444444", lw=0.9, ls="--",
                     label=r"$10^{-3}$ tripwire")
@@ -317,15 +318,30 @@ def plot_agreement(data, out_dir):
         "Relative error",
         r"\|g_j^{\mathrm{FD}} - g_j^{\mathrm{adj}}\|/\|g_j^{\mathrm{FD}}\|", "--"))
     figstyle.title(axes[1], "Relative error")
-    axes[1].legend(ncol=2, loc="upper right")
 
     for ax in axes:
         ax.set_xticks(x)
-        ax.set_xticklabels([variable_symbol(name) for name in names],
-                           rotation=45, ha="right")
+        ax.set_xticklabels([variable_symbol(name) for name in names])
         # A log axis labels its decades in math text already; the
         # ScalarFormatter behind figstyle.sci would label mantissas only.
-    fig.tight_layout()
+
+    # The bars and the acceptance lines leave no free corner, and the three
+    # points are the same in both panels: one legend, under the figure.
+    # Each acceptance line is named where it is drawn, at the right-hand end,
+    # clear of the bars; the legend carries the three points only.
+    for ax, value, text, above in ((axes[0], EPS_FACTOR,
+                                    rf"${EPS_FACTOR:g}\,\varepsilon_j$", True),
+                                   (axes[1], REL_TRIPWIRE,
+                                    r"$10^{-3}$ tripwire", False)):
+        ax.annotate(text, (1.0, value), xycoords=ax.get_yaxis_transform(),
+                    xytext=(-3, 3 if above else -3), textcoords="offset points",
+                    ha="right", va="bottom" if above else "top", fontsize=8,
+                    color="#444444")
+    bars = [h for h in axes[0].get_legend_handles_labels()[0]
+            if not isinstance(h, matplotlib.lines.Line2D)]
+    fig.legend(bars, [b.get_label() for b in bars], loc="lower center",
+               ncol=3, frameon=False, bbox_to_anchor=(0.5, 0.0))
+    fig.tight_layout(rect=(0, 0.08, 1, 1))
     figstyle.save(fig, path)
     plt.close(fig)
     return path

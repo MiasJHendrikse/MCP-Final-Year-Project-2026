@@ -381,9 +381,9 @@ def plot(rows, fitted, path):
     # ScalarFormatter behind figstyle.sci would label mantissas only.
     ax.set_xlabel(figstyle.LABELS["design_variables"])
     ax.set_ylabel(figstyle.LABELS["wall_time"])
-    ax.grid(True, which="both")
+    ax.grid(True, which="major")
     handles, labels = ax.get_legend_handles_labels()
-    fig.legend(handles, labels, loc="lower center", ncol=2)
+    fig.legend(handles, labels, loc="lower center", ncol=2, frameon=False)
     fig.tight_layout(rect=(0.0, 0.22, 1.0, 1.0))
     figstyle.save(fig, path)
     plt.close(fig)

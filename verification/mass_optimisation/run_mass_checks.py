@@ -343,9 +343,11 @@ def plot_reference_blades(table, path):
     figstyle.apply()
 
     keys = [b["label"] for b in table]
-    tick_labels = [figstyle.BLADES[key]["label"] for key in keys]
+    # The symbol alone, upright: the caption names the three blades.
+    tick_labels = [figstyle.BLADES[key]["label"].split(" ")[0] for key in keys]
     x = np.arange(len(table))
-    blue, light, ink = "#1f3b8b", "#5aa9e6", "#888888"
+    blue = figstyle.PALETTE[0]
+    light, ink = figstyle.LIGHT[blue], "#888888"
 
     fig, axes = plt.subplots(1, 2, figsize=figstyle.DOUBLE)
 
@@ -356,9 +358,10 @@ def plot_reference_blades(table, path):
                 color=light, label=r"solid $k_A\int c^2\,dr$")
     axes[0].axhline(0.0, color=ink, lw=0.8)
     axes[0].set_xticks(x)
-    axes[0].set_xticklabels(tick_labels, rotation=35, ha="right",
-                            rotation_mode="anchor", fontsize=7)
-    axes[0].set_ylabel(figstyle.LABELS["shell_material"])
+    axes[0].set_xticklabels(tick_labels)
+    # Both proxies are drawn, so the axis names material, not shell alone.
+    axes[0].set_ylabel(figstyle.label(
+        r"Material relative to $\mathbf{x}_0$", None, "%"))
     figstyle.title(axes[0], "Material proxies")
     axes[0].legend(loc="upper left", fontsize=7)
 
@@ -370,8 +373,7 @@ def plot_reference_blades(table, path):
                     label=name)
     axes[1].axhline(1.0, color=ink, lw=0.8)
     axes[1].set_xticks(x)
-    axes[1].set_xticklabels(tick_labels, rotation=35, ha="right",
-                            rotation_mode="anchor", fontsize=7)
+    axes[1].set_xticklabels(tick_labels)
     axes[1].set_ylabel(figstyle.LABELS["ratio_to_reference"])
     axes[1].set_ylim(0.72, 1.16)
     figstyle.title(axes[1], "Constrained quantities")

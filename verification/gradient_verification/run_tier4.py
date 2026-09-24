@@ -382,22 +382,29 @@ def draw_attribution_panel(ax, point, panel_title=None):
     law = np.array([np.nan if r["smooth_h2_prediction_mwh_per_u"] is None
                     else r["smooth_h2_prediction_mwh_per_u"] for r in rows])
 
-    ax.plot(h, err, "-o", color="#1f5fbf", lw=1.4, ms=4, label="FD $-$ adjoint")
+    ax.plot(h, err, "-o", color=figstyle.PALETTE[0], lw=1.4, ms=4,
+            label="FD $-$ adjoint")
     if np.isfinite(law).any():
         ax.plot(h, law, "--", color="#888888", lw=1.0, label="$C h^2$ fit")
     ax.plot(h, floor, ":", color="#888888", lw=1.2, label="round-off floor")
-    for row, value in zip(rows, err):
-        if (row["alpha_knot_crossings"] + row["reynolds_row_crossings"]
-                + row["buhl_crossings"]) and np.isfinite(value):
-            ax.annotate(crossing_counts(row), (row["h"], value),
-                        textcoords="offset points", xytext=(6, 5), fontsize=6.5,
-                        color="#b3452a")
+    # A step whose stencil crosses a polar node, a Reynolds row or the
+    # high-induction blend is drawn hollow. The per-step counts are in
+    # tier4.json (`crossing_counts` formats them); as text on the curve they
+    # would sit on the data.
+    crossed = np.array([bool(r["alpha_knot_crossings"]
+                             + r["reynolds_row_crossings"] + r["buhl_crossings"])
+                        for r in rows])
+    if crossed.any():
+        ax.plot(h[crossed], err[crossed], "o", ms=4, color=figstyle.PALETTE[0],
+                markerfacecolor="white", markeredgewidth=1.1,
+                label="stencil crosses a node or blend")
 
     h_star = next(r["h_star"] for r in point["per_variable_at_h_star"]
                   if r["variable"] == point["worst_variable"])
     ax.axvline(h_star, color="#444444", lw=0.8, alpha=0.6)
-    ax.text(h_star, 0.04, r"$h^*$", transform=ax.get_xaxis_transform(),
-            fontsize=8, color="#444444")
+    ax.annotate(r"$h^*$", (h_star, 0.04), xycoords=ax.get_xaxis_transform(),
+                xytext=(3, 0), textcoords="offset points", fontsize=8,
+                color="#444444")
 
     ax.set_xscale("log")
     ax.set_yscale("log")
@@ -435,9 +442,15 @@ def plot_attribution(points, out_dir):
                             (axes[1], optimum, POINT_NAMES[2])):
         draw_attribution_panel(
             ax, point, f"{name.capitalize()}: {variable_symbol(point['worst_variable'])}")
-        ax.legend(loc="upper center", fontsize=7)
     axes[0].set_ylabel(ylabel)
-    figure.tight_layout()
+    # One legend under the figure, carrying every series either panel draws.
+    entries = {}
+    for ax in axes:
+        for handle, text in zip(*ax.get_legend_handles_labels()):
+            entries.setdefault(text, handle)
+    figure.legend(list(entries.values()), list(entries), loc="lower center",
+                  ncol=len(entries), frameon=False, bbox_to_anchor=(0.5, 0.0))
+    figure.tight_layout(rect=(0, 0.1, 1, 1))
     figstyle.save(figure, attribution)
     plt.close(figure)
 
@@ -445,7 +458,7 @@ def plot_attribution(points, out_dir):
     iterate_figure, iterate_ax = plt.subplots(figsize=figstyle.SINGLE)
     draw_attribution_panel(iterate_ax, iterate)
     iterate_ax.set_ylabel(ylabel)
-    iterate_ax.legend(loc="upper center", fontsize=7)
+    figstyle.legend_below(iterate_ax, ncol=2, offset=0.28)
     iterate_figure.tight_layout()
     figstyle.save(iterate_figure, iterate_path)
     plt.close(iterate_figure)

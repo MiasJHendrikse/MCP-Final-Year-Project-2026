@@ -163,7 +163,8 @@ def plot_pareto_front(parameterisation, x0, front, steps, path):
 
     figstyle.apply()
 
-    blue, light, red, ink = "#1f3b8b", "#5aa9e6", "#b3452a", "#888888"
+    blue, red = figstyle.PALETTE[0], figstyle.PALETTE[1]
+    light = figstyle.LIGHT[blue]
     energy = np.array([f["energy_given_up_pct"] for f in front], dtype=float)
     shell = np.array([f["shell_saved_pct"] for f in front], dtype=float)
     solid = np.array([f["solid_saved_pct"] for f in front], dtype=float)
@@ -179,11 +180,12 @@ def plot_pareto_front(parameterisation, x0, front, steps, path):
         if rate is not None:
             axes[0].plot([x - half, x + half], [y - rate * half, y + rate * half],
                          "-", color=red, lw=1.0, alpha=0.8)
-        axes[0].annotate(f"{f['delta'] * 1e2:g} %", (x, y), fontsize=7,
-                         color=ink, textcoords="offset points", xytext=(6, -12))
+    # Each optimum sits on its energy floor (energy given up = delta), so the
+    # x-axis already reads delta; a per-point label would repeat it.
     axes[0].plot([], [], "-", color=red, lw=1.0, label="KKT exchange rate")
     axes[0].set_xlabel(figstyle.LABELS["energy_given_up"])
-    axes[0].set_ylabel(figstyle.LABELS["material_saved"])
+    # Shell and solid savings are both drawn: the axis names material.
+    axes[0].set_ylabel(figstyle.label("Material saved", None, "%"))
     figstyle.title(axes[0], "Material-energy front")
     axes[0].legend(loc="lower right", fontsize=7)
 

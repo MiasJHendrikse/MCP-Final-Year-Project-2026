@@ -234,12 +234,11 @@ def plot_study(results, out_dir):
     ax.set_ylabel(figstyle.LABELS["chord"])
     figstyle.title(ax, "Fit to the analytic blade")
 
-    ax_twist = ax.twinx()
+    ax_twist = figstyle.twin(ax)
     ax_twist.plot(radius, reference["twist_deg"], color="0.2", linestyle="--")
     ax_twist.set_ylabel(figstyle.LABELS["twist"])
-    ax_twist.grid(False)
 
-    for colour, total in zip(("#0072B2", "#E69F00", "#009E73"), (6, 10, 16)):
+    for colour, total in zip(figstyle.PALETTE[:3], (6, 10, 16)):
         parameterisation, vector = fit_curve(results, total, chord_target,
                                              twist_target)
         ax.plot(radius,
@@ -250,28 +249,35 @@ def plot_study(results, out_dir):
                        for value in parameterisation.twist(vector)],
                       color=colour, linestyle="--")
 
-    ax.legend(loc="upper right")
+    # Colour names the control-point count; line style names the quantity.
+    from matplotlib.lines import Line2D
+    handles, labels = ax.get_legend_handles_labels()
+    handles += [Line2D([], [], color="0.45", linestyle="-"),
+                Line2D([], [], color="0.45", linestyle="--")]
+    labels += ["chord (left axis)", "twist (right axis)"]
+    ax.legend(handles, labels, loc="upper right")
 
     ax = axes[1]
     counts = [row["total_control_points"] for row in results["counts"]]
     ax.semilogy(counts,
                 [1000.0 * row["chord_rms_error_m"]
-                 for row in results["counts"]], "o-", color="#0072B2")
+                 for row in results["counts"]], "o-", color=figstyle.PALETTE[0],
+                label="chord")
     ax.set_xlabel(figstyle.LABELS["design_variables"])
     ax.set_ylabel(figstyle.label("Chord RMS error", "e_c", "mm"),
-                  color="#0072B2")
-    ax.tick_params(axis="y", labelcolor="#0072B2")
+                  color=figstyle.PALETTE[0])
+    ax.tick_params(axis="y", labelcolor=figstyle.PALETTE[0])
     ax.set_xticks(counts)
     figstyle.title(ax, "Fitting error")
 
-    ax_twist = ax.twinx()
+    ax_twist = figstyle.twin(ax)
     ax_twist.semilogy(counts,
                       [row["twist_rms_error_deg"] for row in results["counts"]],
-                      "s--", color="#E69F00")
+                      "s--", color=figstyle.PALETTE[1], label="twist")
     ax_twist.set_ylabel(figstyle.label("Twist RMS error", r"e_\theta", "°"),
-                        color="#E69F00")
-    ax_twist.tick_params(axis="y", labelcolor="#E69F00")
-    ax_twist.grid(False)
+                        color=figstyle.PALETTE[1])
+    ax_twist.tick_params(axis="y", labelcolor=figstyle.PALETTE[1])
+    figstyle.merged_legend(ax, ax_twist, loc="lower left")
 
     path = os.path.join(out_dir, "representation_study.png")
     figstyle.save(fig, path)

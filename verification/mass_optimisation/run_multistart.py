@@ -110,6 +110,16 @@ def run_start(label, u_start, names):
     }
 
 
+def _start_label(label):
+    """A run's tick label: the blade symbols for x0 / x_c, 'start k' otherwise."""
+
+    if label == "x0":
+        return r"$\mathbf{x}_0$"
+    if label == "x_c":
+        return r"$\mathbf{x}_c$"
+    return label.replace("_", " ")
+
+
 def plot_multistart(runs, spread, path):
     """
     The optima the ten starts reached, two panels side by side, written
@@ -148,27 +158,35 @@ def plot_multistart(runs, spread, path):
             u_best = np.array(best["u_m"], dtype=float)
             distance.append(float(np.max(np.abs(u - u_best))))
     x = np.arange(len(ok))
-    blue, orange, red = "#1f3b8b", "#e08a1e", "#b3452a"
+    blue, red = figstyle.PALETTE[0], figstyle.PALETTE[1]
+    orange = figstyle.PALETTE[3]
     colours = [blue if r.get("feasible") else orange for r in ok]
+    labels = [_start_label(label) for label in labels]
 
     fig, axes = plt.subplots(1, 2, figsize=figstyle.DOUBLE)
 
     axes[0].bar(x, objective, color=colours)
     axes[0].set_xticks(x)
-    axes[0].set_xticklabels(labels, rotation=45, ha="right", fontsize=7)
+    axes[0].set_xticklabels(labels, rotation=45, ha="right",
+                            rotation_mode="anchor")
     axes[0].set_ylabel(figstyle.LABELS["objective"])
     figstyle.title(axes[0], "Objective from each start")
 
     axes[1].bar(x, distance, color=colours)
-    axes[1].axhline(spread, color=red, lw=1.2, ls="--",
-                    label="agreement criterion")
+    axes[1].axhline(spread, color=red, lw=1.2, ls="--")
+    # The criterion is named on its line, below it at the right-hand end,
+    # where the bars (five decades lower) leave the panel empty.
+    axes[1].annotate("agreement criterion", (1.0, spread),
+                     xycoords=axes[1].get_yaxis_transform(), xytext=(-6, -4),
+                     textcoords="offset points", ha="right", va="top",
+                     fontsize=8, color=red)
     axes[1].set_xticks(x)
-    axes[1].set_xticklabels(labels, rotation=45, ha="right", fontsize=7)
+    axes[1].set_xticklabels(labels, rotation=45, ha="right",
+                            rotation_mode="anchor")
     axes[1].set_ylabel(figstyle.label(
         r"$\|\mathbf{u} - \mathbf{u}_{\mathrm{best}}\|_\infty$", None, "--"))
     axes[1].set_yscale("log")
     figstyle.title(axes[1], "Distance from the best optimum")
-    axes[1].legend(loc="upper left")
 
     if any(r.get("feasible") for r in ok) and any(not r.get("feasible") for r in ok):
         handles = [Line2D([], [], color=blue, lw=6, label="feasible optimum"),

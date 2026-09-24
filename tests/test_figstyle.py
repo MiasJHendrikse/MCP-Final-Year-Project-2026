@@ -1,10 +1,11 @@
 """
 The figure-style gate: `src/plotting/figstyle.py`.
 
-`save()` is the mechanical guarantee behind the report's two figure rules --
-at most two panels, side by side, and no project history inside an image --
-so the refusal paths are tested one by one: three axes, a super-title, each
-forbidden string, and the two forbidden whole words.
+`save()` is the mechanical guarantee behind the report's figure rules -- at
+most two panels, side by side, no project history inside an image, and no
+text or legend on the data -- so the refusal paths are tested one by one:
+three axes, a super-title, each forbidden string, the two forbidden whole
+words, and a legend or text sitting on a line or on another text.
 
 Author: MJ Hendrikse
 Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
@@ -186,8 +187,103 @@ def test_apply_sets_the_stated_parameters():
     assert matplotlib.rcParams["font.family"] == ["serif"]
     assert matplotlib.rcParams["savefig.dpi"] == 300
     assert matplotlib.rcParams["savefig.bbox"] == "tight"
-    assert matplotlib.rcParams["legend.frameon"] is False
-    assert matplotlib.rcParams["axes.spines.top"] is False
-    assert matplotlib.rcParams["axes.spines.right"] is False
+    # A closed box with inward ticks and framed legends.
+    assert matplotlib.rcParams["legend.frameon"] is True
+    assert matplotlib.rcParams["axes.spines.top"] is True
+    assert matplotlib.rcParams["axes.spines.right"] is True
+    assert matplotlib.rcParams["xtick.direction"] == "in"
+    assert matplotlib.rcParams["ytick.direction"] == "in"
+    assert (matplotlib.rcParams["axes.prop_cycle"].by_key()["color"]
+            == figstyle.PALETTE)
     assert figstyle.SINGLE == (3.35, 2.6)
     assert figstyle.DOUBLE == (6.3, 2.6)
+
+
+def test_palette_leads_with_the_blade_colours():
+    assert figstyle.PALETTE[0] == figstyle.BLADES["x_m"]["color"]
+    assert figstyle.PALETTE[1] == figstyle.BLADES["x_c"]["color"]
+    assert figstyle.PALETTE[2] == figstyle.BLADES["x_star"]["color"]
+
+
+def _diagonal(**legend):
+    """A line corner to corner, with a legend placed as asked."""
+    fig, ax = plt.subplots(figsize=figstyle.SINGLE)
+    ax.plot([0, 1], [0, 1], label="diagonal")
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    ax.legend(**legend)
+    return fig, ax
+
+
+def test_overlaps_finds_a_legend_on_a_line():
+    fig, _ax = _diagonal(loc="center")
+    found = figstyle.overlaps(fig)
+    assert found and "legend sits on line 'diagonal'" in found[0]
+    with pytest.raises(figstyle.FigureStyleError):
+        figstyle.save(fig, os.path.join(os.environ.get("TEMP", "/tmp"),
+                                        "_figstyle_overlap.png"))
+    plt.close(fig)
+
+
+def test_overlaps_passes_a_legend_in_a_free_corner(tmp_path):
+    fig, _ax = _diagonal(loc="upper left")
+    assert figstyle.overlaps(fig) == []
+    figstyle.save(fig, str(tmp_path / "clear.png"))
+    plt.close(fig)
+
+
+def test_overlaps_passes_a_legend_below_the_axes():
+    fig, ax = plt.subplots(figsize=figstyle.SINGLE)
+    ax.plot([0, 1], [0, 1], label="diagonal")
+    figstyle.legend_below(ax, ncol=1)
+    assert figstyle.overlaps(fig) == []
+    plt.close(fig)
+
+
+def test_overlaps_finds_text_on_a_line_and_text_outside_the_axes():
+    fig, ax = plt.subplots(figsize=figstyle.SINGLE)
+    ax.plot([0, 1], [0, 1])
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    ax.text(0.5, 0.5, "on the line", ha="center", va="center")
+    ax.text(0.98, 0.05, "past the edge")
+    found = " ".join(figstyle.overlaps(fig))
+    assert "'on the line' sits on line" in found
+    assert "'past the edge' runs outside its axes" in found
+    plt.close(fig)
+
+
+def test_overlaps_finds_two_texts_on_each_other():
+    fig, ax = plt.subplots(figsize=figstyle.SINGLE)
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    ax.text(0.1, 0.8, "first label")
+    ax.text(0.12, 0.8, "second label")
+    assert any("overlaps" in item for item in figstyle.overlaps(fig))
+    plt.close(fig)
+
+
+def test_overlap_ok_gid_exempts_an_artist():
+    fig, ax = plt.subplots(figsize=figstyle.SINGLE)
+    ax.plot([0, 1], [0, 1])
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    ax.text(0.5, 0.5, "curve label", ha="center", va="center",
+            gid=figstyle.OVERLAP_OK)
+    assert figstyle.overlaps(fig) == []
+    plt.close(fig)
+
+
+def test_save_can_skip_the_overlap_check_for_a_schematic(tmp_path):
+    fig, _ax = _diagonal(loc="center")
+    figstyle.save(fig, str(tmp_path / "schematic.png"), check_overlap=False)
+    assert (tmp_path / "schematic.png").exists()
+    plt.close(fig)
+
+
+def test_twin_leaves_one_set_of_ticks_on_the_right_spine():
+    fig, ax = plt.subplots()
+    other = figstyle.twin(ax)
+    assert not ax.yaxis._major_tick_kw.get("tick2On", True)
+    assert other.get_position().bounds == ax.get_position().bounds
+    plt.close(fig)

@@ -10,8 +10,13 @@ breaks either rule cannot be written -- the call raises instead.
 What the module provides
 ------------------------
 
-* `apply()`      -- sets `matplotlib.rcParams` once: serif text, 9 pt base,
-                    no top/right spines, a light grid, 300 dpi PNG output.
+* `apply()`      -- sets `matplotlib.rcParams` once: serif text (Palatino, the
+                    report's body face), 9 pt base, a closed axes box with
+                    inward ticks, a light grid, framed legends, one colour
+                    cycle (`PALETTE`), 300 dpi PNG output.
+* `PALETTE`      -- the colour cycle. Its first three entries are the blade
+                    colours of `BLADES`, so a series drawn from the default
+                    cycle and a blade drawn from `BLADES` never disagree.
 * `SINGLE`, `DOUBLE` -- the two figure widths (inches). The A4 text block is
                     160 mm wide; a two-panel figure fills it, a single panel
                     takes a little over half.
@@ -25,8 +30,15 @@ What the module provides
                     needs its panels distinguished.
 * `sci()`        -- math-text tick formatting, so exponents read 10^-6 and
                     not 1e-06.
-* `save()`       -- asserts the panel count, the absence of a super-title and
-                    the forbidden-string list, then writes the PNG.
+* `twin()`       -- a right-hand y-axis sharing x, with the host's right-side
+                    ticks switched off so the two sets do not double up.
+* `merged_legend()` -- one legend carrying a host axes' and its twin's entries.
+* `legend_below()` -- a legend under the axes, for a panel with no free corner.
+* `overlaps()`   -- every place a text or legend sits on plotted data, or on
+                    another text.
+* `save()`       -- asserts the panel count, the absence of a super-title,
+                    the forbidden-string list and (by default) that no text or
+                    legend sits on the data, then writes the PNG.
 
 Author: MJ Hendrikse
 Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
@@ -39,9 +51,16 @@ import matplotlib
 
 matplotlib.use("Agg")
 
+import matplotlib.collections  # noqa: E402
+import matplotlib.lines  # noqa: E402
+import matplotlib.patches  # noqa: E402
+import matplotlib.path  # noqa: E402
 import matplotlib.pyplot as plt  # noqa: E402
 import matplotlib.text  # noqa: E402
 import matplotlib.ticker  # noqa: E402
+import matplotlib.transforms  # noqa: E402
+import numpy as np  # noqa: E402
+from cycler import cycler  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # size and style
@@ -57,6 +76,17 @@ DPI = 300
 SERIF = ["Palatino Linotype", "TeX Gyre Pagella", "DejaVu Serif"]
 
 
+#: The colour cycle: dark, print-safe hues that stay distinct for the common
+#: colour-vision deficiencies. The first three are the `BLADES` colours (navy,
+#: rust, teal); the rest follow in contrast order.
+PALETTE = ["#1f3b8b", "#b3452a", "#2a7f62", "#c7881c", "#6a4c93",
+           "#4a90c8", "#555555"]
+
+#: A lighter partner of the first two palette colours, for a paired series
+#: that belongs to the same thing (shell and solid material, for instance).
+LIGHT = {"#1f3b8b": "#8fa4d8", "#b3452a": "#e3a894"}
+
+
 def apply():
     """Set the project's `matplotlib.rcParams`. Idempotent."""
 
@@ -70,12 +100,37 @@ def apply():
         "xtick.labelsize": 8,
         "ytick.labelsize": 8,
         "legend.fontsize": 8,
-        "legend.frameon": False,
-        "axes.spines.top": False,
-        "axes.spines.right": False,
+        # A closed box with inward ticks: the engineering-report convention.
+        "axes.spines.top": True,
+        "axes.spines.right": True,
+        "axes.linewidth": 0.7,
+        "axes.edgecolor": "0.15",
+        "axes.prop_cycle": cycler(color=PALETTE),
+        "axes.axisbelow": True,
+        "xtick.direction": "in",
+        "ytick.direction": "in",
+        "xtick.top": True,
+        "ytick.right": True,
+        "xtick.major.size": 3.5,
+        "ytick.major.size": 3.5,
+        "xtick.minor.size": 2.0,
+        "ytick.minor.size": 2.0,
+        "xtick.major.width": 0.7,
+        "ytick.major.width": 0.7,
+        "xtick.major.pad": 4,
+        "ytick.major.pad": 4,
         "axes.grid": True,
         "grid.alpha": 0.25,
-        "grid.linewidth": 0.6,
+        "grid.linewidth": 0.5,
+        # A framed, near-opaque legend: where it must sit near data, the data
+        # passes behind the box, never through the words.
+        "legend.frameon": True,
+        "legend.framealpha": 0.92,
+        "legend.edgecolor": "0.7",
+        "legend.fancybox": False,
+        "legend.borderpad": 0.4,
+        "legend.handlelength": 1.8,
+        "legend.labelspacing": 0.3,
         "lines.linewidth": 1.4,
         "lines.markersize": 4,
         "figure.figsize": SINGLE,
@@ -83,6 +138,42 @@ def apply():
         "savefig.bbox": "tight",
         "savefig.pad_inches": 0.02,
     })
+
+
+def twin(ax):
+    """
+    A right-hand y-axis sharing `ax`'s x-axis. The host's right-side ticks are
+    switched off so the twin's are the only ones on that spine; the twin draws
+    no grid of its own.
+    """
+
+    ax.tick_params(axis="y", which="both", right=False)
+    other = ax.twinx()
+    other.tick_params(axis="x", which="both", top=False)
+    other.grid(False)
+    return other
+
+
+def merged_legend(ax, other, **kwargs):
+    """One legend on `ax` carrying the entries of `ax` and its twin `other`."""
+
+    h1, l1 = ax.get_legend_handles_labels()
+    h2, l2 = other.get_legend_handles_labels()
+    return ax.legend(h1 + h2, l1 + l2, **kwargs)
+
+
+def legend_below(ax, handles=None, labels=None, ncol=2, offset=0.22):
+    """
+    A legend centred under `ax`, clear of the tick labels and the x label, for
+    a panel whose data leaves no free corner. `offset` is the gap below the
+    axes as a fraction of the axes height.
+    """
+
+    kwargs = dict(loc="upper center", bbox_to_anchor=(0.5, -offset),
+                  ncol=ncol, frameon=False)
+    if handles is None:
+        return ax.legend(**kwargs)
+    return ax.legend(handles, labels, **kwargs)
 
 
 # ---------------------------------------------------------------------------
@@ -291,13 +382,178 @@ def check(fig):
                 f"{value!r}")
 
 
-def save(fig, path):
+# ---------------------------------------------------------------------------
+# text on data
+# ---------------------------------------------------------------------------
+
+#: An artist given this gid is exempt from the overlap check: a curve label
+#: placed on its own curve by design, for instance.
+OVERLAP_OK = "overlap-ok"
+
+_PAD = 1.0  # display pixels shaved off every text box before it is tested
+
+
+def _shrink(box):
+    return matplotlib.transforms.Bbox.from_extents(
+        box.x0 + _PAD, box.y0 + _PAD, box.x1 - _PAD, box.y1 - _PAD)
+
+
+def _polyline_enters(points, box):
+    """Whether the polyline `points` (N x 2, display units) enters `box`."""
+
+    x0, y0, x1, y1 = box.x0, box.y0, box.x1, box.y1
+    finite = np.all(np.isfinite(points), axis=1)
+    inside = (finite & (points[:, 0] > x0) & (points[:, 0] < x1)
+              & (points[:, 1] > y0) & (points[:, 1] < y1))
+    if inside.any():
+        return True
+    ok = finite[:-1] & finite[1:]
+    if not ok.any():
+        return False
+    a, b = points[:-1][ok], points[1:][ok]
+    d = b - a
+    # Liang-Barsky clipping of every segment against the box at once.
+    t0 = np.zeros(len(a))
+    t1 = np.ones(len(a))
+    hit = np.ones(len(a), dtype=bool)
+    for p, q in ((-d[:, 0], a[:, 0] - x0), (d[:, 0], x1 - a[:, 0]),
+                 (-d[:, 1], a[:, 1] - y0), (d[:, 1], y1 - a[:, 1])):
+        parallel = p == 0
+        hit &= ~(parallel & (q < 0))
+        r = np.divide(q, p, out=np.zeros_like(q), where=~parallel)
+        t0 = np.where(~parallel & (p < 0), np.maximum(t0, r), t0)
+        t1 = np.where(~parallel & (p > 0), np.minimum(t1, r), t1)
+    return bool(np.any(hit & (t0 <= t1)))
+
+
+def _line_points(line):
+    x, y = line.get_xdata(orig=False), line.get_ydata(orig=False)
+    x = np.asarray(x, dtype=float)
+    y = np.asarray(y, dtype=float)
+    style = line.get_drawstyle()
+    if style not in (None, "default"):
+        x, y = matplotlib.lines.STEP_LOOKUP_MAP[style](x, y)
+    return line.get_transform().transform(np.column_stack([x, y]))
+
+
+def _data_hit(ax, box):
+    """A description of the first piece of `ax`'s data inside `box`, or None."""
+
+    for line in ax.lines:
+        if not line.get_visible() or line.get_gid() == OVERLAP_OK:
+            continue
+        pts = _line_points(line)
+        if not len(pts):
+            continue
+        if line.get_linestyle() in ("None", "none", "", " "):
+            # Markers only: test the points, not the joins between them.
+            p = pts[np.all(np.isfinite(pts), axis=1)]
+            if np.any((p[:, 0] > box.x0) & (p[:, 0] < box.x1)
+                      & (p[:, 1] > box.y0) & (p[:, 1] < box.y1)):
+                return f"markers {line.get_label()!r}"
+            continue
+        if _polyline_enters(pts, box):
+            return f"line {line.get_label()!r}"
+    for patch in ax.patches:
+        if (not patch.get_visible() or patch.get_gid() == OVERLAP_OK
+                or not isinstance(patch, matplotlib.patches.Rectangle)):
+            continue
+        extent = patch.get_window_extent()
+        if extent.width > 0 and extent.height > 0 and extent.overlaps(box):
+            return f"bar {patch.get_label()!r}"
+    for coll in ax.collections:
+        if (not coll.get_visible() or coll.get_gid() == OVERLAP_OK
+                or not isinstance(coll, matplotlib.collections.PathCollection)):
+            continue
+        offsets = coll.get_offset_transform().transform(coll.get_offsets())
+        if len(offsets) and np.any(
+                (offsets[:, 0] > box.x0) & (offsets[:, 0] < box.x1)
+                & (offsets[:, 1] > box.y0) & (offsets[:, 1] < box.y1)):
+            return f"points {coll.get_label()!r}"
+    return None
+
+
+def _text_boxes(fig, renderer):
+    """(description, display box, axes) for every text and legend in the axes."""
+
+    for ax in fig.axes:
+        if getattr(ax, "name", "") == "3d":
+            continue
+        legend = ax.get_legend()
+        if (legend is not None and legend.get_visible()
+                and legend.get_gid() != OVERLAP_OK):
+            yield "legend", legend.get_window_extent(renderer), ax
+        for text in ax.texts:
+            if (text.get_visible() and text.get_text().strip()
+                    and text.get_gid() != OVERLAP_OK):
+                yield (f"text {text.get_text()!r}",
+                       text.get_window_extent(renderer), ax)
+
+
+def overlaps(fig):
+    """
+    Every place a text or legend on `fig` sits on plotted data (a line, a bar,
+    a marker) of its own panel -- the host axes and any twin -- or on another
+    text. Returns a list of strings; empty means clean.
+
+    A legend placed outside the axes passes: the data is clipped at the axes
+    edge and cannot reach it.
+    """
+
+    fig.canvas.draw()
+    renderer = fig.canvas.get_renderer()
+    boxes = list(_text_boxes(fig, renderer))
+    found = []
+    for what, box, ax in boxes:
+        box = _shrink(box)
+        if box.width <= 0 or box.height <= 0:
+            continue
+        # A text drawn in the axes must stay inside them, clear of the spines
+        # and tick labels; a legend placed under the axes is outside by design.
+        frame = ax.get_window_extent(renderer)
+        if what != "legend" and not (
+                frame.x0 <= box.x0 and box.x1 <= frame.x1
+                and frame.y0 <= box.y0 and box.y1 <= frame.y1):
+            found.append(f"{what} runs outside its axes")
+            continue
+        panel = tuple(round(v, 3) for v in ax.get_position().bounds)
+        for other in fig.axes:
+            if (getattr(other, "name", "") == "3d" or panel != tuple(
+                    round(v, 3) for v in other.get_position().bounds)):
+                continue
+            clip = matplotlib.transforms.Bbox.intersection(
+                box, other.get_window_extent(renderer))
+            if clip is None:
+                continue
+            hit = _data_hit(other, clip)
+            if hit:
+                found.append(f"{what} sits on {hit}")
+                break
+    for i, (what_a, a, _) in enumerate(boxes):
+        for what_b, b, _ in boxes[i + 1:]:
+            if _shrink(a).overlaps(b):
+                found.append(f"{what_a} overlaps {what_b}")
+    return found
+
+
+def save(fig, path, check_overlap=True):
     """
     The only way a committed figure is written. Applies the refusal rules
-    (`check`), writes the PNG at `DPI`, and returns `path`.
+    (`check`) and, unless `check_overlap` is False, refuses a figure whose
+    text or legend sits on its data (`overlaps`). Writes the PNG at `DPI` and
+    returns `path`.
+
+    `check_overlap=False` is for a schematic, whose labels sit beside drawn
+    lines by design; its layout is checked by eye.
     """
 
     check(fig)
+    if check_overlap:
+        found = overlaps(fig)
+        if found:
+            raise FigureStyleError(
+                f"{os.path.basename(path)}: text on data -- "
+                + "; ".join(found))
     directory = os.path.dirname(os.path.abspath(path))
     os.makedirs(directory, exist_ok=True)
     fig.savefig(path, dpi=DPI)

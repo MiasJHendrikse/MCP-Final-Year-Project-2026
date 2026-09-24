@@ -349,11 +349,13 @@ def plot(results, out_dir):
         figstyle.title(ax_objective, group["title"])
         figstyle.title(ax_difference, group["title"])
         ax_objective.set_xlabel(group["xlabel"])
-        ax_objective.set_ylabel(figstyle.label("Objective", "J", "--"))
-        ax_objective.legend(ncol=2)
+        ax_objective.set_ylabel(figstyle.label(
+            "Normalised objective", r"\hat{J}", "--"))
+        # The sweeps fill the panel: the legend goes under it.
+        figstyle.legend_below(ax_objective, ncol=5, offset=0.28)
         ax_difference.set_xlabel(group["xlabel"])
         ax_difference.set_ylabel(group["gradient_label"])
-        ax_difference.legend(ncol=2)
+        figstyle.legend_below(ax_difference, ncol=5, offset=0.28)
 
     objective_fig.tight_layout()
     difference_fig.tight_layout()
@@ -371,7 +373,16 @@ def plot(results, out_dir):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--points", type=int, default=DEFAULT_POINTS)
+    parser.add_argument("--replot", action="store_true",
+                        help="redraw the two figures from the committed "
+                             "smoothness_gate.json; no sweep is run")
     args = parser.parse_args()
+
+    if args.replot:
+        with open(os.path.join(_HERE, "smoothness_gate.json"),
+                  encoding="utf-8") as handle:
+            plot(json.load(handle), _HERE)
+        return
 
     print(f"Sweeping 10 design variables at {args.points} points each "
           f"({10 * args.points} objective evaluations)...")

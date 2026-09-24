@@ -754,7 +754,7 @@ def render_blades(problem, blades, out_dir):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    from matplotlib.lines import Line2D
+    from matplotlib.patches import Patch
 
     from plotting import figstyle
 
@@ -765,7 +765,8 @@ def render_blades(problem, blades, out_dir):
         X, Y, Z = blade_surface(problem, np.array(record["x"], dtype=float))
         surfaces.append((figstyle.BLADES[key], X, Y, Z, k))
 
-    def draw(ax, elev, azim, offset_axis="y", box_aspect=(2.0, 0.9, 0.55)):
+    def draw(ax, elev, azim, offset_axis="y", box_aspect=(2.0, 0.9, 0.55),
+             legend=True, zoom=1.0):
         """
         One 3-D axes: the three blades, each offset `k *
         RENDER_BLADE_SPACING_M` along `offset_axis`. The drawn surfaces are
@@ -798,21 +799,31 @@ def render_blades(problem, blades, out_dir):
         else:
             z_max = max(float(np.abs(Z).max()) for _style, _X, _Y, Z in drawn)
             ax.set_zlim(-z_max - 0.02, z_max + 0.02)
-        ax.set_box_aspect(box_aspect)
+        ax.set_box_aspect(box_aspect, zoom=zoom)
         ax.view_init(elev=elev, azim=azim)
         ax.set_axis_off()
-        handles = [Line2D([], [], color=style["color"], ls=style["ls"],
-                          lw=style.get("lw", 1.4), label=style["label"])
-                   for style, _X, _Y, _Z in drawn]
-        ax.legend(handles=handles, loc="upper left", fontsize=7)
+        if legend:
+            ax.legend(handles=swatches(drawn), loc="upper left", fontsize=7)
+
+    def swatches(drawn):
+        # Filled swatches: the blades are drawn as surfaces, not lines.
+        return [Patch(facecolor=style["color"], alpha=0.75, label=style["label"])
+                for style, _X, _Y, _Z in drawn]
 
     rendered_path = os.path.join(out_dir, "blades_rendered.png")
-    fig, axes = plt.subplots(1, 2, figsize=figstyle.DOUBLE,
+    fig, axes = plt.subplots(1, 2, figsize=(figstyle.DOUBLE[0], 2.1),
                              subplot_kw={"projection": "3d"})
-    draw(axes[0], elev=25, azim=-60)
+    # The 3-D boxes leave a wide empty margin inside each axes: zoomed in,
+    # and one key for both views, under the figure.
+    draw(axes[0], elev=25, azim=-60, legend=False, zoom=1.1)
     figstyle.title(axes[0], "Isometric view")
-    draw(axes[1], elev=90, azim=-90)
+    draw(axes[1], elev=90, azim=-90, legend=False, zoom=1.1)
     figstyle.title(axes[1], "Plan view")
+    fig.subplots_adjust(left=0.0, right=1.0, bottom=0.14, top=0.9, wspace=0.05)
+    keys = [Patch(facecolor=style["color"], alpha=0.75, label=style["label"])
+            for style, _X, _Y, _Z, _k in surfaces]
+    fig.legend(handles=keys, loc="lower center", ncol=3, frameon=False,
+               bbox_to_anchor=(0.5, 0.0))
     figstyle.save(fig, rendered_path)
     plt.close(fig)
 

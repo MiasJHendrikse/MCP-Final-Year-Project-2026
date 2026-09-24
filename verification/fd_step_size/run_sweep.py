@@ -217,7 +217,7 @@ def plot(steps, grads, reference, names, n_chord, h_star_global, path, spans, J0
     scale = np.abs(J0) / spans
 
     # Fixed hue order per panel, never cycled; one series per control point.
-    colours = ["#1f5fbf", "#d1495b", "#2a9d8f", "#e9a03b", "#6f4bb3"]
+    colours = figstyle.PALETTE[:5]
 
     fig, axes = plt.subplots(1, 2, figsize=figstyle.DOUBLE, sharey=True)
     blocks = [("Chord control points", range(0, n_chord)),
@@ -240,8 +240,9 @@ def plot(steps, grads, reference, names, n_chord, h_star_global, path, spans, J0
         ax.plot(steps, anchor * (mid / steps), ":", color="#888888", lw=1,
                 label="$1/h$")
         ax.axvline(h_star_global, color="#444444", lw=0.8, alpha=0.6)
-        ax.text(h_star_global, 0.04, r"$h^*$", transform=ax.get_xaxis_transform(),
-                fontsize=8, color="#444444")
+        ax.annotate(r"$h^*$", (h_star_global, 0.04),
+                    xycoords=ax.get_xaxis_transform(), xytext=(3, 0),
+                    textcoords="offset points", fontsize=8, color="#444444")
 
         ax.set_xscale("log")
         ax.set_yscale("log")
@@ -250,7 +251,8 @@ def plot(steps, grads, reference, names, n_chord, h_star_global, path, spans, J0
         ax.invert_xaxis()
         ax.set_xlabel(figstyle.LABELS["fd_step"])
         figstyle.title(ax, panel_title)
-        ax.legend(ncol=2)
+        # The guide lines cross the whole panel: the legend goes under it.
+        figstyle.legend_below(ax, ncol=4, offset=0.28)
 
     axes[0].set_ylabel(figstyle.LABELS["gradient_deviation"])
     fig.tight_layout()

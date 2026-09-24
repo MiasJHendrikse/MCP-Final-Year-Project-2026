@@ -174,6 +174,7 @@ def plot_histories(data, out_dir):
         import matplotlib
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
+        import matplotlib.ticker
         from plotting import figstyle
     except ImportError:
         print("matplotlib not available; skipping the figure")
@@ -191,13 +192,15 @@ def plot_histories(data, out_dir):
                 best = min(best, abs(value) / initial)
                 running.append(max(best, 1e-18))
             ax.semilogy(range(len(running)), running, linewidth=0.6,
-                        alpha=0.35, color="#0072B2")
+                        alpha=0.35, color=figstyle.PALETTE[0])
 
     # `bem.station.RESIDUAL_RTOL`: the relative-residual criterion itself,
     # not a stored copy that could drift from the solver.
     ax.axhline(RESIDUAL_RTOL, color="0.3", linestyle="--", linewidth=1.0,
                label=r"$10^{-9} R_0$")
     ax.set_xlabel(figstyle.LABELS["evaluations"])
+    # A count of evaluations: whole-number ticks only.
+    ax.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(integer=True))
     ax.set_ylabel(figstyle.LABELS["residual"])
     ax.legend()
     path = os.path.join(out_dir, "residual_convergence.png")

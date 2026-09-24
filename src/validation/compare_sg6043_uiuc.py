@@ -157,7 +157,7 @@ def make_plots(lift, drag):
              figstyle.LABELS["drag_coefficient"]),
         ):
             ax.plot(alpha, cache_values, "o-", ms=3.0, color="#1f3b8b",
-                    label=r"XFOIL, $N_{crit}$ = 9")
+                    label=r"XFOIL, $N_{\mathrm{crit}}$ = 9")
             ax.plot(measured[:, 0], measured[:, value_col], "s", ms=4, mfc="none",
                     color="#b3452a", label="UIUC measurement")
             ax.set_xlabel(figstyle.LABELS["angle_of_attack"])
