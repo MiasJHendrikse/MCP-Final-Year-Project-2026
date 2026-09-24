@@ -854,8 +854,10 @@ def render_blades(problem, blades, out_dir):
     draw(ax, elev=24, azim=-62, legend=False, zoom=1.0, box_aspect=None)
     fig.subplots_adjust(left=-0.12, right=1.12, bottom=-0.05, top=1.2)
     # The key sits in the empty corner under the roots.
+    # The trimmed image is placed at about 1.5 times its drawn size, so the
+    # key is set small enough to print at the body-text size.
     fig.legend(handles=keys, loc="lower left", ncol=1, frameon=False,
-               bbox_to_anchor=(0.12, 0.12))
+               bbox_to_anchor=(0.12, 0.12), fontsize=6)
     figstyle.save(fig, iso_path)
     plt.close(fig)
     _trim_whitespace(iso_path)
@@ -876,8 +878,9 @@ def render_blades(problem, blades, out_dir):
     ax.set_aspect("equal")
     ax.set_axis_off()
     fig.subplots_adjust(left=0.0, right=1.0, bottom=0.12, top=1.0)
+    # Placed at about 1.3 times its drawn size: the key is set to match.
     fig.legend(handles=keys, loc="lower center", ncol=3, frameon=False,
-               bbox_to_anchor=(0.5, 0.0))
+               bbox_to_anchor=(0.5, 0.0), fontsize=6.5)
     figstyle.save(fig, plan_path)
     plt.close(fig)
     _trim_whitespace(plan_path)
