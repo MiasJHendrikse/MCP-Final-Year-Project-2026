@@ -101,7 +101,7 @@ derive; the material model is `src/objective/mass.py`
 SG6043 coordinates); the solid proxy `k_A int c^2 dr` is reported beside the
 shell figure, never optimised.
 
-## The result (`result_delta0.json`, `blade_delta0_geometry.png`, `blade_delta0_loads.png`, `blades_rendered.png`)
+## The result (`result_delta0.json`, `blade_delta0_geometry.png`, `blade_delta0_loads.png`, `blades_rendered_iso.png`, `blades_rendered_plan.png`)
 
 **Two headline numbers, from one sweep** (MJ, 2026-09-20, plan "Decision 7"):
 

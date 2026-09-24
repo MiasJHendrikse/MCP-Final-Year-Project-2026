@@ -732,11 +732,36 @@ def blade_surface(problem, d, n_span=90):
     return np.array(X), np.array(Y), np.array(Z)
 
 
+def _trim_whitespace(path, pad_px=16):
+    """
+    Crop a saved PNG to its drawn content plus `pad_px` of margin. A 3-D
+    axes counts its whole projection box as content, so the tight bounding
+    box of `figstyle.save` keeps the empty corners of the box; this removes
+    them after the figure has passed `figstyle.save`'s checks.
+    """
+
+    import numpy as np
+    from PIL import Image
+
+    image = Image.open(path).convert("RGB")
+    pixels = np.asarray(image)
+    ink = np.where((pixels < 245).any(axis=2))
+    if ink[0].size == 0:
+        return path
+    top = max(int(ink[0].min()) - pad_px, 0)
+    bottom = min(int(ink[0].max()) + pad_px + 1, pixels.shape[0])
+    left = max(int(ink[1].min()) - pad_px, 0)
+    right = min(int(ink[1].max()) + pad_px + 1, pixels.shape[1])
+    image.crop((left, top, right, bottom)).save(path, dpi=image.info.get("dpi"))
+    return path
+
+
 def render_blades(problem, blades, out_dir):
     """
     The rendered blades, written through `figstyle.save`:
 
-    * `blades_rendered.png`      -- isometric | plan view, two 3-D axes;
+    * `blades_rendered_iso.png`  -- isometric view, one 3-D axes;
+    * `blades_rendered_plan.png` -- plan view, one 3-D axes;
     * `blades_rendered_edge.png` -- edge-on view, one 3-D axes.
 
     All three blades are drawn in every axes. The blades differ only in
@@ -748,7 +773,7 @@ def render_blades(problem, blades, out_dir):
     `(key, blade_record)` with the label and colour from `figstyle.BLADES`.
     The root cylinder, its transition and the tip rounding are drawn only:
     outside the BEM grid, the material proxy and every constraint. Returns
-    the two paths.
+    the three paths.
     """
 
     import matplotlib
@@ -799,6 +824,12 @@ def render_blades(problem, blades, out_dir):
         else:
             z_max = max(float(np.abs(Z).max()) for _style, _X, _Y, Z in drawn)
             ax.set_zlim(-z_max - 0.02, z_max + 0.02)
+        if box_aspect is None:
+            # True scale: the box follows the drawn extents, so chord, span
+            # and spacing are drawn in proportion.
+            box_aspect = (ax.get_xlim()[1] - ax.get_xlim()[0],
+                          ax.get_ylim()[1] - ax.get_ylim()[0],
+                          ax.get_zlim()[1] - ax.get_zlim()[0])
         ax.set_box_aspect(box_aspect, zoom=zoom)
         ax.view_init(elev=elev, azim=azim)
         ax.set_axis_off()
@@ -810,22 +841,46 @@ def render_blades(problem, blades, out_dir):
         return [Patch(facecolor=style["color"], alpha=0.75, label=style["label"])
                 for style, _X, _Y, _Z in drawn]
 
-    rendered_path = os.path.join(out_dir, "blades_rendered.png")
-    fig, axes = plt.subplots(1, 2, figsize=(figstyle.DOUBLE[0], 2.1),
-                             subplot_kw={"projection": "3d"})
-    # The 3-D boxes leave a wide empty margin inside each axes: zoomed in,
-    # and one key for both views, under the figure.
-    draw(axes[0], elev=25, azim=-60, legend=False, zoom=1.1)
-    figstyle.title(axes[0], "Isometric view")
-    draw(axes[1], elev=90, azim=-90, legend=False, zoom=1.1)
-    figstyle.title(axes[1], "Plan view")
-    fig.subplots_adjust(left=0.0, right=1.0, bottom=0.14, top=0.9, wspace=0.05)
     keys = [Patch(facecolor=style["color"], alpha=0.75, label=style["label"])
             for style, _X, _Y, _Z, _k in surfaces]
+
+    # The isometric and plan views are separate full-width figures, so each
+    # blade is drawn large enough to read its planform and twist. The 3-D
+    # box leaves a wide empty margin inside the axes, so each view is zoomed
+    # in and the key sits under the figure.
+    iso_path = os.path.join(out_dir, "blades_rendered_iso.png")
+    fig = plt.figure(figsize=(figstyle.DOUBLE[0], 2.5))
+    ax = fig.add_subplot(projection="3d")
+    draw(ax, elev=24, azim=-62, legend=False, zoom=1.0, box_aspect=None)
+    fig.subplots_adjust(left=-0.12, right=1.12, bottom=-0.05, top=1.2)
+    # The key sits in the empty corner under the roots.
+    fig.legend(handles=keys, loc="lower left", ncol=1, frameon=False,
+               bbox_to_anchor=(0.12, 0.12))
+    figstyle.save(fig, iso_path)
+    plt.close(fig)
+    _trim_whitespace(iso_path)
+
+    # The plan view is the planform projected on the rotor plane, drawn in
+    # 2-D at true scale: a 3-D axes looking straight down clips the root and
+    # tip as soon as it is zoomed enough to show the planforms at a readable
+    # size. Rows of the surface are span stations, so the outline at each
+    # station is the extent of that row across the chord.
+    plan_path = os.path.join(out_dir, "blades_rendered_plan.png")
+    fig, ax = plt.subplots(figsize=(figstyle.DOUBLE[0], 2.6))
+    for style, X, Y, _Z, k in surfaces:
+        offset = k * RENDER_BLADE_SPACING_M
+        r = X[:, 0]
+        ax.fill_between(r, Y.min(axis=1) + offset, Y.max(axis=1) + offset,
+                        color=style["color"], alpha=0.75, lw=0.6,
+                        edgecolor="k")
+    ax.set_aspect("equal")
+    ax.set_axis_off()
+    fig.subplots_adjust(left=0.0, right=1.0, bottom=0.12, top=1.0)
     fig.legend(handles=keys, loc="lower center", ncol=3, frameon=False,
                bbox_to_anchor=(0.5, 0.0))
-    figstyle.save(fig, rendered_path)
+    figstyle.save(fig, plan_path)
     plt.close(fig)
+    _trim_whitespace(plan_path)
 
     edge_path = os.path.join(out_dir, "blades_rendered_edge.png")
     fig = plt.figure(figsize=figstyle.SINGLE)
@@ -834,4 +889,4 @@ def render_blades(problem, blades, out_dir):
     figstyle.save(fig, edge_path)
     plt.close(fig)
 
-    return [rendered_path, edge_path]
+    return [iso_path, plan_path, edge_path]

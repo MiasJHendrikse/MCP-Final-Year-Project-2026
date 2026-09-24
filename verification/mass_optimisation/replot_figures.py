@@ -18,7 +18,8 @@ Writes, next to this script:
     multistart_delta0.png       multistart_delta0.json
     pareto_front.png            pareto.json (+ verification/baseline/x0.json)
     pareto_ablation.png         ablation.json
-    blades_rendered.png         reference_blades.json
+    blades_rendered_iso.png     reference_blades.json
+    blades_rendered_plan.png    reference_blades.json
     blades_rendered_edge.png    reference_blades.json
 
 Author: MJ Hendrikse
