@@ -122,13 +122,15 @@ def _start_label(label):
 
 def plot_multistart(runs, spread, path):
     """
-    The optima the ten starts reached, two panels side by side, written
-    through `figstyle.save`:
+    The optima the ten starts reached, one panel, written through
+    `figstyle.save`: `|u - u_best|_inf` for each start on a log axis, with
+    the committed agreement criterion as a dashed line. The best run itself
+    is at distance zero, which a log axis cannot draw, so its slot is
+    labelled "best" instead of carrying a bar.
 
-    * "Objective from each start" -- the objective value each run reached
-      (bars, one per start);
-    * "Distance from the best optimum" -- `|u - u_best|_inf` on a log axis,
-      with the committed agreement criterion as a dashed line.
+    The objective values are not plotted: the ten runs agree to about
+    1e-11 in the normalised objective, so bars of the objective are ten
+    identical bars and carry no information.
 
     `runs` is `multistart_delta0.json`'s `runs`; the best run is the
     feasible one with the lowest objective, and the distance is taken from
@@ -147,8 +149,6 @@ def plot_multistart(runs, spread, path):
     ok = [r for r in runs if r["status"] == "ok" and r.get("u_m")]
     feasible = [r for r in ok if r.get("feasible")]
     best = min(feasible or ok, key=lambda r: r["mass"]) if ok else None
-    labels = [r["label"] for r in ok]
-    objective = [r["mass"] for r in ok]
     distance = []
     for r in ok:
         if best is None:
@@ -161,37 +161,39 @@ def plot_multistart(runs, spread, path):
     blue, red = figstyle.PALETTE[0], figstyle.PALETTE[1]
     orange = figstyle.PALETTE[3]
     colours = [blue if r.get("feasible") else orange for r in ok]
-    labels = [_start_label(label) for label in labels]
+    labels = [_start_label(r["label"]) for r in ok]
 
-    fig, axes = plt.subplots(1, 2, figsize=figstyle.DOUBLE)
+    fig, ax = plt.subplots(figsize=(4.8, 2.6))
 
-    axes[0].bar(x, objective, color=colours)
-    axes[0].set_xticks(x)
-    axes[0].set_xticklabels(labels, rotation=45, ha="right",
-                            rotation_mode="anchor")
-    axes[0].set_ylabel(figstyle.LABELS["objective"])
-    figstyle.title(axes[0], "Objective from each start")
-
-    axes[1].bar(x, distance, color=colours)
-    axes[1].axhline(spread, color=red, lw=1.2, ls="--")
+    ax.bar(x, distance, color=colours)
+    ax.axhline(spread, color=red, lw=1.2, ls="--")
     # The criterion is named on its line, below it at the right-hand end,
-    # where the bars (five decades lower) leave the panel empty.
-    axes[1].annotate("agreement criterion", (1.0, spread),
-                     xycoords=axes[1].get_yaxis_transform(), xytext=(-6, -4),
-                     textcoords="offset points", ha="right", va="top",
-                     fontsize=8, color=red)
-    axes[1].set_xticks(x)
-    axes[1].set_xticklabels(labels, rotation=45, ha="right",
-                            rotation_mode="anchor")
-    axes[1].set_ylabel(figstyle.label(
+    # where the bars (four decades lower) leave the panel empty.
+    ax.annotate("agreement criterion", (1.0, spread),
+                xycoords=ax.get_yaxis_transform(), xytext=(-6, -4),
+                textcoords="offset points", ha="right", va="top",
+                fontsize=8, color=red)
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels, rotation=45, ha="right",
+                       rotation_mode="anchor")
+    ax.set_ylabel(figstyle.label(
         r"$\|\mathbf{u} - \mathbf{u}_{\mathrm{best}}\|_\infty$", None, "--"))
-    axes[1].set_yscale("log")
-    figstyle.title(axes[1], "Distance from the best optimum")
+    ax.set_yscale("log")
+    # Fix the lower limit before labelling the best slot, so the label sits
+    # just above the axis whatever the bars' range.
+    positive = [d for d in distance if d > 0]
+    if positive:
+        ax.set_ylim(min(positive) / 3.0, spread * 3.0)
+    for i, d in enumerate(distance):
+        if d == 0.0:
+            ax.annotate("best", (i, 0.0), xycoords=("data", "axes fraction"),
+                        xytext=(0, 3), textcoords="offset points",
+                        ha="center", va="bottom", fontsize=7, color=blue)
 
     if any(r.get("feasible") for r in ok) and any(not r.get("feasible") for r in ok):
         handles = [Line2D([], [], color=blue, lw=6, label="feasible optimum"),
                    Line2D([], [], color=orange, lw=6, label="infeasible optimum")]
-        axes[0].legend(handles=handles, loc="upper right", fontsize=7)
+        ax.legend(handles=handles, loc="center right", fontsize=7)
 
     fig.tight_layout()
     figstyle.save(fig, path)
