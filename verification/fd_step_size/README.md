@@ -92,7 +92,7 @@ Gradient in MWh/yr per unit `u` (i.e. `fun` units × |J0|); `ε_j` likewise.
 | twist_4 | 3e-06 |  -0.039202 | 1.8e-09 | 4.6e-08 |
 
 **Global `h* = 3.162e-06`.** This is the step the FD-driven SLSQP run (A4) uses.
-Eight of the ten `h*_j` sit there too; `chord_1` and `chord_2` prefer `1e-05` and
+Seven of the ten `h*_j` sit there too; `chord_1` and `chord_2` prefer `1e-05` and
 `twist_0` prefers `3e-05`. All three of those are on the flat floor of their V,
 which is the estimator's known weak spot (see *Selection rule* below).
 
