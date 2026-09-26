@@ -153,3 +153,24 @@ in the polar interpolant at alpha knots, for any Reynolds number between cache
 rows. That is fixed (see `tests/golden/README.md`, 2026-09-10). The numbers
 above are post-fix. Every operating point and every λ in the sweep now
 converges, which `test_every_operating_point_converges` asserts.
+
+## Where the reference's power coefficient peaks (`cp_peak.json`, added 2026-09-26)
+
+Review roadmap item 5. Schmitz's closed form leaves out tip loss and
+carries drag and the Reynolds number only through one design polar point,
+so `x0` is the exact maximiser of a simplified problem, not of the BEM
+model. `run_cp_peak.py` measures the difference: the tip-speed ratio at which
+`x0`'s C_P peaks along fixed-lambda lines, in the site atmosphere.
+
+| V [m/s] | peak lambda | peak C_P | C_P at lambda = 6.5 |
+|---|---|---|---|
+| 5 | 6.25 | 0.4507 | 0.4493 |
+| 7 | 6.41 | 0.4636 | 0.4634 |
+| 9 | 6.46 | 0.4689 | 0.4689 |
+| 11 | 6.49 | 0.4720 | 0.4720 |
+
+The peak sits at the design ratio to within 0.01 at the rated wind speed and
+drifts to 6.25 at 5 m/s as the station Reynolds numbers fall and the polar
+moves away from the 200 000 design point; the C_P it gives up there is 0.3 %.
+
+    python verification/baseline/run_cp_peak.py     # ~20 s
