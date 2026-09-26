@@ -140,3 +140,33 @@ eight starts above exactly; `--start K` may be run in any order or in
 parallel, and `--collect` is what writes `results.json`.
 
 The figure(s) in this directory predate `src/plotting/figstyle.py` and have not been redrawn through it; they are kept as the record of the run that produced them, and the scripts that write them carry no super-title.
+
+## Why the rejected draws do not converge (`rejection_diagnosis.json`, added 2026-09-26)
+
+Review roadmap item 3. `diagnose_rejections.py` re-solves the 34 draws
+rejected with "a station did not converge" at all seventeen operating points
+and records the solver's own failure string for every failed station. The
+result is one failure mode and one only:
+
+- **3 120 failed station-points, every one "no sign change in the momentum
+  region"**: `bem.station.momentum_region_bracket` finds no windmill root, the
+  propeller-brake state that the solver deliberately does not implement (its
+  docstring: Ning's propeller-brake region is left out and such a station is
+  reported, not solved). No brentq iteration limit and no unreduced residual
+  anywhere.
+- **Every failing station is twisted past its zero-induction inflow angle**,
+  `atan(1 / lambda_r)`, by 1.1 to 25.1 deg (median 10.4 deg): the section
+  meets the wind at a negative angle of attack before any induction, so it
+  cannot extract energy there. The failures lie outboard of r/R = 0.37 and
+  come from uniform draws of the twist control points over the whole
+  `-2 .. 35 deg` box (rejected tip twists up to 34 deg; accepted draws have
+  tip twist -1.3 to 13.1 deg).
+
+So the envelope over which the solver is verified to converge
+(`verification/phase_vi/`) is the windmill state; a blade twisted into the
+propeller-brake state is outside it by construction, and the random starts
+are drawn from the part of the box where every station windmills. The
+optimisation runs never visit that region (no run logged a failed trial
+evaluation).
+
+    python verification/fd_optimisation_multistart/diagnose_rejections.py   # ~1 min
