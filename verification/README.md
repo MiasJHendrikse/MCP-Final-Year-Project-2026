@@ -113,3 +113,18 @@ The figures left in place but no longer written by any script — `baseline.png`
 figures of `load_constraint/`, `fd_optimisation/`, `adjoint_optimisation/`,
 `aep_optimisation_experiment/` and `spline_fit_error/` — predate the style
 module and are kept as the record of the run that produced them.
+
+## Added 2026-09-26 (review roadmap)
+
+Evaluation-only artefacts; none moves a committed optimum.
+
+- `polar_sensitivity/` -- the three blades re-evaluated, and the mass problem
+  re-optimised, under perturbed SG6043 polars (runs after `mass_optimisation`).
+- `starting/` -- parked-rotor starting torque of the three blades, relative.
+- `absolute_material/run_spanwise_stress.py` -- the thin-shell stress along
+  the span.
+- `mass_optimisation/run_energy_split.py` -- the share of AEP fixed by the
+  rating, and the KKT multipliers in comparable units.
+- `baseline/run_cp_peak.py` -- where the Schmitz reference's C_P peaks.
+- `fd_optimisation_multistart/diagnose_rejections.py` -- why 34 random draws
+  were rejected.

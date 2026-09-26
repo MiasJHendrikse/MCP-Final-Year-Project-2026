@@ -1,0 +1,414 @@
+{
+ "problem": "minimise shell material k_P int c dr subject to AEP >= (1 - delta) AEP(x0), the moment cap, the root-stress and tip-deflection proxies, monotone chord and twist control points, the 60 mm min-chord floor, the envelope and solidity",
+ "description": "Does the minimum-material blade's energy parity survive the polar uncertainty?",
+ "command": "python verification/polar_sensitivity/run_polar_sensitivity.py",
+ "generated": "2026-09-26T12:50:28",
+ "src_commit": "4e60d4a5a68903286a16f02c6e2d9140387f2ac0",
+ "blades": {
+  "x0": [
+   0.27579071642734754,
+   0.18161320987881632,
+   0.09713355431852173,
+   0.07864351363070732,
+   0.06700234064946949,
+   0.4281306164915448,
+   0.16975885372514066,
+   0.0705030380285644,
+   0.01746444725446997,
+   0.010223752012068798
+  ],
+  "x_c": [
+   0.3,
+   0.1817031858821067,
+   0.12615859869774054,
+   0.07844018116176658,
+   0.04765410592188968,
+   0.42351273097805675,
+   0.18553041426115,
+   0.0911846873111666,
+   0.038873650378984,
+   -0.033878003576217716
+  ],
+  "x_m": [
+   0.27140554738445705,
+   0.14972484700406918,
+   0.13521161796606934,
+   0.06,
+   0.060000000000000026,
+   0.41278678692065734,
+   0.14114857495003766,
+   0.10887309147829,
+   -0.0005087577346618646,
+   -0.002121276106961806
+  ]
+ },
+ "lift_error_scale_uiuc_rmse": {
+  "100000": 0.14416682396122413,
+  "150000": 0.1487675671404946,
+  "200000": 0.11347982839170824,
+  "300000": 0.09070503162517235,
+  "400000": 0.02717126680681289,
+  "500000": 0.02395268710462444
+ },
+ "tilt_reynolds": [
+  62000.0,
+  339000.0
+ ],
+ "drag_scales_assumed": [
+  0.8,
+  1.2
+ ],
+ "rated_power_w": 3822.189755449124,
+ "xfoil_ncrit_cases": "n_crit = 7 and 11 caches attempted 2026-09-26; XFOIL gap-closure retries failed at Re = 100 000, run stopped and reverted; not used",
+ "cases": [
+  {
+   "case": "production (XFOIL, n_crit = 9)",
+   "kind": "production",
+   "x0": {
+    "aep_mwh": 10.247707391810723,
+    "n_capped_bins": 9,
+    "all_converged": true
+   },
+   "x_c": {
+    "aep_mwh": 10.262719339465379,
+    "n_capped_bins": 9,
+    "all_converged": true
+   },
+   "x_m": {
+    "aep_mwh": 10.247707391796055,
+    "n_capped_bins": 9,
+    "all_converged": true
+   },
+   "x_m_pct_vs_x0": -1.4312995233467518e-10,
+   "x_c_pct_vs_x0": 0.14649079136133114,
+   "reoptimised": {
+    "success": true,
+    "message": "Optimization terminated successfully",
+    "nit": 18,
+    "wall_s": 12.627146900000298,
+    "n_evaluation_failures": 0,
+    "shell_pct_vs_x0": -3.378794070566482,
+    "aep_pct_vs_x0": -1.4314105456492143e-10,
+    "stress_ratio": 0.9999999999985217,
+    "deflection_ratio": 1.000000000001539,
+    "control_points": {
+     "chord_mm": [
+      271.40554738445707,
+      149.72484700406918,
+      135.21161796606935,
+      60.0,
+      60.00000000000003
+     ],
+     "twist_deg": [
+      23.65094072931968,
+      8.087217628923133,
+      6.237968644247745,
+      -0.029149670990761437,
+      -0.12154016811085326
+     ]
+    }
+   }
+  },
+  {
+   "case": "lift + s(Re)",
+   "kind": "uniform",
+   "x0": {
+    "aep_mwh": 10.218573795986343,
+    "n_capped_bins": 9,
+    "all_converged": true
+   },
+   "x_c": {
+    "aep_mwh": 10.22150923647987,
+    "n_capped_bins": 9,
+    "all_converged": true
+   },
+   "x_m": {
+    "aep_mwh": 10.237792774409133,
+    "n_capped_bins": 9,
+    "all_converged": true
+   },
+   "x_m_pct_vs_x0": 0.18807887290825942,
+   "x_c_pct_vs_x0": 0.02872651851553165,
+   "reoptimised": {
+    "success": true,
+    "message": "Optimization terminated successfully",
+    "nit": 15,
+    "wall_s": 9.303572099999656,
+    "n_evaluation_failures": 0,
+    "shell_pct_vs_x0": -6.353280019360053,
+    "aep_pct_vs_x0": -4.427569422205124e-11,
+    "stress_ratio": 0.9999999999994198,
+    "deflection_ratio": 1.0000000000023765,
+    "control_points": {
+     "chord_mm": [
+      259.8179940660704,
+      163.96024454909013,
+      111.09617164431776,
+      60.000000000000014,
+      60.00000000000002
+     ],
+     "twist_deg": [
+      21.854651880547646,
+      12.192694000781012,
+      2.7435520858726252,
+      2.7435520858726172,
+      2.743552085872616
+     ]
+    }
+   }
+  },
+  {
+   "case": "lift - s(Re)",
+   "kind": "uniform",
+   "x0": {
+    "aep_mwh": 10.169374453696486,
+    "n_capped_bins": 9,
+    "all_converged": true
+   },
+   "x_c": {
+    "aep_mwh": 10.198429225580268,
+    "n_capped_bins": 9,
+    "all_converged": true
+   },
+   "x_m": {
+    "aep_mwh": 10.142769024859923,
+    "n_capped_bins": 8,
+    "all_converged": true
+   },
+   "x_m_pct_vs_x0": -0.26162306204480235,
+   "x_c_pct_vs_x0": 0.2857085459491593,
+   "reoptimised": {
+    "success": true,
+    "message": "Optimization terminated successfully",
+    "nit": 16,
+    "wall_s": 10.033525499999996,
+    "n_evaluation_failures": 0,
+    "shell_pct_vs_x0": -2.938283046026491,
+    "aep_pct_vs_x0": -9.964806757523093e-10,
+    "stress_ratio": 0.9999999999975372,
+    "deflection_ratio": 0.9999999999970131,
+    "control_points": {
+     "chord_mm": [
+      273.55368884318324,
+      144.15773626149303,
+      142.03265198002185,
+      59.999999999999986,
+      60.00000000000006
+     ],
+     "twist_deg": [
+      22.842861981208312,
+      8.088806850738353,
+      4.800137231947395,
+      -0.03951673197960001,
+      -0.039516731979602794
+     ]
+    }
+   }
+  },
+  {
+   "case": "lift + s(Re) w(Re): low Re up, high Re down",
+   "kind": "tilted",
+   "x0": {
+    "aep_mwh": 10.226112566624574,
+    "n_capped_bins": 9,
+    "all_converged": true
+   },
+   "x_c": {
+    "aep_mwh": 10.245642289315184,
+    "n_capped_bins": 9,
+    "all_converged": true
+   },
+   "x_m": {
+    "aep_mwh": 10.222802345775335,
+    "n_capped_bins": 9,
+    "all_converged": true
+   },
+   "x_m_pct_vs_x0": -0.03237027587631447,
+   "x_c_pct_vs_x0": 0.19097895278750165,
+   "reoptimised": {
+    "success": true,
+    "message": "Optimization terminated successfully",
+    "nit": 14,
+    "wall_s": 9.392081599999983,
+    "n_evaluation_failures": 0,
+    "shell_pct_vs_x0": -3.0919244233383325,
+    "aep_pct_vs_x0": -3.1752378504279477e-12,
+    "stress_ratio": 0.9999999999999469,
+    "deflection_ratio": 1.0000000000000635,
+    "control_points": {
+     "chord_mm": [
+      272.5249379201451,
+      146.92480059819042,
+      138.9536527734538,
+      59.99999999999997,
+      59.99999999999997
+     ],
+     "twist_deg": [
+      23.53184471073902,
+      7.971587595077614,
+      5.982391432837148,
+      0.03296305041420839,
+      0.032963050414180954
+     ]
+    }
+   }
+  },
+  {
+   "case": "lift - s(Re) w(Re): low Re down, high Re up",
+   "kind": "tilted",
+   "x0": {
+    "aep_mwh": 10.253566950820744,
+    "n_capped_bins": 9,
+    "all_converged": true
+   },
+   "x_c": {
+    "aep_mwh": 10.259759052869876,
+    "n_capped_bins": 9,
+    "all_converged": true
+   },
+   "x_m": {
+    "aep_mwh": 10.25784277005876,
+    "n_capped_bins": 9,
+    "all_converged": true
+   },
+   "x_m_pct_vs_x0": 0.041700797961574665,
+   "x_c_pct_vs_x0": 0.060389736360355606,
+   "reoptimised": {
+    "success": true,
+    "message": "Optimization terminated successfully",
+    "nit": 17,
+    "wall_s": 10.818042300000343,
+    "n_evaluation_failures": 0,
+    "shell_pct_vs_x0": -4.114228360003603,
+    "aep_pct_vs_x0": -1.3526957332032907e-10,
+    "stress_ratio": 0.9999999999981785,
+    "deflection_ratio": 1.0000000000020282,
+    "control_points": {
+     "chord_mm": [
+      268.43273140089235,
+      157.9101562775184,
+      124.66259315673032,
+      59.99999999999995,
+      60.00000000000001
+     ],
+     "twist_deg": [
+      23.135644722068072,
+      9.11710686287625,
+      5.515449882322842,
+      0.13301602988510808,
+      0.13301602988510527
+     ]
+    }
+   }
+  },
+  {
+   "case": "drag x 0.8",
+   "kind": "drag",
+   "x0": {
+    "aep_mwh": 10.347848181959003,
+    "n_capped_bins": 9,
+    "all_converged": true
+   },
+   "x_c": {
+    "aep_mwh": 10.361557232341355,
+    "n_capped_bins": 9,
+    "all_converged": true
+   },
+   "x_m": {
+    "aep_mwh": 10.347308138719862,
+    "n_capped_bins": 9,
+    "all_converged": true
+   },
+   "x_m_pct_vs_x0": -0.00521889410866061,
+   "x_c_pct_vs_x0": 0.13248213678136445,
+   "reoptimised": {
+    "success": true,
+    "message": "Optimization terminated successfully",
+    "nit": 15,
+    "wall_s": 10.250170999999682,
+    "n_evaluation_failures": 0,
+    "shell_pct_vs_x0": -3.3296614302749883,
+    "aep_pct_vs_x0": -3.034017481695628e-10,
+    "stress_ratio": 0.9999999999953687,
+    "deflection_ratio": 1.0000000000040519,
+    "control_points": {
+     "chord_mm": [
+      271.6090234985351,
+      149.59523408014945,
+      135.50001127235677,
+      60.00000000000005,
+      60.0
+     ],
+     "twist_deg": [
+      23.710404371844202,
+      7.846793289900499,
+      6.3914000335797985,
+      -0.14682403432867638,
+      -0.14682403432868235
+     ]
+    }
+   }
+  },
+  {
+   "case": "drag x 1.2",
+   "kind": "drag",
+   "x0": {
+    "aep_mwh": 10.147642131976687,
+    "n_capped_bins": 9,
+    "all_converged": true
+   },
+   "x_c": {
+    "aep_mwh": 10.163959259463757,
+    "n_capped_bins": 9,
+    "all_converged": true
+   },
+   "x_m": {
+    "aep_mwh": 10.148177271960778,
+    "n_capped_bins": 9,
+    "all_converged": true
+   },
+   "x_m_pct_vs_x0": 0.005273540169548063,
+   "x_c_pct_vs_x0": 0.16079723028123993,
+   "reoptimised": {
+    "success": true,
+    "message": "Optimization terminated successfully",
+    "nit": 18,
+    "wall_s": 12.770823799999562,
+    "n_evaluation_failures": 0,
+    "shell_pct_vs_x0": -3.443014559073543,
+    "aep_pct_vs_x0": -1.5631940186722204e-10,
+    "stress_ratio": 0.9999999999970841,
+    "deflection_ratio": 1.0000000000029623,
+    "control_points": {
+     "chord_mm": [
+      271.1422029037045,
+      150.32218595565266,
+      134.40864534747686,
+      60.00000000000001,
+      59.999999999999986
+     ],
+     "twist_deg": [
+      23.50415085381378,
+      8.418110060318579,
+      5.96866995789936,
+      0.14281956744077537,
+      -0.1432586965171338
+     ]
+    }
+   }
+  }
+ ],
+ "x_m_aep_pct_vs_x0_range": [
+  -0.26162306204480235,
+  0.18807887290825942
+ ],
+ "reoptimised_shell_pct_range": [
+  -6.353280019360053,
+  -2.938283046026491
+ ],
+ "exchange_rate_pct_per_pct": 11.023310150930337,
+ "worst_case_in_material_terms_pct": {
+  "note": "the worst x_m energy shortfall converted to shell material at the reference-energy exchange rate: the saving that shortfall is worth at the margin, an upper-end reading because the front is concave",
+  "value": 2.883952155555947
+ }
+}
