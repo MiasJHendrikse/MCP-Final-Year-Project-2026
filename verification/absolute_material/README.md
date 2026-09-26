@@ -155,3 +155,28 @@ strength check at all.
 
 After `mass_optimisation` (it reads `result_delta0.json` and
 `ablation.json`); nothing reads this artefact's output.
+
+## The stress along the span (`spanwise_stress.json`, added 2026-09-26)
+
+Review roadmap item 4. The stress row constrains the thin-shell stress at the
+root section only. `run_spanwise_stress.py` evaluates the same thin-shell
+stress, `M(r) / (k_Z t c(r)^2)`, at every BEM station at the rated point
+(`M(r)` about the station from the outboard load, the report's Table 9.1):
+
+| | root (about `r_hub`) | peak over the stations | where | peak / root |
+|---|---|---|---|---|
+| `x0` | 22.6 MPa | **39.8 MPa** | r = 0.95 m (r/R 0.48) | 1.76 |
+| `x_c` | 19.1 MPa | 33.1 MPa | r = 0.88 m (r/R 0.45) | 1.73 |
+| `x_m` | 22.6 MPa | **40.2 MPa** | r = 0.81 m (r/R 0.41) | 1.78 |
+
+Under the constant-thickness skin the root is **not** the most stressed
+section of any of the three blades: the peak sits near mid-span at about
+1.75 times the root value. `x_m`'s peak is 1.0 % above `x0`'s (and moves
+inboard by 0.14 m); `x_c`'s is 16.9 % below. The peak is still 20 % of the
+196.5 MPa design allowable, so the conclusion of section 3 (the operating
+case is not the sizing case) stands; what changes is that the root-stress
+row holds the root at the reference value, not the blade's highest stress.
+A spanwise stress row, one adjoint right-hand side per station, would
+constrain the peak.
+
+    python verification/absolute_material/run_spanwise_stress.py     # ~5 s
