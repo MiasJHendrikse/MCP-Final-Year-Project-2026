@@ -330,3 +330,40 @@ does not choose it.
 - **The root cylinder in the renders** is drawn, not modelled: no mass, no
   load, no drag. The blade the numbers describe starts at r = 0.30 m.
 - **One resource, one law** -- see the cross-evaluation.
+
+## How much energy the shape can move, and the multipliers in common units (`energy_split.json`, added 2026-09-26)
+
+Review roadmap item 6 and the minor item on multiplier scaling.
+`run_energy_split.py` splits each blade's AEP into the bins capped at the
+fixed rating (a constant whatever the shape) and the rest:
+
+| | AEP [MWh/yr] | capped (fixed by the rating) | design-dependent | capped bins |
+|---|---|---|---|---|
+| `x0` | 10.2477 | 4.2902 (41.9 %) | 5.9575 (58.1 %) | 9 |
+| `x_c` | 10.2627 | 4.2902 | 5.9725 | 9 |
+| `x_m` | 10.2477 | 4.2902 | 5.9575 | 9 |
+
+On the design-dependent basis the energy optimum's gain is **+0.252 %**
+(+0.1465 % of total AEP), and the marginal exchange rate at the reference
+energy is **6.41 % shell material per 1 % of design-dependent energy**
+(11.02 % per 1 % of total AEP). All three blades cap the same nine bins, so
+the split is the same for each.
+
+The KKT multipliers of `x_m`, each multiplied by its row's reference scale so
+that they share a unit (percent of shell material per percent of the row's
+reference value; per millimetre for the floor rows):
+
+| row | raw multiplier | row scale | normalised |
+|---|---|---|---|
+| AEP floor | 11.02 | 1 (fraction of AEP(x0)) | **11.0 %/%** |
+| stress proxy | 0.00331 | `KS0 / c00^2` = 13.15 m^-2 | **0.044 %/%** |
+| deflection proxy | 0.198 | `D0` = 1.0004 | **0.198 %/%** |
+| floor, chord 3 | 0.336 | per m of chord | **0.034 %/mm** |
+| floor, chord 4 | 0.969 | per m of chord | **0.097 %/mm** |
+| monotone chord 3-4 | 0 | -- | 0 (dependent row) |
+
+These are local rates. The ablation measures the total: removing the stress
+row saves 1.15 points only because the stress proxy then rises by 70 %, at a
+marginal price of 0.044 % material per 1 % stress.
+
+    python verification/mass_optimisation/run_energy_split.py     # ~10 s

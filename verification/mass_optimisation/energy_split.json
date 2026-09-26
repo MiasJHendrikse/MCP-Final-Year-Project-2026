@@ -1,0 +1,472 @@
+{
+ "description": "How much of the annual energy can blade shape move at all?",
+ "command": "python verification/mass_optimisation/run_energy_split.py",
+ "generated": "2026-09-26T12:26:36",
+ "src_commit": "8a02c973453a124f884849bbabc4a2060936bbd6",
+ "rated_power_w": 3822.189755449124,
+ "blades": {
+  "x0": {
+   "aep_mwh": 10.247707391810724,
+   "capped_mwh": 4.29017045450353,
+   "uncapped_mwh": 5.957536937307194,
+   "capped_share": 0.4186468534349394,
+   "n_capped_bins": 9,
+   "bins": [
+    {
+     "v_ms": 3.5,
+     "mass": 0.1046757385465722,
+     "power_w": 108.59788987236115,
+     "capped": false,
+     "energy_mwh": 0.09964806889038309,
+     "converged": true
+    },
+    {
+     "v_ms": 4.5,
+     "mass": 0.10737238706748253,
+     "power_w": 245.38871003110657,
+     "capped": false,
+     "energy_mwh": 0.23096631865507652,
+     "converged": true
+    },
+    {
+     "v_ms": 5.5,
+     "mass": 0.1034684689583052,
+     "power_w": 459.9400246978093,
+     "capped": false,
+     "energy_mwh": 0.41716771761380483,
+     "converged": true
+    },
+    {
+     "v_ms": 6.5,
+     "mass": 0.09495867098490263,
+     "power_w": 770.5026934826708,
+     "capped": false,
+     "energy_mwh": 0.6413723825179838,
+     "converged": true
+    },
+    {
+     "v_ms": 7.5,
+     "mass": 0.08367224877491974,
+     "power_w": 1194.0296907723016,
+     "capped": false,
+     "energy_mwh": 0.8757860710350245,
+     "converged": true
+    },
+    {
+     "v_ms": 8.5,
+     "mass": 0.07115912905183985,
+     "power_w": 1748.1274798599302,
+     "capped": false,
+     "energy_mwh": 1.0904485768741927,
+     "converged": true
+    },
+    {
+     "v_ms": 9.5,
+     "mass": 0.058623585231050934,
+     "power_w": 2450.762884020906,
+     "capped": false,
+     "energy_mwh": 1.2594331947183381,
+     "converged": true
+    },
+    {
+     "v_ms": 10.5,
+     "mass": 0.04691088537806942,
+     "power_w": 3265.1912006918437,
+     "capped": false,
+     "energy_mwh": 1.3427146070023896,
+     "converged": true
+    },
+    {
+     "v_ms": 11.5,
+     "mass": 0.0365364147666849,
+     "power_w": 4038.839727219294,
+     "capped": true,
+     "energy_mwh": 1.2241641002066053,
+     "converged": true
+    },
+    {
+     "v_ms": 12.5,
+     "mass": 0.027741675637549923,
+     "power_w": 4792.338850774683,
+     "capped": true,
+     "energy_mwh": 0.929493591857047,
+     "converged": true
+    },
+    {
+     "v_ms": 13.5,
+     "mass": 0.020561919489495484,
+     "power_w": 5531.311006824383,
+     "capped": true,
+     "energy_mwh": 0.688933597648196,
+     "converged": true
+    },
+    {
+     "v_ms": 14.5,
+     "mass": 0.01489328268670298,
+     "power_w": 6229.54658542285,
+     "capped": true,
+     "energy_mwh": 0.49900413370374636,
+     "converged": true
+    },
+    {
+     "v_ms": 15.5,
+     "mass": 0.010551412283947403,
+     "power_w": 6757.403611682265,
+     "capped": true,
+     "energy_mwh": 0.3535283964497039,
+     "converged": true
+    },
+    {
+     "v_ms": 16.5,
+     "mass": 0.007317530092296298,
+     "power_w": 7223.834860261408,
+     "capped": true,
+     "energy_mwh": 0.24517615366406237,
+     "converged": true
+    },
+    {
+     "v_ms": 17.5,
+     "mass": 0.0049710430422670315,
+     "power_w": 7602.242581368395,
+     "capped": true,
+     "energy_mwh": 0.1665563649795756,
+     "converged": true
+    },
+    {
+     "v_ms": 18.5,
+     "mass": 0.003309929853729021,
+     "power_w": 7880.639736932692,
+     "capped": true,
+     "energy_mwh": 0.11090024368871082,
+     "converged": true
+    },
+    {
+     "v_ms": 19.5,
+     "mass": 0.0021612652037279467,
+     "power_w": 8092.762019067145,
+     "capped": true,
+     "energy_mwh": 0.07241387230588214,
+     "converged": true
+    }
+   ]
+  },
+  "x_c": {
+   "aep_mwh": 10.262719339465379,
+   "capped_mwh": 4.29017045450353,
+   "uncapped_mwh": 5.972548884961849,
+   "capped_share": 0.41803447142957917,
+   "n_capped_bins": 9,
+   "bins": [
+    {
+     "v_ms": 3.5,
+     "mass": 0.1046757385465722,
+     "power_w": 107.35415538798641,
+     "capped": false,
+     "energy_mwh": 0.0985068336442288,
+     "converged": true
+    },
+    {
+     "v_ms": 4.5,
+     "mass": 0.10737238706748253,
+     "power_w": 244.7135624965793,
+     "capped": false,
+     "energy_mwh": 0.23033085200879502,
+     "converged": true
+    },
+    {
+     "v_ms": 5.5,
+     "mass": 0.1034684689583052,
+     "power_w": 460.3059022227995,
+     "capped": false,
+     "energy_mwh": 0.41749957021160095,
+     "converged": true
+    },
+    {
+     "v_ms": 6.5,
+     "mass": 0.09495867098490263,
+     "power_w": 771.3183720750683,
+     "capped": false,
+     "energy_mwh": 0.6420513596670581,
+     "converged": true
+    },
+    {
+     "v_ms": 7.5,
+     "mass": 0.08367224877491974,
+     "power_w": 1195.4788058630675,
+     "capped": false,
+     "energy_mwh": 0.8768489548323265,
+     "converged": true
+    },
+    {
+     "v_ms": 8.5,
+     "mass": 0.07115912905183985,
+     "power_w": 1750.692516046776,
+     "capped": false,
+     "energy_mwh": 1.0920485975201706,
+     "converged": true
+    },
+    {
+     "v_ms": 9.5,
+     "mass": 0.058623585231050934,
+     "power_w": 2454.882617844512,
+     "capped": false,
+     "energy_mwh": 1.2615503026461115,
+     "converged": true
+    },
+    {
+     "v_ms": 10.5,
+     "mass": 0.04691088537806942,
+     "power_w": 3291.935487122744,
+     "capped": false,
+     "energy_mwh": 1.3537124144315584,
+     "converged": true
+    },
+    {
+     "v_ms": 11.5,
+     "mass": 0.0365364147666849,
+     "power_w": 4125.817497116002,
+     "capped": true,
+     "energy_mwh": 1.2241641002066053,
+     "converged": true
+    },
+    {
+     "v_ms": 12.5,
+     "mass": 0.027741675637549923,
+     "power_w": 4917.887640530252,
+     "capped": true,
+     "energy_mwh": 0.929493591857047,
+     "converged": true
+    },
+    {
+     "v_ms": 13.5,
+     "mass": 0.020561919489495484,
+     "power_w": 5707.541152499851,
+     "capped": true,
+     "energy_mwh": 0.688933597648196,
+     "converged": true
+    },
+    {
+     "v_ms": 14.5,
+     "mass": 0.01489328268670298,
+     "power_w": 6480.37982497301,
+     "capped": true,
+     "energy_mwh": 0.49900413370374636,
+     "converged": true
+    },
+    {
+     "v_ms": 15.5,
+     "mass": 0.010551412283947403,
+     "power_w": 7170.1020421079575,
+     "capped": true,
+     "energy_mwh": 0.3535283964497039,
+     "converged": true
+    },
+    {
+     "v_ms": 16.5,
+     "mass": 0.007317530092296298,
+     "power_w": 7750.8410255426725,
+     "capped": true,
+     "energy_mwh": 0.24517615366406237,
+     "converged": true
+    },
+    {
+     "v_ms": 17.5,
+     "mass": 0.0049710430422670315,
+     "power_w": 8253.759487347423,
+     "capped": true,
+     "energy_mwh": 0.1665563649795756,
+     "converged": true
+    },
+    {
+     "v_ms": 18.5,
+     "mass": 0.003309929853729021,
+     "power_w": 8682.548514336018,
+     "capped": true,
+     "energy_mwh": 0.11090024368871082,
+     "converged": true
+    },
+    {
+     "v_ms": 19.5,
+     "mass": 0.0021612652037279467,
+     "power_w": 9019.308464077174,
+     "capped": true,
+     "energy_mwh": 0.07241387230588214,
+     "converged": true
+    }
+   ]
+  },
+  "x_m": {
+   "aep_mwh": 10.247707391796055,
+   "capped_mwh": 4.29017045450353,
+   "uncapped_mwh": 5.9575369372925255,
+   "capped_share": 0.4186468534355387,
+   "n_capped_bins": 9,
+   "bins": [
+    {
+     "v_ms": 3.5,
+     "mass": 0.1046757385465722,
+     "power_w": 108.8513903362173,
+     "capped": false,
+     "energy_mwh": 0.09988067775337087,
+     "converged": true
+    },
+    {
+     "v_ms": 4.5,
+     "mass": 0.10737238706748253,
+     "power_w": 246.22092475119132,
+     "capped": false,
+     "energy_mwh": 0.23174962107434502,
+     "converged": true
+    },
+    {
+     "v_ms": 5.5,
+     "mass": 0.1034684689583052,
+     "power_w": 461.05362853253456,
+     "capped": false,
+     "energy_mwh": 0.41817776141324053,
+     "converged": true
+    },
+    {
+     "v_ms": 6.5,
+     "mass": 0.09495867098490263,
+     "power_w": 771.8198610561402,
+     "capped": false,
+     "energy_mwh": 0.6424688029613089,
+     "converged": true
+    },
+    {
+     "v_ms": 7.5,
+     "mass": 0.08367224877491974,
+     "power_w": 1195.8076761792597,
+     "capped": false,
+     "energy_mwh": 0.8770901716499014,
+     "converged": true
+    },
+    {
+     "v_ms": 8.5,
+     "mass": 0.07115912905183985,
+     "power_w": 1750.501386447461,
+     "capped": false,
+     "energy_mwh": 1.0919293745218637,
+     "converged": true
+    },
+    {
+     "v_ms": 9.5,
+     "mass": 0.058623585231050934,
+     "power_w": 2453.602879559705,
+     "capped": false,
+     "energy_mwh": 1.2608926523744564,
+     "converged": true
+    },
+    {
+     "v_ms": 10.5,
+     "mass": 0.04691088537806942,
+     "power_w": 3247.2769048241853,
+     "capped": false,
+     "energy_mwh": 1.3353478755440389,
+     "converged": true
+    },
+    {
+     "v_ms": 11.5,
+     "mass": 0.0365364147666849,
+     "power_w": 3991.29910662254,
+     "capped": true,
+     "energy_mwh": 1.2241641002066053,
+     "converged": true
+    },
+    {
+     "v_ms": 12.5,
+     "mass": 0.027741675637549923,
+     "power_w": 4708.263677451299,
+     "capped": true,
+     "energy_mwh": 0.929493591857047,
+     "converged": true
+    },
+    {
+     "v_ms": 13.5,
+     "mass": 0.020561919489495484,
+     "power_w": 5413.264111478608,
+     "capped": true,
+     "energy_mwh": 0.688933597648196,
+     "converged": true
+    },
+    {
+     "v_ms": 14.5,
+     "mass": 0.01489328268670298,
+     "power_w": 5964.326453200121,
+     "capped": true,
+     "energy_mwh": 0.49900413370374636,
+     "converged": true
+    },
+    {
+     "v_ms": 15.5,
+     "mass": 0.010551412283947403,
+     "power_w": 6483.849409073098,
+     "capped": true,
+     "energy_mwh": 0.3535283964497039,
+     "converged": true
+    },
+    {
+     "v_ms": 16.5,
+     "mass": 0.007317530092296298,
+     "power_w": 6957.089906754738,
+     "capped": true,
+     "energy_mwh": 0.24517615366406237,
+     "converged": true
+    },
+    {
+     "v_ms": 17.5,
+     "mass": 0.0049710430422670315,
+     "power_w": 7376.930508146714,
+     "capped": true,
+     "energy_mwh": 0.1665563649795756,
+     "converged": true
+    },
+    {
+     "v_ms": 18.5,
+     "mass": 0.003309929853729021,
+     "power_w": 7695.7337232021155,
+     "capped": true,
+     "energy_mwh": 0.11090024368871082,
+     "converged": true
+    },
+    {
+     "v_ms": 19.5,
+     "mass": 0.0021612652037279467,
+     "power_w": 7818.978739174408,
+     "capped": true,
+     "energy_mwh": 0.07241387230588214,
+     "converged": true
+    }
+   ]
+  }
+ },
+ "x0_design_dependent_share": 0.5813531465650605,
+ "x0_capped_share": 0.41864685343493946,
+ "x_c_gain_pct_total_aep": 0.14649079136130894,
+ "x_c_gain_pct_design_dependent": 0.25198245202053116,
+ "exchange_rate_pct_per_pct_total_aep": 11.023310150930337,
+ "exchange_rate_pct_per_pct_design_dependent": 6.408436041805924,
+ "kkt_multipliers_raw": {
+  "monotone chord_3-chord_4": 0.0,
+  "min chord chord_3": 0.3360597040196503,
+  "min chord chord_4": 0.9688166685225093,
+  "aep_floor": 11.023310150930337,
+  "stress": 0.003311378624400682,
+  "deflection": 0.19762185530364984
+ },
+ "kkt_row_scales": {
+  "stress_KS0_over_c00_sq_per_m2": 13.153154068352421,
+  "deflection_D0": 1.0004420795243205
+ },
+ "kkt_multipliers_normalised": {
+  "aep_floor_pct_per_pct": 11.023310150930337,
+  "stress_pct_per_pct": 0.043555073225391074,
+  "deflection_pct_per_pct": 0.19770921987943782,
+  "min_chord_chord_3_pct_per_mm": 0.03360597040196503,
+  "min_chord_chord_4_pct_per_mm": 0.09688166685225093,
+  "monotone_chord_3_chord_4": 0.0
+ },
+ "kkt_normalisation_note": "percent of x0's shell material per percent of the row's reference value (AEP(x0), KS0/c00^2, D0), or per mm of chord for the floor rows; each is the local sensitivity of the optimum to relaxing that row",
+ "note": "A bin is capped when its aerodynamic power reaches the fixed rating; it then contributes P_rated whatever the shape. The design-dependent rate is the KKT multiplier times the uncapped share of x0's AEP: 1 % of the design-dependent energy is that share of 1 % of total AEP."
+}
