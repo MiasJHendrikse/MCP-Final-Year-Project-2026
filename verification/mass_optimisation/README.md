@@ -349,6 +349,12 @@ energy is **6.41 % shell material per 1 % of design-dependent energy**
 (11.02 % per 1 % of total AEP). All three blades cap the same nine bins, so
 the split is the same for each.
 
+The rating (3822 W) is `x0`'s power at 11 m/s and lambda = 6.5, a point the
+300 rpm ceiling forbids. Under the operating law `x0` first reaches it at
+**11.22 m/s** (lambda = 5.60), `x_c` at 11.13 m/s and `x_m` at 11.27 m/s
+(`blades.*.rating_first_reached_at_ms`); 11 m/s is the load set's rated
+point, not where rated power is first reached.
+
 The KKT multipliers of `x_m`, each multiplied by its row's reference scale so
 that they share a unit (percent of shell material per percent of the row's
 reference value; per millimetre for the floor rows):

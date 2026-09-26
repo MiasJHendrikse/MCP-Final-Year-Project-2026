@@ -36,6 +36,7 @@ import os
 import sys
 
 import numpy as np
+from scipy.optimize import brentq
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _HERE)
@@ -74,6 +75,22 @@ def split(problem, d):
     return capped, uncapped, bins
 
 
+def rated_speed(problem, d):
+    """The wind speed at which a blade first reaches the fixed rating under the operating law."""
+
+    geometry = problem.parameterisation.to_geometry(d, polar_cache=problem.polar_cache)
+    lam = float(problem.design.design_tsr)
+    vtip = float(problem.design.max_tip_speed_ms)
+    p_rated = float(problem.design.rated_power_w)
+    air = (float(problem.site.air_density), float(problem.site.kinematic_viscosity))
+
+    def excess(v):
+        return aerodynamic_power(geometry, v, min(lam, vtip / v), *air)[0] - p_rated
+
+    v = brentq(excess, 10.5, 12.5, xtol=1e-4)
+    return float(v), float(vtip / v)
+
+
 def main():
     problem, _ = C.prepared_problem()
     artefact = C.load_json(RESULT_PATH)
@@ -84,9 +101,13 @@ def main():
         records[name] = {"aep_mwh": capped + uncapped, "capped_mwh": capped,
                          "uncapped_mwh": uncapped, "capped_share": capped / (capped + uncapped),
                          "n_capped_bins": sum(b["capped"] for b in bins), "bins": bins}
+        v_rated, tsr_rated = rated_speed(problem, d)
+        records[name]["rating_first_reached_at_ms"] = v_rated
+        records[name]["tsr_there"] = tsr_rated
         print(f"{name:3s}: AEP {capped + uncapped:.4f} MWh/yr = capped {capped:.4f} "
               f"({100 * capped / (capped + uncapped):.1f} %) + uncapped {uncapped:.4f}; "
-              f"{records[name]['n_capped_bins']} capped bins")
+              f"{records[name]['n_capped_bins']} capped bins; rating reached at "
+              f"{records[name]['rating_first_reached_at_ms']:.3f} m/s")
 
     x0 = records["x0"]
     share_dep = x0["uncapped_mwh"] / x0["aep_mwh"]

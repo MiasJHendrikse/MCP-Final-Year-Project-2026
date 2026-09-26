@@ -1,8 +1,8 @@
 {
  "description": "How much of the annual energy can blade shape move at all?",
  "command": "python verification/mass_optimisation/run_energy_split.py",
- "generated": "2026-09-26T12:26:36",
- "src_commit": "8a02c973453a124f884849bbabc4a2060936bbd6",
+ "generated": "2026-09-26T12:36:01",
+ "src_commit": "b185b982495814bbb9fc4c4b1ad04da91c749e2e",
  "rated_power_w": 3822.189755449124,
  "blades": {
   "x0": {
@@ -148,7 +148,9 @@
      "energy_mwh": 0.07241387230588214,
      "converged": true
     }
-   ]
+   ],
+   "rating_first_reached_at_ms": 11.215693368992119,
+   "tsr_there": 5.602137202280001
   },
   "x_c": {
    "aep_mwh": 10.262719339465379,
@@ -293,7 +295,9 @@
      "energy_mwh": 0.07241387230588214,
      "converged": true
     }
-   ]
+   ],
+   "rating_first_reached_at_ms": 11.126847301282037,
+   "tsr_there": 5.646869357554351
   },
   "x_m": {
    "aep_mwh": 10.247707391796055,
@@ -438,7 +442,9 @@
      "energy_mwh": 0.07241387230588214,
      "converged": true
     }
-   ]
+   ],
+   "rating_first_reached_at_ms": 11.267050760107452,
+   "tsr_there": 5.576601580092344
   }
  },
  "x0_design_dependent_share": 0.5813531465650605,
