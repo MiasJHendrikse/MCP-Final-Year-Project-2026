@@ -1,0 +1,59 @@
+{
+ "description": "Starting torque of the three committed blades, relative to the reference.",
+ "command": "python verification/starting/run_starting_torque.py",
+ "generated": "2026-09-26T12:34:06",
+ "src_commit": "b74ecf2e8839ac4530acfca0499c66083380720b",
+ "wind_speed_ms": 3.0,
+ "reynolds_row_read": 40000.0,
+ "caveats": "ratio between blades only; coefficients from the cache's Viterna extension on its 40 000 row (station Re at cut-in is below the cache floor); no generator resistance or inertia model",
+ "blades": {
+  "x0": {
+   "torque_nm": 0.377218940554918,
+   "alpha_deg_range": [
+    67.18967038012146,
+    89.35916513435728
+   ],
+   "station_reynolds_range": [
+    10977.365820572326,
+    42493.81192969644
+   ],
+   "inboard_half_share": 0.8026032960926103,
+   "shell_mass_kg_per_blade": 1.6782822255929846,
+   "torque_per_rotor_shell_mass_nm_per_kg": 0.07492163411741548,
+   "torque_vs_x0_pct": 0.0,
+   "torque_per_mass_vs_x0_pct": 0.0
+  },
+  "x_c": {
+   "torque_nm": 0.44514925057736077,
+   "alpha_deg_range": [
+    67.3189386102773,
+    91.45346855415634
+   ],
+   "station_reynolds_range": [
+    8236.878736722058,
+    45944.33894924188
+   ],
+   "inboard_half_share": 0.7839617457816482,
+   "shell_mass_kg_per_blade": 1.781854832276845,
+   "torque_per_rotor_shell_mass_nm_per_kg": 0.08327450746152186,
+   "torque_vs_x0_pct": 18.008191720837786,
+   "torque_per_mass_vs_x0_pct": 11.148813613723307
+  },
+  "x_m": {
+   "torque_nm": 0.3510656958623325,
+   "alpha_deg_range": [
+    68.14744595762943,
+    90.0961210195896
+   ],
+   "station_reynolds_range": [
+    9659.250391191144,
+    41307.35226889682
+   ],
+   "inboard_half_share": 0.798976404244904,
+   "shell_mass_kg_per_blade": 1.6215765252672771,
+   "torque_per_rotor_shell_mass_nm_per_kg": 0.07216551103037785,
+   "torque_vs_x0_pct": -6.933173783403368,
+   "torque_per_mass_vs_x0_pct": -3.6786745504219676
+  }
+ }
+}
