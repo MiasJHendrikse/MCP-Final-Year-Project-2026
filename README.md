@@ -2,30 +2,29 @@
 
 This is my final-year Mechanical Engineering project (MCP820S) at the Namibia
 University of Science and Technology, supervised by Prof. Hannes van der Walt.
+The full title is *Gradient-Based Aerodynamic Optimisation of a Small Wind
+Turbine Blade for Low-Wind-Speed Conditions Using a Discrete-Adjoint BEM
+Framework*.
 
-**Title:** *Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine
-Blade for Low-Wind-Speed Conditions Using a Discrete-Adjoint BEM Framework*
-
-I wrote a blade-element momentum (BEM) solver from scratch in Python, derived
-and implemented its discrete adjoint by hand, and used the resulting exact
-gradients to design a lighter blade for a 2 m, three-bladed small wind turbine.
-The site is a low-wind, high-altitude ridge in the Khomas Hochland west of
-Windhoek (mean wind speed 6.5 m/s at the 20 m hub, air density about 21 %
-below sea level).
+I wrote a blade-element momentum (BEM) solver in Python from scratch, derived
+its discrete adjoint by hand, and used the exact gradients it gives to design a
+lighter blade for a 2 m, three-bladed small wind turbine. The site is a
+high-altitude ridge with low wind in the Khomas Hochland, west of Windhoek. The
+mean wind speed at the 20 m hub is 6.5 m/s, and the air density is about 21 %
+below its sea-level value.
 
 ![The three blades: the Schmitz reference, the energy optimum and the minimum-material blade](verification/mass_optimisation/blades_rendered_iso.png)
 
 ## What the project found
 
 I started out trying to maximise annual energy yield (AEP). The optimiser
-converged cleanly, but it only found about +0.15 % over the classical Schmitz
-blade. Working out why took some time. Under a fixed tip-speed-ratio operating
-law with a rotor-speed ceiling, the Schmitz blade is already within 0.15 % of
-the best energy any blade of this rotor can deliver. There was almost nothing
-left to gain on energy.
+converged cleanly but only found about +0.15 % over the classical Schmitz
+blade, and it took me a while to work out why. With a fixed tip-speed-ratio
+operating law and a rotor-speed ceiling, the Schmitz blade already gets within
+0.15 % of the best energy any blade on this rotor can deliver.
 
-So I turned the problem around. Annual energy became a constraint, and the
-optimiser minimises blade material instead:
+So I turned the problem around: annual energy became a constraint, and the
+optimiser minimises blade material instead.
 
 ```
 minimise    shell material   ∫ c dr
@@ -37,11 +36,11 @@ subject to  AEP                 ≥ AEP of the Schmitz reference
             Reynolds numbers inside the validated polar range
 ```
 
-At exactly the reference energy, the optimised blade uses **3.4 % less shell
-material** (about 1.62 kg instead of 1.68 kg per blade for a 2 mm glass/epoxy
-skin). Loads, stress and deflection all stay at or below the reference. If
-0.5 % of the energy can be given up, the saving grows to **5.3 %**. Ten
-different starting points all converge to the same design.
+At exactly the reference energy, the optimised blade uses 3.4 % less shell
+material, about 1.62 kg per blade instead of 1.68 kg for a 2 mm glass/epoxy
+skin. Loads, stress and deflection all stay at or below the reference. Giving
+up 0.5 % of the energy raises the saving to 5.3 %. Ten different starting
+points all converge to the same design.
 
 ![Material saved against energy given up, and the chord distributions along the front](verification/mass_optimisation/pareto_front.png)
 
@@ -52,43 +51,49 @@ XFOIL polars → smooth (C¹) polar interpolant → BEM solver (Ning 2014 form)
   → AEP, loads and material functionals → discrete adjoint → SLSQP
 ```
 
-- **Aerodynamic data.** SG6043 airfoil polars from XFOIL over the Reynolds range
-  the blade sees, extended to ±180° with Viterna. I checked them against UIUC
-  wind-tunnel measurements and ran an n_crit sensitivity study.
-- **BEM solver.** A single-residual formulation with Prandtl tip/hub loss and a
-  Glauert/Buhl high-induction correction. It is guaranteed to converge because
-  it brackets the root instead of iterating.
-- **Discrete adjoint.** Every partial derivative is derived by hand
-  ([`docs/adjoint_derivation.md`](docs/adjoint_derivation.md)) and checked
-  against the complex step. Adjoints are implemented for energy, root bending
-  moment and tip deflection.
-- **Optimisation.** A B-spline chord and twist parameterisation (5 + 5 control
-  points), solved with SciPy's SLSQP.
+The aerodynamic data are SG6043 airfoil polars from XFOIL over the Reynolds
+range the blade sees, extended to ±180° with the Viterna method. I checked them
+against UIUC wind-tunnel measurements and ran a sensitivity study on n_crit.
+
+The BEM solver uses a single-residual formulation with Prandtl tip and hub loss
+and a Glauert/Buhl correction for high induction. It brackets the root of the
+residual, so it always converges.
+
+I derived every partial derivative of the adjoint by hand
+([`docs/adjoint_derivation.md`](docs/adjoint_derivation.md)) and checked each
+one against the complex step. There are adjoints for energy, root bending
+moment and tip deflection.
+
+The blade shape is a B-spline chord and twist distribution with 5 + 5 control
+points, and SciPy's SLSQP does the optimisation.
 
 ## Verification
 
-I tried to make every number in the project checkable.
+I wanted every number in the project to be checkable.
 
-- **Solver cross-validation.** On the NREL Phase VI rotor, my Cp–λ curve agrees
-  with CCBlade to 0.51 % on average. It agrees with pyBEMT to 1.8 % and with
-  QBlade to within a few percent. These are comparisons against other BEM
-  codes, not against measured data. The CCBlade and pyBEMT runs used an
-  earlier version of the S809 polar table and haven't been repeated since.
-  ([`docs/validation/bem-cross-validation.md`](docs/validation/bem-cross-validation.md))
-- **Gradients.** The adjoint gradients agree with the complex step to about
-  1e-13 and with finite differences down to the finite-difference noise floor.
-  One variable is off by a small amount. I traced it to round-off in the
-  objective itself and documented it rather than loosening the tolerance.
-- **Cost.** Each adjoint gradient costs about 1.1 objective evaluations, however
-  many design variables there are. Finite differences cost 2n.
-- **Smoothness.** 3,000 objective evaluations show the energy function is
-  smooth enough to differentiate. It is C¹, with one curvature break at the Buhl
-  threshold.
+On the NREL Phase VI rotor, my Cp-λ curve agrees with CCBlade to 0.51 % on
+average, with pyBEMT to 1.8 % and with QBlade to within a few percent. All
+three are BEM codes too, so this checks my implementation against theirs; none
+of these comparisons is against measured data. The CCBlade and pyBEMT runs used
+an earlier version of the S809 polar table, and I haven't repeated them since.
+The details are in
+[`docs/validation/bem-cross-validation.md`](docs/validation/bem-cross-validation.md).
 
-Each folder under [`verification/`](verification/) has a README explaining
-what was run, what came out, how to reproduce it and what would prove it
-wrong. [`verification/README.md`](verification/README.md) gives the order to
-re-run them in.
+The adjoint gradients agree with the complex step to about 1e-13, and with
+finite differences down to the finite-difference noise floor. One variable is
+off by a small amount. I traced that to round-off in the objective itself,
+documented it, and kept the original tolerance.
+
+An adjoint gradient costs about 1.1 objective evaluations however many design
+variables there are, where finite differences cost 2n.
+
+Over 3,000 objective evaluations, the energy function turned out smooth enough
+to differentiate: it is C¹, with one curvature break at the Buhl threshold.
+
+Each folder under [`verification/`](verification/) has a README saying what
+was run, what came out, how to reproduce it and what would prove it wrong.
+[`verification/README.md`](verification/README.md) gives the order to re-run
+them in.
 
 ## Repository layout
 
@@ -110,24 +115,23 @@ tests/           pytest suite, including a golden-file regression
 verification/    scripts, results (JSON) and figures behind every reported number
 ```
 
-Two airfoils have two different jobs. **SG6043** is the design airfoil. **S809**
-is used only to validate the solver on the NREL Phase VI rotor, since other
-people have computed that rotor too.
+SG6043 is the design airfoil. S809 is only there to validate the solver on the
+NREL Phase VI rotor, which other people have also computed.
 
 A few rules I kept throughout the code:
 
-- **No hidden defaults.** Air density and viscosity are required arguments.
-  Config values that haven't been decided yet raise an error instead of falling
-  back to a guess.
-- **No silent clamping.** Asking the polar data for an angle or Reynolds number
-  outside its range raises an error. Clamping to the edge of the table would
-  quietly change Cp by as much as 60 %.
-- **`src/bem` never imports XFOIL.** A test checks this, so the solver runs from
+- Physical inputs have no hidden defaults. Air density and viscosity are
+  required arguments, and a config value that hasn't been decided yet raises an
+  error instead of falling back to a guess.
+- The polar data raise an error for an angle of attack or Reynolds number
+  outside their range. Clamping to the edge of the table would change Cp by as
+  much as 60 % with no warning.
+- `src/bem` never imports XFOIL. A test checks this, so the solver runs from
   the committed polar cache alone.
 
 ## Running it
 
-Requires Python 3.12+.
+You need Python 3.12 or newer.
 
 ```bash
 python -m pip install -r requirements.txt
@@ -139,12 +143,11 @@ Run the tests from the repository root:
 pytest
 ```
 
-A few results are expected and documented rather than hidden. Five tests are
-marked `xfail`, because the polar-cache sanity checks don't fit a thin,
-high-camber, low-Reynolds airfoil (the reasoning is in
-[`data/polars/sg6043/README.md`](data/polars/sg6043/README.md)). One test is
-left failing on purpose: the gradient case above, kept visible so that any
-change to it shows up.
+Five tests are marked `xfail` because the polar-cache sanity checks don't fit a
+thin, high-camber airfoil at low Reynolds number; the reasoning is in
+[`data/polars/sg6043/README.md`](data/polars/sg6043/README.md). One test fails
+on purpose. It is the gradient case from the verification section, and I left
+it failing so that any change to it shows up.
 
 To reproduce the main result:
 
@@ -154,7 +157,7 @@ python verification/mass_optimisation/run_multistart.py               # ~3 min
 python verification/mass_optimisation/run_sweep.py                    # ~4 min
 ```
 
-Using the solver directly (run from `src/`):
+To use the solver directly (run from `src/`):
 
 ```python
 from config import load_phase_vi_rotor
@@ -171,9 +174,9 @@ for p in curve["points"]:
     print(f"V={p['v_inf']:5.1f} m/s  Cp={p['Cp']:.4f}  P={p['power']:8.1f} W")
 ```
 
-XFOIL, CCBlade, pyBEMT and QBlade are only needed to regenerate the polar
-cache or re-run the cross-validation. The caches are committed, so none of
-them is needed to run the solver or the optimisation.
+XFOIL, CCBlade, pyBEMT and QBlade are only needed to regenerate the polar cache
+or re-run the cross-validation. The caches are committed, so you can run the
+solver and the optimisation without any of them.
 
 ## Further reading
 
