@@ -1,8 +1,8 @@
 """
 Generate the committed residual histories for the Phase VI rotor.
 
-Work order Task 5: "Solver converges across the full operating envelope for
-baseline **and** perturbed geometries; residual histories committed." This is
+The requirement: the solver converges across the full operating envelope for
+baseline **and** perturbed geometries, with residual histories committed. This is
 the script that produces them, kept alongside its output as a versioned report
 artefact rather than in `results/` (which is generated and partly gitignored).
 
@@ -23,7 +23,7 @@ normalised by, but not the convergence criterion: that is the solver's own
 line.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import argparse
@@ -45,8 +45,8 @@ PHASE_VI = load_phase_vi_rotor()
 NU = PHASE_VI.kinematic_viscosity
 OMEGA_RATED = PHASE_VI_RATED_RPM * 2.0 * math.pi / 60.0
 
-#: Baseline operating points plus perturbed geometries -- the work order asks
-#: for both, and the perturbed cases are the ones that matter, since an
+#: Baseline operating points plus perturbed geometries -- both are
+#: required, and the perturbed cases are the ones that matter, since an
 #: optimiser line search visits geometries no fixed-rotor sweep ever does.
 CASES = [
     ("v=5 m/s, rated rpm", 5.0, OMEGA_RATED, 1.0, 0.0),

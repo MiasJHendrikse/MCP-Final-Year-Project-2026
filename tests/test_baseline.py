@@ -1,13 +1,13 @@
 """
 Plan step 1.7 acceptance: the Schmitz baseline and the committed `x0`.
 
-The plan calls the evaluated performance of this blade "the reference numbers
-for the entire results chapter". These tests guard the two things that would
+The evaluated performance of this blade gives the reference numbers for the
+entire results chapter. These tests guard the two things that would
 quietly invalidate that: `x0` drifting away from the artefact Phases 2-5 read,
 and the feasibility status reading as "passed" when it was never checked.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import json
@@ -115,7 +115,7 @@ def test_the_blade_operates_near_its_design_angle_of_attack(baseline):
     THIS TEST NOW SOLVES AT `lambda_design` ITSELF, which it did not have to
     do before 2026-09-19. It used to read the artefact's `spanwise` block,
     because that block *was* the design point (11 m/s, lambda = 6.5, 341 rpm).
-    Since B1 (300 rpm) the machine's design condition is the tip-speed ceiling
+    With the 300 rpm ceiling, the machine's design condition is on the ceiling
     -- `lambda(11) = 5.71`, 300 rpm -- so the artefact evaluates there and its
     alphas run 2.1..8.7 deg, off the construction's design point by design.
     Reading `spanwise` here would test the schedule, not the Schmitz
@@ -226,10 +226,10 @@ def test_the_baseline_aep_meets_the_revised_sanity_band(performance):
     """
     Plan 1.4's exit criterion, against the band as revised on 2026-09-13.
 
-    THE BAND WAS WIDENED, 4-6 -> 8-12 MWh/yr, on MJ's explicit instruction, and
+    THE BAND WAS WIDENED, 4-6 -> 8-12 MWh/yr, deliberately, and
     that is a deliberate revision of a stated expectation rather than a
     tolerance tweak. The full basis is in `config/rotor_design.yaml` beside the
-    numbers and in the 2026-09-13 journal entry; the short version is that the
+    numbers and in docs/OUTSTANDING-INPUTS.md section 7; the short version is that the
     old band was defective in two independent ways, both predating the data
     that exposed them:
 
@@ -237,8 +237,8 @@ def test_the_baseline_aep_meets_the_revised_sanity_band(performance):
          ELECTRICAL rating (Cp = 0.42, eta = 0.90) against a model that
          produces AERODYNAMIC shaft energy at the solver's actual Cp of 0.472
          with no drivetrain efficiency anywhere in the chain.
-      2. It was never consistent with plan 1.3's own resource prior. At the
-         calmest corner of that prior this rotor already returns 5.9 MWh/yr.
+      2. It was never consistent with the expected resource range. At the
+         calmest corner of that range this rotor already returns 5.9 MWh/yr.
 
     So the band could not have been met by the design it was written for. It is
     now derived from the resource uncertainty this project has actually
@@ -248,7 +248,7 @@ def test_the_baseline_aep_meets_the_revised_sanity_band(performance):
 
     low, high = performance["aep_sanity_band_mwh_per_year"]
     assert (low, high) == (8.0, 12.0), (
-        "plan 1.4's sanity band changed again. It was set to 8-12 on "
+        "the AEP sanity band changed again. It was set to 8-12 on "
         "2026-09-13 with its derivation written out in "
         "config/rotor_design.yaml. Changing it is a deliberate act that needs "
         "the same treatment, not a tolerance tweak to make a test pass."
@@ -275,8 +275,7 @@ def test_the_sanity_band_is_still_narrow_enough_to_catch_a_bug(performance):
     low, high = performance["aep_sanity_band_mwh_per_year"]
     aep = performance["aep_mwh_per_year"]
 
-    # Ratios measured on 2026-09-13 against the correct 10.27 MWh/yr; see the
-    # journal entry. Applied to the live AEP so this tracks the real chain.
+    # Ratios measured against the correct 10.27 MWh/yr. Applied to the live AEP so this tracks the real chain.
     failure_modes = {
         "rated-power limiting not applied": aep * 1.424,
         "sea-level density (1.225) at an 1800 m site": aep * 1.265,
@@ -340,14 +339,14 @@ def test_committed_x0_matches_what_the_code_builds(baseline, committed_x0):
 def test_configured_rating_is_the_baselines_aerodynamic_rated_power(baseline):
     """
     `operating.rated_power_w` in `config/rotor_design.yaml` is provisional:
-    it stands in for the generator nameplate (outstanding input B2) and its
+    it stands in for the generator nameplate and its
     stated basis is `P_aero(V_rated; x0)` -- the Schmitz baseline's own
     aerodynamic power at the rated wind speed, at full precision so freezing
     the rating left the baseline's AEP unchanged.
 
     This pins the config to that basis, so the number cannot be edited
-    without the basis being restated. **When B2 lands and the nameplate
-    replaces it, this test is deleted** (not loosened): the rating then has a
+    without the basis being restated. **When a real nameplate replaces it,
+    this test is deleted** (not loosened): the rating then has a
     basis outside the code and nothing here can check it.
     """
 

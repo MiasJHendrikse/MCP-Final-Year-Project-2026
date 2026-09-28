@@ -1,5 +1,5 @@
 """
-The site wind resource at 20 m hub height -- the formal record (plan 1.3).
+The site wind resource at 20 m hub height -- the formal record.
 
 Run:
 
@@ -11,12 +11,12 @@ checked against each other by `tests/test_wind_resource.py`.
 
 What this is
 ------------
-The extraction MJ supplied (`gasp-point-data-50m.png`, beside this file;
-arrived as `misc/Screenshot 2026-09-13 114138.png`, which is gitignored)
+The extraction (`gasp-point-data-50m.png`, beside this file; originally a
+screenshot, `Screenshot 2026-09-13 114138.png`)
 reports
 the Weibull pair at **50 m**. The design rotor's hub height is **20 m**. This
-script performs and records the height extrapolation, per the instruction in
-`docs/journal/Session Notes/2026-09-10.md`:
+script performs and records the height extrapolation, per the project log
+(2026-09-10):
 
     "not at GWA's default 10 m or 50 m, and if only those are available the
      height extrapolation must be done and recorded, not fudged."
@@ -34,14 +34,14 @@ Three things are deliberately recorded that a bare calculation would not:
    this terrain. Justus & Mikhail must land inside it; if it did not, one of
    the two would be wrong and that is a finding, not a rounding difference.
 
-3. **The comparison against the plan's prior expectation** -- including where
-   it disagrees. Plan 1.3 records k ~ 1.8-2.4, c ~ 6-7 m/s "for
-   sanity-checking an extraction only". The extraction disagrees on both. The
-   disagreement is reported here and in the journal; it is NOT tuned away, and
-   the prior band is NOT widened to admit it (ground rule 5).
+3. **The comparison against my prior expectation** -- including where it
+   disagrees. I expected k ~ 1.8-2.4, c ~ 6-7 m/s, for sanity-checking an
+   extraction only. The extraction disagrees on both. The
+   disagreement is reported here; it is NOT tuned away, and the prior band is
+   NOT widened to admit it.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import json
@@ -63,10 +63,10 @@ X0_PATH = os.path.join(HERE, "..", "baseline", "x0.json")
 # ---------------------------------------------------------------------------
 # The extraction, exactly as displayed. Nothing here is derived.
 # ---------------------------------------------------------------------------
-# Source: MJ, 2026-09-13, `misc/Screenshot 2026-09-13 114138.png`.
+# Source: GASP point data, 2026-09-13 (`gasp-point-data-50m.png`).
 #
 # The tool is GASP ("GASP: Point Data"), NOT globalwindatlas.info, which is
-# what plan 1.3 and config/site.yaml name. That difference is real and is
+# what the original plan named. That difference is real and is
 # recorded rather than smoothed over -- see the README beside this file.
 SOURCE = {
     "tool": "GASP -- Point Data",
@@ -92,7 +92,7 @@ TARGET_HEIGHT_M = 20.0
 # Plausible aerodynamic roughness lengths for Khomas Hochland highland bush
 # savanna -- open thornbush over broken terrain, as visible in the supplied
 # aerial screenshots. A RANGE, deliberately. No roughness survey exists for
-# this site, so no single value may be stated (ground rule 3).
+# this site, so no single value may be stated.
 ROUGHNESS_RANGE_M = (0.05, 0.10, 0.20, 0.30, 0.50)
 
 # Plan 1.3's prior expectation, for comparison only. Never a substitute.
@@ -173,7 +173,7 @@ def main():
     log_law_min, log_law_max = min(log_law.values()), max(log_law.values())
     inside = log_law_min <= result.scale_ms <= log_law_max
 
-    # --- 4. Against the plan's prior expectation ------------------------
+    # --- 4. Against the prior expectation --------------------------------
     prior = {
         "k_range": list(PRIOR_K_RANGE),
         "c_range_ms": list(PRIOR_C_RANGE),

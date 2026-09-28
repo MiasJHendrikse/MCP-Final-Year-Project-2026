@@ -1,5 +1,5 @@
 """
-Phase 2, Stage A acceptance: the FD gradient and the scaled problem.
+The finite-difference gradient and the scaled problem.
 
 Everything the FD-driven SLSQP run rests on that can be checked without
 running it: the central difference is exact where it should be exact, the
@@ -12,7 +12,7 @@ Bounds are the configured ones (`DesignBounds.from_config()`; `chord_max_m =
 0.30 m` since 2026-09-19).
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import json

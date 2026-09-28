@@ -12,7 +12,7 @@ from 4-6 to 8-12 MWh/yr on 2026-09-13. See `test_baseline.py`, which asserts
 both the band and that it is still narrow enough to catch a bug.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import json
@@ -131,8 +131,8 @@ def test_above_rated_bins_all_hold_exactly_the_rated_power(powers):
     Every limited bin takes the configured generator rating -- the same
     number for every design, so a capped bin contributes nothing to any
     derivative. Until 2026-09-19 it took P_aero(V_rated; d) instead, which
-    credited the optimiser with a bigger generator (docs/AEP_GAIN_AUDIT.md
-    section 3.2).
+    credited the optimiser with a bigger generator (docs/DESIGN-BASIS.md
+    section 2).
     """
 
     limited = powers["power_w"][powers["limited"]]
@@ -404,12 +404,12 @@ def test_sanity_band_comes_from_config():
 
 
 # ---------------------------------------------------------------------------
-# Determinism, at the level the brief actually states it
+# Determinism, at the AEP level
 # ---------------------------------------------------------------------------
 
 def test_objective_is_bitwise_reproducible(x0, parameterisation):
     """
-    The brief's determinism requirement, now at the AEP level rather than only
+    The determinism requirement, at the AEP level rather than only
     the solver level (`tests/test_determinism.py` covers `solve_rotor`).
 
     Bitwise, repeated, and with an interleaved evaluation at a different design

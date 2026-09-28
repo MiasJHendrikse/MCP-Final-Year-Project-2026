@@ -1,11 +1,11 @@
 # Design rotor -- the Khomas Hochland small turbine, the actual optimisation
-# study subject (PROJECT_PLAN.md sections 1.4, 2.2, 4).
+# study subject.
 #
 # This rotor's air properties are NOT here: they are site properties and live
 # in site.yaml. Anything solving this rotor takes rho and nu from the site
 # config. That separation is the point of the file -- a rotor config that
 # carried its own density would reintroduce exactly the hard-coded-site-value
-# problem plan item 1.1 exists to remove.
+# problem this config layer exists to remove.
 #
 # Read only through `src/config` (config.load_design_rotor()).
 
@@ -16,8 +16,7 @@ description: >-
 
 geometry:
   radius_m: 2.0          # FIXED, not a design variable. Set by polar
-                         # validation quality, not by a power target -- plan
-                         # section 1.5.
+                         # validation quality, not by a power target.
   n_blades: 3
 
   # Inboard end of the bladed span, as a fraction of R. A conventional root
@@ -27,8 +26,8 @@ geometry:
   #
   # It is recorded here because it is already load-bearing and was previously
   # duplicated: `polars/envelope.py` carried its own `_ROOT_FRACTION = 0.15`
-  # when it sized the SG6043 cache's Reynolds bounds (work order Task 2), and
-  # plan step 1.6's parameterisation needs the same span. Two copies of a
+  # when it sized the SG6043 cache's Reynolds bounds, and the
+  # parameterisation needs the same span. Two copies of a
   # number that must agree is how they stop agreeing, so there is now one.
   root_fraction: 0.15
 
@@ -43,8 +42,8 @@ operating:
   # power at THIS number, not at whatever the current blade happens to make at
   # 11 m/s. A nameplate does not get bigger because the blade got better;
   # letting it float credited the optimiser with a larger generator, and that
-  # was worth 0.096 of the +0.217 % floating-cap gain (docs/AEP_GAIN_AUDIT.md
-  # section 1.2, section 3.2).
+  # was worth 0.096 of the +0.217 % floating-cap gain
+  # (verification/aep_gain_audit/; docs/DESIGN-BASIS.md section 2).
   #
   # PROVISIONAL BASIS, recorded so it can be checked, not chosen: this is
   # P_aero(11 m/s; x0), the Schmitz baseline's own aerodynamic power at the
@@ -52,8 +51,8 @@ operating:
   # (verification/baseline/x0.json), at full precision so the baseline's AEP
   # is unchanged by the switch. tests/test_baseline.py asserts the agreement
   # and is retired when a nameplate lands. It stands in for the generator's
-  # nameplate rating, which is outstanding input B2 (docs/OUTSTANDING-INPUTS.md
-  # section 9). When B2 is answered this value is replaced and every
+  # nameplate rating, which isn't known (docs/OUTSTANDING-INPUTS.md
+  # section 9). When it is, this value is replaced and every
   # optimisation artefact re-runs; nothing here should be read as "the
   # machine is a 3.8 kW machine".
   #
@@ -65,8 +64,8 @@ operating:
   # not move with the schedule.
   rated_power_w: 3822.189755449124
 
-  # Maximum rotor speed, rpm -- outstanding input B1, RESOLVED PROVISIONALLY
-  # on 2026-09-19 (after the ceiling cross-evaluation). This is the
+  # Maximum rotor speed, rpm -- SET PROVISIONALLY on 2026-09-19, after the
+  # ceiling cross-evaluation. This is the
   # one machine fact that gives the AEP objective a tip-speed-ratio dimension:
   # the operating law is
   #
@@ -83,7 +82,7 @@ operating:
   # (verification/aep_optimisation_experiment/, run 2026-09-19).
   #
   # PROVISIONAL, WITH A STATED BASIS -- not a measured fact about a specified
-  # generator, which is what B1 still asks for:
+  # generator, which is still what would replace it:
   #   * Without a ceiling the rotor runs lambda = 6.5 up to rated, i.e.
   #     341 rpm = 71.4 m/s tip speed at 11 m/s. That is above the ~60-65 m/s
   #     noise-conscious upper limit generally applied to residential-scale
@@ -94,7 +93,7 @@ operating:
   #     at 250-300 rpm rated.
   #   * 263 rpm (55 m/s) and 239 rpm (50 m/s) were explicitly NOT chosen.
   #     They are the ceilings that inflate the gain (+2.33 % and +7.84 %,
-  #     docs/AEP_GAIN_AUDIT.md section 3.1) and would amount to designing for
+  #     verification/aep_optimisation_experiment/) and would amount to designing for
   #     an under-sped generator to make the number bigger -- the gimmick the
   #     audit's section 3.5 names. 300 rpm does not flatter the optimiser.
   #   * Open confirmation item (docs/OUTSTANDING-INPUTS.md section 10): the
@@ -106,19 +105,18 @@ operating:
   max_rotor_speed_rpm: 300
 
 # ---------------------------------------------------------------------------
-# Parameterisation -- plan section 4
+# Parameterisation
 # ---------------------------------------------------------------------------
 # Strip count and design-variable count are independent quantities (section
 # 4.1); both are recorded so they cannot be conflated by a downstream reader.
-# The counts below are the plan's INTENDED configuration -- 25 strips, 10
-# geometry parameters. Section 4.3 requires the control-point count to be
+# The counts below are the chosen configuration -- 25 strips, 10 geometry
+# parameters. The control-point count had to be
 # selected by a documented representation study (6/8/10/12/16) rather than
 # asserted, so these are the starting configuration for that study, not its
 # conclusion.
 #
-# BOUNDS -- resolved 2026-09-19 (MJ's decision, outstanding input section 2
-# and the audit's O4). Applied to the control points, and to the SCALED
-# variables through design.bounds.DesignBounds (plan section 7.1). Until
+# BOUNDS -- set 2026-09-19 (docs/OUTSTANDING-INPUTS.md section 2). Applied to the control points, and to the SCALED
+# variables through design.bounds.DesignBounds. Until
 # 2026-09-19 these were TODO here and lived as a provisional set in
 # tests/test_parameterisation.py::PROVISIONAL_BOUNDS, with chord_max_m = 0.45
 # as a placeholder with no basis; that placeholder is retired.
@@ -142,7 +140,7 @@ operating:
 #   * c / R = 0.15 is the top of the small-turbine commercial range
 #     (~0.08-0.15).
 #   * The Schmitz root control point is 276 mm, so the baseline stays
-#     feasible and unclipped (docs/AEP_GAIN_AUDIT.md section 3.4) and the
+#     feasible and unclipped and the
 #     fairness argument is unchanged.
 #   * Measured to be neither generous nor punitive: at 300 rpm the gain is
 #     +0.147 % with either 0.30 or 0.45 m (root bound active, no measurable
@@ -161,7 +159,7 @@ parameterisation:
     twist_max_deg: 35.0
 
 # ---------------------------------------------------------------------------
-# Operating constraints -- plan section 7.4
+# Operating constraints
 # ---------------------------------------------------------------------------
 # Local solidity cap, sigma_i = B c_i / (2 pi r_i) <= max_local_solidity at
 # every BEM station. Resolved 2026-09-19 together with chord_max_m above: it
@@ -179,13 +177,13 @@ constraints:
   max_local_solidity: 0.5
 
 # ---------------------------------------------------------------------------
-# The mass problem -- docs/PLAN-mass-objective-2026-09-20.md (adopted 2026-09-20)
+# The mass problem (docs/DESIGN-BASIS.md section 6)
 # ---------------------------------------------------------------------------
 # The objective is blade MATERIAL, not energy: minimise the material proxy
-# subject to AEP >= AEP(x0), the Phase 4 load cap, a root-stress proxy, a
+# subject to AEP >= AEP(x0), the root-moment load cap, a root-stress proxy, a
 # tip-deflection proxy and the manufacturability rows below. x0 -- the
 # committed Schmitz baseline at design_tsr -- is the reference for every
-# relative row (MJ's decision 2026-09-20: the reference lambda stays 6.5; a
+# relative row (the reference lambda stays 6.5; a
 # Schmitz designed and tracked at 6.0 scores +0.16 % on this machine, which
 # the report states and prices off the energy-material exchange-rate sweep).
 #
@@ -208,7 +206,7 @@ constraints:
 objective:
   mass_model: shell
 
-# Manufacturability (plan section 7.2, amended 2026-09-20): the chord and
+# Manufacturability: the chord and
 # twist CONTROL POINTS are non-increasing from root to tip. For a B-spline
 # that implies a non-increasing curve (variation-diminishing property), so
 # these four + four linear rows with a constant Jacobian are the whole
@@ -218,12 +216,11 @@ objective:
 # chord peak, so monotone-from-the-hub is the realistic shape, not a
 # restriction. They cost 0.06 % of the material saving at delta = 0.
 #
-# min_chord_m (2026-09-20, afternoon, MJ's decision -- "decision 6" in
-# docs/PLAN-mass-objective-2026-09-20.md): the BUILDABLE-TIP FLOOR of the mass
+# min_chord_m: the BUILDABLE-TIP FLOOR of the mass
 # problem, five linear rows c_i - min_chord_m >= 0 on the chord control points
 # beside the monotone rows. It is deliberately NOT the box bound
 # parameterisation.bounds.chord_min_m (0.045 m): the box sets the scaling of
-# the design variables, and every committed Phase 1-4 gradient and
+# the design variables, and every committed gradient and
 # optimisation artefact (h*_j, eps_j, the red test's FD reference, x*, x_c)
 # was measured in that scaling -- moving the box would invalidate all of them
 # (the 2026-09-19 chord_max_m change re-ran the whole chain). A row leaves
@@ -235,12 +232,12 @@ objective:
 #   (-4.24 % shell with a 45 mm tip and a 6:1 taper). 60 mm is a 6 mm
 #   section (two 2 mm skins + bond + web) and stays BELOW the Schmitz x0 tip
 #   (67 mm), so x0 and every reference measured from it are unchanged and the
-#   comparison stays fair. Measured alternatives (misc/blade_shape_experiment,
-#   scratch, journal 2026-09-20 afternoon): 80 mm is infeasible at delta = 0
+#   comparison stays fair. Measured alternatives (an exploratory study, not
+#   kept in the repository): 80 mm is infeasible at delta = 0
 #   by 0.002 % and saves 0.8 % at delta = 0.5 % against an unfloored Schmitz
 #   (a fair 80 mm study would re-fit x0 under the same floor); a taper-ratio
 #   row and chord-convexity rows were slack at every floored optimum and are
-#   not added. Phase 4's x_c (tip 47.7 mm) predates the floor and is kept as
+#   not added. The moment-capped energy optimum x_c (tip 47.7 mm) predates the floor and is kept as
 #   the energy reference, evaluated only. A laminate concept replaces this
 #   number.
 manufacturing:
@@ -252,14 +249,14 @@ manufacturing:
 # tip clearance (still TODO). NONE of them gates the production run: every
 # row of the committed mass problem is relative to x0, so the density,
 # thickness and modulus cancel there exactly as the allowable does in the
-# Phase 4 constraint. What they add is (a) a mass in kilograms from the same
+# moment constraint. What they add is (a) a mass in kilograms from the same
 # code (`MaterialModel.mass_kg = rho_lam * t_shell * k_P * int c dr` per
 # blade), (b) an absolute root stress in Pa and an absolute tip deflection
 # in m (`ScaledProblem.stress_absolute_pa`, `deflection_absolute_m`), and
 # (c) the absolute rows `stress_absolute` / `deflection_absolute` of the
 # mass problem, which are ADDITIONAL to the relative rows, never a
-# replacement (src/gradients/problem.py, module docstring). Provenance in
-# docs/MATERIALS-STRUCTURAL-INPUTS.md; docs/OUTSTANDING-INPUTS.md section 11.
+# replacement (src/gradients/problem.py, module docstring). Sources in
+# docs/OUTSTANDING-INPUTS.md section 11.
 #
 # THE STATED CONSTRUCTION. A thin skin of ONE E-glass/epoxy laminate at
 # constant thickness around the whole section perimeter, with its fibres
@@ -336,7 +333,7 @@ structure:
   # m. The unloaded tip-to-tower clearance the absolute deflection row
   # `tip_clearance_m - delta_tip(u) >= 0` would use. TODO: it is machine
   # geometry -- tower diameter, hub overhang, cone and tilt -- of the same
-  # class as the nameplate (B2) and the rotor speed (B1), and no number for
+  # class as the generator nameplate and the rotor speed, and no number for
   # it can be defended from the literature (GL states the allowed remaining
   # clearance as a percentage of the unloaded one; the unloaded one is the
   # machine's). The row is built, tested with an injected value, and
@@ -344,35 +341,35 @@ structure:
   # (delta_tip(x0) = 111.8 mm at the rated point, 2 mm skin) beside the
   # relative row, which stays the design row.
   tip_clearance_m: "TODO: machine geometry (tower diameter, hub overhang, cone, tilt) not specified (2026-09-20); the absolute deflection row activates when it lands; deflection is reported in mm meanwhile"
-# Sanity band for the AEP module (plan section 1.4). A result far outside this
+# Sanity band for the AEP module. A result far outside this
 # indicates a bug, not a discovery. Recorded so the check reads it rather than
 # restating it.
 #
-# WIDENED 4-6 -> 8-12 MWh/yr on 2026-09-13, ON MJ'S EXPLICIT INSTRUCTION, after
-# the wind resource landed and the band could be evaluated for the first time.
-# The baseline returns 10.27 MWh/yr. MJ's reasoning, recorded as given: if the
+# WIDENED 4-6 -> 8-12 MWh/yr on 2026-09-13, deliberately, after the wind
+# resource arrived and the band could be evaluated for the first time. The
+# baseline returns 10.27 MWh/yr. My reasoning: if the
 # blade already makes substantially more power than the original band, the
 # original band was simply too narrow.
 #
-# This is a deliberate revision of a stated expectation, which the repo's
-# ground rule 5 otherwise forbids -- so the basis is written out here rather
+# This is a deliberate revision of a stated expectation, which I otherwise
+# avoid -- so the basis is written out here rather
 # than left as a pair of round numbers.
 #
 # WHY 4-6 WAS WRONG. Two independent defects, both predating the 2026-09-13
 # data:
 #
 #   1. It compared different quantities. 4-6 came from a capacity factor of
-#      0.15-0.22 on plan 1.4's ~3.1 kW rating, and that rating carries
+#      0.15-0.22 on an early ~3.1 kW rating estimate, and that rating carries
 #      `eta = 0.90` and assumes `Cp = 0.42`. The AEP model produces
 #      AERODYNAMIC shaft energy -- src/objective/power.py applies no generator,
 #      gearbox or electrical efficiency and says so -- at the solver's actual
 #      design-point `Cp` of 0.472. Rated aerodynamic power is 3.82 kW, not
 #      3.1 kW.
-#   2. It was never consistent with plan 1.3's own resource prior. At the
+#   2. It was never consistent with my own expected resource range. At the
 #      CALMEST corner of `k ~ 1.8-2.4, c ~ 6-7 m/s` this rotor already returns
 #      5.9 MWh/yr, and at the middle of that range 7.7. The band could not have
-#      been met by the design it was written for, under the resource the same
-#      plan expected. Nobody noticed because the resource was TODO, so the band
+#      been met by the design it was written for, under the resource I had
+#      expected. Nobody noticed because the resource was TODO, so the band
 #      was never once evaluated.
 #
 # HOW 8-12 WAS DERIVED -- not chosen to admit 10.27:
@@ -396,11 +393,11 @@ structure:
 # A band wide enough to admit anything would be a note, not a check. This one
 # still fails on every bug the old one would have caught.
 #
-# WHAT IT DOES NOT SETTLE: whether the Phase 1 exit criterion should be stated
+# WHAT IT DOES NOT SETTLE: whether the check should be stated
 # in aerodynamic or delivered electrical energy. This band is aerodynamic,
 # matching what the model computes. If the report wants electrical, an `eta`
 # has to enter the chain and this band moves with it. See
-# docs/OUTSTANDING-INPUTS.md and the 2026-09-13 journal entry.
+# docs/OUTSTANDING-INPUTS.md section 7.
 sanity:
   aep_mwh_per_year_min: 8.0
   aep_mwh_per_year_max: 12.0

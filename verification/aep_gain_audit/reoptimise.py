@@ -1,6 +1,6 @@
 """
 SLSQP re-optimisation under a modified operating strategy, for
-docs/AEP_GAIN_AUDIT.md section 3 (2026-09-13).
+docs/DESIGN-BASIS.md section 2 (an earlier investigation, kept as a record).
 
 A4's optimiser (`verification/fd_optimisation/`) -- central FD at h = 3e-6 in
 u, SLSQP with ftol = 1e-8, the polar-cache envelope constraint at margin
@@ -23,10 +23,10 @@ e.g.  reoptimise.py none fixed opt_none_fixed.json      (~2.5 min)
 
 Under provisional bounds (chord_max_m = 0.45 m provisional). Not a project
 result: an audit measurement of what the objective would do under a
-machine model MJ has not yet specified (AEP_GAIN_AUDIT.md section 5).
+machine model that hadn't been specified.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import json
@@ -52,7 +52,7 @@ from objective.power import aerodynamic_power, wind_speed_bins  # noqa: E402
 # The bounds this 2026-09-13 audit ran under, kept here verbatim so the script
 # stays a reproducible record. They were `tests/test_parameterisation.py::
 # PROVISIONAL_BOUNDS` at the time; that set was retired on 2026-09-19 when
-# `chord_max_m = 0.30 m` (O4) went into config/rotor_design.yaml. Do not read
+# `chord_max_m = 0.30 m` went into config/rotor_design.yaml. Do not read
 # 0.45 m as a current bound.
 PROVISIONAL_BOUNDS = {
     "chord_min_m": 0.045, "chord_max_m": 0.45,

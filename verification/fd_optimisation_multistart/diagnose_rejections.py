@@ -1,7 +1,7 @@
 """
 Why the rejected random draws of `starts.json` do not converge.
 
-Review roadmap item 3 (2026-09-26). `run_multistart.py` rejected 34 of its 58
+`run_multistart.py` rejected 34 of its 58
 draws with the single reason "a station did not converge". This script
 re-solves each of those draws at all seventeen operating points and records,
 per failed station, the solver's own `failure` string, the station, the
@@ -14,7 +14,7 @@ next to this script. Run from the repo root (about a minute):
     python verification/fd_optimisation_multistart/diagnose_rejections.py
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import collections

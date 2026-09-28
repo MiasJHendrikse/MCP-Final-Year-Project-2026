@@ -1,8 +1,8 @@
 """
-Phase 3, B3: the assembled adjoint gradient on the scaled problem.
+The assembled adjoint gradient on the scaled problem.
 
 Tier 1 and Tier 2 live in their own files. This one pins the two things
-B3 adds on top of them: `ScaledProblem.jac_adjoint` is the adjoint
+this step adds on top of them: `ScaledProblem.jac_adjoint` is the adjoint
 gradient in `fun` units, and it agrees with the committed FD reference at
 `x0` to within the step-size study's `eps_j` (a flatness estimate of the
 FD's disagreement scale, not a measured noise floor) -- the Tier 3
@@ -14,7 +14,7 @@ whole-chain Taylor remainder is asserted at `x0` as well.
 Bounds are the configured ones (`DesignBounds.from_config()`).
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import json

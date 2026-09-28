@@ -1,5 +1,5 @@
 """
-Design-variable bounds and the scaling to O(1) (plan sections 4.4, 7.1).
+Design-variable bounds and the scaling to O(1).
 
 The bounds live in `config/rotor_design.yaml` (`parameterisation.bounds`)
 with their basis written beside them, and `DesignBounds.from_config()` reads
@@ -18,7 +18,7 @@ and the placeholder is retired.
 Scaling, and why it is not cosmetic
 ------------------------------------
 Chord is O(0.1) m and twist is O(0.1) rad, but their *sensitivities* differ by
-far more: plan section 4.4 records that SLSQP's line search degrades badly on
+far more, and SLSQP's line search degrades badly on
 unscaled variables. Every design variable is therefore mapped to [0, 1] across
 its own bound interval before it reaches an optimiser, and the chain rule is
 applied to gradients accordingly:
@@ -26,12 +26,12 @@ applied to gradients accordingly:
     d_physical = lo + u * (hi - lo)          u in [0, 1]
     dJ/du      = dJ/d_physical * (hi - lo)
 
-That factor is exact and constant, which matters for Phase 3: it composes into
+That factor is exact and constant, which matters for the adjoint: it composes into
 the adjoint as a diagonal scaling rather than as anything needing its own
 verification.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import math

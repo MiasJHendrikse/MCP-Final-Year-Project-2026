@@ -19,8 +19,8 @@ pre-2026-07-26 Re=100k polar with no record of how it had been produced.
 Extrapolation
 -------------
 QBlade needs a polar defined over the whole -180..180 deg circle; XFOIL only
-converges a narrow band. The scheme lives in `polars.viterna` since work order
-Task 2 -- it was promoted out of this module because the caches themselves are
+converges a narrow band. The scheme lives in `polars.viterna` -- it was
+promoted out of this module because the caches themselves are
 now written over the full circle with it, and a QBlade exporter is no place to
 keep the project's post-stall model. The scheme is unchanged, and this script
 still produces byte-identical `.plr` output through it (asserted by
@@ -60,7 +60,7 @@ if a station does stall in QBlade, that is the first thing to suspect.
 Run directly: `python -m validation.export_qblade` (from src/).
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import argparse
@@ -78,7 +78,7 @@ from polars.viterna import build_full_range_polar
 from xfoil.polar_lookup import DATA_DIR
 
 #: S809 maximum thickness, percent chord (matches data/airfoils/s809.dat,
-#: measured 20.99% -- see the 2026-07-26 journal entry).
+#: measured 20.99%).
 S809_THICKNESS_PCT = 21.0
 
 _COL = 20  # QBlade's fixed column width in these files
@@ -192,7 +192,7 @@ def export(out_dir, reynolds=100_000, tip_pitch_deg=PHASE_VI_SEQUENCE_S_TIP_PITC
     """
 
     csv_path = os.path.join(DATA_DIR, "polars", "s809", f"S809_Re{reynolds}.csv")
-    # The cache itself now spans -180..180 (work order Task 2); the
+    # The cache itself now spans -180..180; the
     # extrapolation has to be anchored to the XFOIL-converged band, not to the
     # extension's own endpoint at 180 deg, where cos(alpha_s) = -1.
     data, _source = load_xfoil_band(csv_path)

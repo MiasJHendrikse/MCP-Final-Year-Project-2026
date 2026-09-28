@@ -1,5 +1,5 @@
 """
-Spline-fit error of the Schmitz baseline (PROJECT_DIRECTION_v2 §7.3 point 4).
+Spline-fit error of the Schmitz baseline.
 
 The baseline `x0` is the analytic Schmitz chord and twist least-squares
 projected onto the optimiser's 5 + 5 cubic B-spline. §7.3 point 4 requires
@@ -31,7 +31,7 @@ Run from the repo root (~5 s):
     python verification/spline_fit_error/run_fit_error.py
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import datetime
@@ -148,7 +148,7 @@ def main():
 
     summary = {
         "description": "Fit error between the analytic Schmitz chord/twist and x0's "
-                       "spline projection (PROJECT_DIRECTION_v2 §7.3 point 4), and "
+                       "spline projection, and "
                        "the AEP of the analytic blade vs x0 vs A4's optimum.",
         "bounds_label": BOUNDS_LABEL,
         "command": "python verification/spline_fit_error/run_fit_error.py",

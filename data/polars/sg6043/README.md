@@ -1,5 +1,7 @@
-XFOIL polar cache for the SG6043 — the Khomas Hochland design rotor's airfoil
-(plan §3.3; see `data/airfoils/README.md` for the coordinate provenance). One
+# SG6043 polar table (design airfoil)
+
+XFOIL polar cache for the SG6043, the design rotor's airfoil
+(see `data/airfoils/README.md` for the coordinate provenance). One
 CSV per Reynolds number, columns `alpha,cl,cd,cm,source`, alpha −180° to
 +180° on a 0.5° grid — XFOIL-converged from −8° to +18°, Viterna
 extrapolation outside that (see *File format* below). Re = 40k–1.0M in 13
@@ -19,14 +21,14 @@ model *atmospheric* turbulence for a thick, stall-prone section; the UIUC
 Low-Speed Airfoil Tests facility this cache is checked against *is* a clean
 low-turbulence tunnel, so matching the measurement environment is the
 theoretically expected choice here, and it is what the n_crit sensitivity
-study (2026-09-09 journal entry, `results/ncrit_sensitivity/`) selected on
+study (`results/ncrit_sensitivity/`) selected on
 its own merits. The two calibrations are not supposed to agree, and they
 don't.
 
 ## File format, and what the fifth column means
 
 Each CSV is `alpha,cl,cd,cm,source` and spans **−180 … 180°** on a 0.5° grid,
-721 rows per file — the same convention Task 2 established for S809:
+721 rows per file, the same convention as the S809 table:
 
 | code | label | meaning |
 |---|---|---|
@@ -41,8 +43,7 @@ measured rows only, which is what `validate_polars.py` and
 
 ## Build history and the Re=60k/80k hang
 
-The main sweep (`n_iter=200, timeout=120`, see the 2026-09-09 journal entry
-for why these settings and not S809's 400/900) completed clean for all 13
+The main sweep (`n_iter=200, timeout=120`, rather than S809's 400/900) completed clean for all 13
 Reynolds numbers — no crash, no run lost. The Re=60k negative-alpha-leg
 failure flagged as a real risk going into this session (XFOIL hanging past
 its stall peak, discarding the bidirectional sweep's negative leg entirely)
@@ -78,7 +79,7 @@ Every hole sits at a curve's stall shoulder or deep-negative-α extreme — the
 regions the build's own bidirectional-sweep design already flags as XFOIL's
 weakest, at every Reynolds number, not only the ones singled out ahead of
 time. No hole falls inside the working range the design rotor actually
-occupies at rated conditions (plan §3.3, ~150k–450k at rated), which is where
+occupies at rated conditions (about 150k–450k), which is where
 this cache's accuracy matters most.
 
 ## Viterna extension, and the stitch
@@ -92,7 +93,7 @@ from `1.11 + 0.018·AR` at the design rotor's own aspect ratio (11.7) —
 **Value continuity at the upper stitch is exact** — worst |jump| across all
 13 Reynolds rows is 2.22e-16 (floating-point rounding). The slope is not
 continuous at either stitch, and — as for S809 — the size of the kink is
-recorded rather than assumed, since Task 3's C¹ interpolant has to make an
+recorded rather than assumed, since the C¹ interpolant has to make an
 explicit choice about it (`python -m validation.check_stitch_continuity
 sg6043`, full JSON in `results/polar_cache/sg6043_stitch_continuity.json`).
 
@@ -139,7 +140,7 @@ worst case sitting at its lowest well-characterised Re. Both stitches carry
 real kinks across most of the range; neither is close to the 5 %
 "continuous" threshold anywhere. Normal operation keeps α below stall so the
 stitch sits outside the working range, but optimiser excursions and the
-Step 8 smoothness sweeps will visit it (work order Task 3).
+smoothness sweeps will visit it.
 
 ## Validation against experimental data (UIUC LSAT Vol. 3)
 
@@ -197,7 +198,7 @@ the same low-Re bubble effect reducing the section's effective camber, and is
 corroborated by the UIUC comparison table above showing exactly this Reynolds
 band as the one with the largest measured-vs-computed Cl error.
 
-Per ground rule 5 (work order): this is recorded, not tuned away. Nothing in
+This is recorded, not tuned away. Nothing in
 `n_crit`, `cd_max`, or the alpha range was adjusted to make Check 2/5 pass —
 doing so would fit the calibration to an internal-consistency test instead of
 the UIUC measurements it is actually checked against above.
@@ -207,12 +208,11 @@ the UIUC measurements it is actually checked against above.
 - **Re = 40k–80k have no experimental support.** UIUC's floor is 100k; these
   three curves are XFOIL alone, in the regime flagged as least trustworthy.
   Named in `config/polars_sg6043.yaml`'s `low_re_caveat`; unchanged by this
-  build (plan §3.3, risk R4).
+  build.
 - The 79 interior holes above are all outside the design rotor's rated-operation
   Reynolds band (~150k–450k), but they are inside the low-Re region several
   wind-speed bins actually visit below rated power — see
   `reynolds_envelope.cases.below_rated` in the config.
-- Task 3's C¹ interpolant (built separately, see `docs/journal/Session
-  Notes/2026-09-09.md`'s Task 3 entry) was verified against S809, not yet
-  re-verified against this cache's own stitch kinks or LSB jump — that
-  re-verification is follow-up work, not part of this build.
+- The C¹ interpolant was verified against S809 and hasn't been re-verified
+  specifically against this table's own stitch kinks or laminar-bubble jump;
+  that would be follow-up work.

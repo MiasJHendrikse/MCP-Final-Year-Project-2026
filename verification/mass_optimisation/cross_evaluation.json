@@ -3,7 +3,7 @@
  "description": "Phase 5 (2026-09-20) -- cross-evaluation of `x0`, `x_c` and `x_m` under other\nresources and other rotor-speed ceilings. No optimisation: three fixed\nblades, evaluated.",
  "command": "python verification/mass_optimisation/run_cross_evaluation.py",
  "generated": "2026-09-20T12:25:08",
- "src_commit": "41d3ccabda7a4fade9cd40b38a4643d817dce66d",
+ "src_commit": "10769c292233465669280213e2c2b1fd124f1467",
  "bounds_label": "under the configured bounds (chord_max_m = 0.30 m, resolved 2026-09-19; chord_min_m, twist_min, twist_max grounded 2026-09-13) and the 60 mm buildable-tip floor of the mass problem (manufacturing.min_chord_m, 2026-09-20)",
  "law_label": "lambda(V) = min(6.5, Omega_max R / V), Omega_max = 300 rpm (V_c = 9.67 m/s), fixed rating 3822.189755449124 W",
  "resource_band_is_an_assumption": "c from the log-law cross-check band of verification/wind_resource/README.md; k +/- ~0.25 around the extrapolated 1.709. Plan 1.3's sensitivity band is not chosen; this does not choose it.",

@@ -1,5 +1,5 @@
 """
-Regenerate the Task 0 golden files in tests/golden/.
+Regenerate the golden files in tests/golden/.
 
     python tests/generate_golden.py
 
@@ -7,8 +7,7 @@ Read this before running it
 ----------------------------
 The golden files are the regression net under the whole remediation work
 order. Regenerating them is not a routine step -- it is how a *deliberate*
-behaviour change gets recorded, and the work order is explicit about the
-procedure:
+behaviour change gets recorded, and the procedure is:
 
     A task is not complete while the golden regression is failing, unless the
     change is intended, in which case the golden file is regenerated in its
@@ -26,7 +25,7 @@ json.dump writes Python's repr for floats, which round-trips IEEE-754 doubles
 exactly. The golden files therefore carry full precision and diff cleanly.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import json
@@ -43,8 +42,7 @@ from golden_reference import GOLDEN_DIR, build_golden, golden_path  # noqa: E402
 def main():
     os.makedirs(GOLDEN_DIR, exist_ok=True)
 
-    print("Building golden snapshot (a few minutes: the Phase VI operating "
-          "point costs ~9 s until Task 5 lands its cost fix)...")
+    print("Building golden snapshot...")
     t0 = time.perf_counter()
     snapshot = build_golden()
     print(f"Built in {time.perf_counter() - t0:.1f} s")

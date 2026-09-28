@@ -1,5 +1,5 @@
 """
-Central finite differences and the step-size sweep (Phase 2, Stage A1).
+Central finite differences and the step-size sweep.
 
 Central only, never forward
 ----------------------------
@@ -7,7 +7,7 @@ A forward difference has truncation error O(h); central has O(h^2). With an
 objective that costs ~0.2 s and a noise floor set by the polar interpolant's
 C2 breaks rather than by round-off, the extra evaluation per variable buys a
 much wider usable band of `h`, and it is the central estimate at a chosen
-`h*` that the discrete adjoint (Phase 3, Tier 3) is measured against. A
+`h*` that the discrete adjoint is measured against (Tier 3). A
 forward difference is never good enough to be that reference.
 
 The sweep, and why it saves everything
@@ -28,7 +28,7 @@ Both functions are pure: no config access, no rotor, no knowledge of what
 `fun` is. `fun` is any `ndarray -> float`.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import numpy as np

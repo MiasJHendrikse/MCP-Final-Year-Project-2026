@@ -2,7 +2,7 @@
  "description": "The thin-shell bending stress along the span, not only at the root.",
  "command": "python verification/absolute_material/run_spanwise_stress.py",
  "generated": "2026-09-26T12:25:19",
- "src_commit": "2a2e3cf2f4164f543cdbf114abe85734fc9d9f79",
+ "src_commit": "5fda93554dfe7d1f1c53f433eb10f745dd550219",
  "section_modulus_factor_kZ_t_m": 0.00010328540227640152,
  "note": "sigma(r) = M(r) / (k_Z t c(r)^2) at the 25 BEM stations, rated point; M(r) about the station from the outboard load; the root value is about r_hub with the root control-point chord. Station values only: the peak between stations is not interpolated.",
  "blades": {

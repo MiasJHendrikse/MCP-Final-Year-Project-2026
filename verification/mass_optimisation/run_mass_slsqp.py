@@ -1,5 +1,5 @@
 """
-Phase 5 (2026-09-20) -- SLSQP on the mass problem at energy floor `delta`.
+SLSQP on the mass problem at energy floor `delta`.
 
     minimise   mass(u) = m_shell(d(u)) / m_shell(x0)
     over       u in [0, 1]^10
@@ -28,7 +28,7 @@ Run from the repo root (one to two minutes):
     python verification/mass_optimisation/run_mass_slsqp.py --delta 0.01 --start xc
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import argparse

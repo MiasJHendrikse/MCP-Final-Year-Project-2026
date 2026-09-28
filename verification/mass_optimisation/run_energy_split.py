@@ -1,7 +1,7 @@
 """
 How much of the annual energy can blade shape move at all?
 
-Review roadmap item 6 (2026-09-26). Under the fixed rating, a bin whose power
+Under the fixed rating, a bin whose power
 reaches `P_rated` contributes `P_rated` whatever the blade does, so part of
 AEP is fixed by the rating and not by the shape. This script splits the AEP
 of `x0`, `x_c` and `x_m` into the capped (design-invariant) part and the
@@ -12,8 +12,7 @@ energy figures on the design-dependent basis:
   * the marginal exchange rate at the reference energy (the AEP-floor KKT
     multiplier, 11.0 % shell material per 1 % of total AEP).
 
-It also restates every KKT multiplier of `x_m` in comparable units (review
-roadmap, minor item on multiplier scaling). The rows are written in different
+It also restates every KKT multiplier of `x_m` in comparable units. The rows are written in different
 units -- the AEP floor as a fraction of AEP(x0), the stress row in
 normalised-KS per m^2, the deflection row as a fraction of D0, the floor rows
 in metres of chord -- so the raw multipliers cannot be compared. Each is
@@ -27,7 +26,7 @@ its KKT record). Output: `energy_split.json`, next to this script.
     python verification/mass_optimisation/run_energy_split.py     # ~10 s
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import datetime

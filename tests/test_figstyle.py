@@ -8,7 +8,7 @@ three axes, a super-title, each forbidden string, the two forbidden whole
 words, and a legend or text sitting on a line or on another text.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import os

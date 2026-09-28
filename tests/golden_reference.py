@@ -1,6 +1,6 @@
 """
 The golden-file snapshot definition: one function, `build_golden()`, that
-computes every quantity the Task 0 regression net watches.
+computes every quantity the golden regression watches.
 
 Both sides of the regression use this one definition -- `generate_golden.py`
 writes its output to `tests/golden/*.json`, and `test_golden_regression.py`
@@ -33,8 +33,8 @@ What is captured, and why each piece is here
                                                               this point reads the Viterna
                                                               extrapolation
 
-                      The last point was included precisely because Task 4
-                      deleted bem.airfoil.S809Polar's alpha clamp, which used
+                      The last point was included precisely because
+                      bem.airfoil.S809Polar's alpha clamp, due to be removed, used
                       to return Cl(18 deg) here for a station sitting at 32
                       deg. It changed, deliberately and visibly (-25 % in Cp);
                       see tests/golden/README.md's change log.
@@ -49,7 +49,7 @@ Everything here runs against the polar cache in `data/polars/s809/` as
 committed. Nothing in this module calls XFOIL, and nothing writes to `data/`.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import json
@@ -84,7 +84,7 @@ SPANWISE_WIND_SPEEDS = [5.0, 7.0, 10.0, 15.0]
 #: compare_ccblade.py exactly (NREL Sequence S test points).
 CROSS_TOOL_WIND_SPEEDS = [5.0, 7.0, 10.0, 13.0, 15.0, 20.0, 25.0]
 
-#: The Phase VI operating condition, from config/rotor_phase_vi.yaml (Task 1).
+#: The Phase VI operating condition, from config/rotor_phase_vi.yaml.
 #: Read from config rather than restated here on purpose: if the rewiring of
 #: rho and nu through the config layer changed either number, every golden
 #: comparison below would move, and the regression would say so. The values are
@@ -109,7 +109,7 @@ def _local_loads(stations, geometry):
 
     Reproduces bem.rotor.solve_rotor's own integrand exactly -- solve_rotor
     computes these internally on its way to Ct/Cp but does not return them,
-    and "local loads" is what Task 0 asks to be captured. Defined here once so
+    and the local loads are part of what the snapshot captures. Defined here once so
     both the generator and the test derive them identically.
     """
 
@@ -233,7 +233,7 @@ def build_cross_tool():
     bucket list past 500k, so their external columns were produced from polar
     tables the repo no longer contains. Re-establishing the published 0.51 %
     and 1.83 % figures needs the external tools re-run against the current
-    cache, which is out of scope for Task 0. See tests/golden/README.md.
+    cache. See tests/golden/README.md.
 
     QBlade
     -------

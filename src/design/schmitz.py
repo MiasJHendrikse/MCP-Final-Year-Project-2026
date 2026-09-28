@@ -1,5 +1,5 @@
 """
-The analytic Schmitz optimum-rotor blade (plan section 5, step 1.7).
+The analytic Schmitz optimum-rotor blade.
 
 Schmitz's design gives the chord and twist that maximise power extraction at a
 chosen tip-speed ratio, *including* wake rotation -- which is what separates it
@@ -11,7 +11,7 @@ substantial root cut-out, that difference is not academic.
     c(r)     = (16 * pi * r) / (B * C_L) * sin^2(phi / 2)
     theta(r) = phi(r) - alpha_design
 
-`C_L` and `alpha_design` are not free parameters: plan step 1.7 fixes them at
+`C_L` and `alpha_design` are not free parameters: they are fixed at
 the airfoil's **maximum lift-to-drag point** at a representative Reynolds
 number, read from the polar interpolant rather than quoted from a datasheet --
 so the baseline is consistent with the same polar data the solver uses.
@@ -20,14 +20,13 @@ What this is for
 -----------------
 Two things, and it is worth keeping them apart:
 
-  1. **The reference distribution for the representation study** (plan 4.3).
+  1. **The reference distribution for the representation study**.
      A parameterisation is judged by what it can represent, and the honest
      target is the shape the optimiser will actually be asked to start from
      and move away from -- not a generic taper chosen to be easy to fit.
 
-  2. **The baseline `x0`** (plan step 1.7), whose evaluated performance is
-     described in the plan as "the reference numbers for the entire results
-     chapter". That construction lives in `baseline.py`; this module is only
+  2. **The baseline `x0`**, whose evaluated performance is
+     the reference numbers for the entire results chapter. That construction lives in `baseline.py`; this module is only
      the analytic shape.
 
 Schmitz is a *design* formula, not a performance model. It says nothing about
@@ -35,7 +34,7 @@ what Cp the resulting blade achieves -- that comes from running it through the
 BEM solver like any other geometry, which is exactly what step 1.7 does.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import math
@@ -45,8 +44,8 @@ import numpy as np
 from config import load_design_rotor
 
 
-#: Representative Reynolds number for the design point (plan step 1.7 says "at
-#: a representative Re", which makes the choice a documented input rather than
+#: Representative Reynolds number for the design point ("at a representative
+#: Re", which makes the choice a documented input rather than
 #: a detail). The design rotor's computed envelope is roughly 49k-854k; 200k
 #: sits in the band the blade spends most of its energy-producing hours in, and
 #: is inside the range where the SG6043 cache has independent UIUC experimental
@@ -79,7 +78,7 @@ def schmitz_chord(r_over_R, tip_speed_ratio, radius_m, n_blades, design_cl):
 
     Note the shape this produces inboard: as r -> 0 the inflow angle tends to
     90 deg and the chord to a large value. Schmitz blades are famously wide at
-    the root, which is why plan step 1.7 requires the result to be checked
+    the root, which is why the result has to be checked
     against the manufacturability bounds and *recorded* if it violates them,
     rather than assumed feasible.
     """

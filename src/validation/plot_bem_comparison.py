@@ -1,9 +1,9 @@
 """
-Stage 6: combine compare_pybemt.py's and compare_ccblade.py's results into
+Combine compare_pybemt.py's and compare_ccblade.py's results into
 the two-panel three-way Cp-lambda / Ct-lambda plot and deviation tables for
 docs/validation/bem-cross-validation.md.
 
-Third of three scripts in the Stage 6 cross-check pipeline (see
+Third of three scripts in the cross-check pipeline (see
 compare_pybemt.py's module docstring) -- this one needs only numpy and
 matplotlib, both already used elsewhere in this repo, so it runs with the
 plain repo python (no external virtualenv). It runs no solver: its only
@@ -24,7 +24,7 @@ markdown tables used in the doc above. The figure is written through
 `plotting.figstyle.save` (one style for every committed plot).
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import json

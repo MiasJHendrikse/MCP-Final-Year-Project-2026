@@ -18,7 +18,7 @@ because comparing against a two-point continuation run in isolation would
 misread it as a curve.
 
 Author: MJ Hendrikse
-Project: DSP810S — Inverse Design of Small Wind Turbine Blades
+Project: MCP820S — Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import os

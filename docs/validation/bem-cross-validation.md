@@ -1,15 +1,14 @@
-# Stage 6: cross-validation against pyBEMT and CCBlade (not against experiment)
+# Cross-validation of the BEM solver against pyBEMT and CCBlade
 
 **What this is:** a comparison of three independent BEM implementations —
-this project's Stages 1-4 solver, [pyBEMT](https://github.com/kegiljarhus/pyBEMT)
+this project's solver, [pyBEMT](https://github.com/kegiljarhus/pyBEMT)
 (MIT licensed), and [CCBlade](https://github.com/WISDEM/CCBlade) (part of
 NREL's WISDEM stack, Apache-2.0 licensed) — run on the same rotor geometry
 with, as far as practically achievable, the same input polar data.
 
 **What this is *not*:** validation against NREL Phase VI's real
-wind-tunnel measurements. That data could not be sourced this project (see
-the 2026-07-25 journal entry, "Stage 5 (attempted, stopped)") — every
-avenue tried hit a paywall, a bot-detection block, or a report that turned
+wind-tunnel measurements. I couldn't obtain that data: every
+source I tried hit a paywall, a bot-detection block, or a report that turned
 out not to contain the summarized performance curve. Agreement between the
 solvers below says "three different pieces of BEM code, with different
 corrections and root-finding strategies, land in the same neighbourhood on
@@ -32,12 +31,10 @@ and `PHASE_VI_TABLE_A1_STATIONS`), Sequence S configuration: 2 blades,
 R=5.029 m, hub at 0.508 m, 71.63 RPM, 3° collective pitch. The root's
 cylindrical/transition stations (r < 1.2575 m) are excluded from all three
 solvers — no published 2D polar exists for that non-airfoil section, and it
-contributes negligible torque at its small radius (same simplification
-used for the demo geometry in Stage 4).
+contributes negligible torque at its small radius.
 
 All three solvers were also given the **exact same discretized airfoil
-table**: the real S809 XFOIL polar cache (`data/polars/s809/`, from
-Phase 0), resampled onto a shared 0.5° grid, flat-extrapolated outside the
+table**: the real S809 XFOIL polar cache (`data/polars/s809/`), resampled onto a shared 0.5° grid, flat-extrapolated outside the
 XFOIL-converged [-8°, 18°] range out to ±180° (both external codes need
 full-circle coverage; neither solver's converged solution ever lands out
 there for these operating points — see `compare_pybemt.py`'s module
@@ -47,8 +44,8 @@ the nearest of the six cached buckets (100k-500k) — every station on this
 rotor rounded to the 500k bucket, since Phase VI's actual chord-based
 Reynolds numbers (roughly 570k-940k at rated RPM) run higher than our
 existing S809 cache's upper bound. **This is a real, worth-flagging
-limitation of reusing the Phase 0 cache here** — it was built for an
-earlier, smaller synthetic project rotor, not sized for Phase VI — but it
+limitation of reusing the S809 cache here** — it was built for an
+earlier, smaller test rotor, not sized for Phase VI — but it
 affects all three solvers identically, so it does not bias the cross-solver
 comparison; it does mean the *absolute* Cp/Ct numbers below should not be
 over-interpreted, only the relative agreement between the codes.
@@ -56,14 +53,13 @@ over-interpreted, only the relative agreement between the codes.
 The only remaining input-side difference is interpolation method between
 table points: linear (our side, `numpy.interp`), quadratic
 (pyBEMT's `scipy.interpolate.interp1d`), and a smoothed bivariate spline
-(CCBlade's `RectBivariateSpline`, s=0.01 for Cl). Checked directly (see
-the Stage 6 journal entry): CCBlade's smoothing shifts Cl by at most
+(CCBlade's `RectBivariateSpline`, s=0.01 for Cl). I checked this directly: CCBlade's smoothing shifts Cl by at most
 ~0.01 at a table resolution of 0.5°, not enough on its own to explain any
 of the deviations reported below.
 
 ## What differs between the solvers (by design, not by input data)
 
-| | This project (Stages 1-4) | pyBEMT | CCBlade |
+| | This project | pyBEMT | CCBlade |
 |---|---|---|---|
 | Underlying formulation | Ning (2014) single-variable phi residual | Independently-derived, equivalent-structure phi residual | **Ning (2014) -- same method, reference implementation** |
 | Root-finding | `scipy.optimize.brentq` over a **scanned, pole-avoiding bracket** (`station._select_bracket`) | `scipy.optimize.bisect` over a **fixed** `(0.01*pi, 0.9*pi)` bracket, falling back to a crude 3600-point brute-force scan if bisection fails | Ning's own guaranteed-convergence bracketed solve |
@@ -126,14 +122,12 @@ smooth over.
    r=5.0 m, v_inf=5 m/s (the highest-TSR point in the sweep), our solver
    converges cleanly to a=0.59 (correctly engaging the Buhl correction,
    physically bounded). pyBEMT's plain `bisect` fails outright at this
-   station (`f(a) and f(b) must have different signs` — it hits the same
-   class of residual pole documented in this project's own Stage 1/3
-   journal entries) and falls back to its 3600-point brute-force scan,
+   station (`f(a) and f(b) must have different signs` — it hits the kind
+   of residual pole this project's solver is built to avoid) and falls back to its 3600-point brute-force scan,
    which returns a **non-physical** a=-1.1 at that one station. A generic
    bracket with no pole-avoidance and a crude fallback is more fragile at
-   high thrust loading than a bracket-scanning, pole-aware root-find --
-   exactly the robustness difference the task brief anticipated. It is a
-   solver-robustness difference, not a modelling disagreement.
+   high thrust loading than a bracket-scanning, pole-aware root-find.
+   It is a solver-robustness difference, not a modelling disagreement.
 
 3. **No high-thrust correction in pyBEMT at all.** Confirmed by reading
    `pybemt/rotor.py` directly — wherever a station's induction exceeds
@@ -283,7 +277,17 @@ dependency elsewhere).
 
 ## What's still missing
 
-The actual NREL Phase VI experimental Cp-lambda curve. Once it's sourced
-(see the Stage 5 journal entry for what was tried), it should be added as
+The actual NREL Phase VI experimental Cp-lambda curve. If it can be obtained,
+it should be added as
 a fourth series on the same plot, and this document's framing updated from
 "solver cross-check" to a real validation writeup.
+
+The comparison is also out of date in one respect. It was run with the S809
+polar table as it was at the time. Since then the table has been rebuilt at
+`Ncrit = 5` and extended to Re = 1.3M, and the solver's polar interpolation
+has been refined, but CCBlade and pyBEMT haven't been re-run against the
+current table. The 0.51 % and 1.83 % figures are genuine for the comparison
+as run, but they don't describe the current solver-and-table combination.
+Re-running both external tools is the fix; `tests/golden/README.md` has the
+details, and the QBlade comparison in `data/qblade/` is current.
+

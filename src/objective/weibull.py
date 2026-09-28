@@ -1,5 +1,5 @@
 """
-The Weibull wind-speed distribution (plan step 1.5).
+The Weibull wind-speed distribution.
 
     f(V) = (k/c) * (V/c)^(k-1) * exp(-(V/c)^k)
 
@@ -13,7 +13,7 @@ operating strategy, per-bin power, and the smoothness gate's surrogate) is
 built and works today.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import math
@@ -69,7 +69,7 @@ class WeibullResource:
             raise UnresolvedConfigError(
                 "the site wind resource is still TODO in config/site.yaml: "
                 f"{', '.join(missing)}. These come from the Global Wind Atlas "
-                "extraction at 20 m hub height (plan step 1.1); see "
+                "extraction at 20 m hub height; see "
                 "docs/OUTSTANDING-INPUTS.md section 1. Construct "
                 "WeibullResource(k, c) explicitly for a study that states its "
                 "own provisional values."

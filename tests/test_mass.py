@@ -6,7 +6,7 @@ with the recorded laminate and nothing else, and it goes back to `None` the
 moment a structural input is re-opened.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import dataclasses
@@ -183,7 +183,7 @@ def test_planform_integral_is_complex_safe(model, x0):
 
 def test_mass_in_kg_is_rho_t_times_the_shell_area_with_the_recorded_laminate(model, x0, x_c):
     """
-    `1920 kg/m^3 * 2 mm * k_P int c dr` per blade (docs/MATERIALS-STRUCTURAL-INPUTS.md):
+    `1920 kg/m^3 * 2 mm * k_P int c dr` per blade (docs/OUTSTANDING-INPUTS.md section 11):
     the reference blade's skin is 1.678 kg, the energy optimum's 1.782 kg;
     the solid figure beside it is the laminate's density on the section
     volume. No other factor -- no web, no root, no gelcoat.

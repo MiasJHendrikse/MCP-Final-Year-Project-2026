@@ -6,7 +6,7 @@ On 2026-09-19 the per-bin tip-speed ratio `lambda_b = min(6.5, Omega_max R /
 V_b)` went into `objective.power` and `adjoint.system`. The change is meant
 to be exactly nothing when there is no ceiling: same schedule, same solves
 in the same order, same assembly. This module pins that against numbers
-captured from the repository at `4c6feea` (the last commit before the law
+captured from the repository at `073c494` (the last commit before the law
 landed) -- the AEP of the Schmitz baseline `x0`, the AEP of the optimum `x*`
 of that objective, and the discrete-adjoint gradient at `x0` in physical
 units -- with `==` and `np.array_equal`, not tolerances. If any of these
@@ -17,7 +17,7 @@ The numbers are literals here rather than read from an artefact because the
 artefacts have since been regenerated under the ceiling.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import json
@@ -36,11 +36,11 @@ from test_config import _load_raw, _temporary_config
 _HERE = os.path.dirname(os.path.abspath(__file__))
 X0_PATH = os.path.abspath(os.path.join(_HERE, "..", "verification", "baseline", "x0.json"))
 
-#: Captured at `4c6feea` (2026-09-19, before the operating law), from
+#: Captured at `073c494` (2026-09-19, before the operating law), from
 #: `objective.annual_energy_mwh` and `BEMSystem.gradient` on the committed
 #: `x0` and the committed `x*` of `verification/adjoint_optimisation/result.json`
 #: at that commit.
-REFERENCE_COMMIT = "4c6feea"
+REFERENCE_COMMIT = "073c494"
 AEP_X0_MWH = 10.2701574120755
 AEP_X_STAR_MWH = 10.28256415375132
 X_STAR_PRE_CEILING = [

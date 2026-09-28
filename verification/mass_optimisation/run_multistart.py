@@ -1,5 +1,5 @@
 """
-Phase 5 (2026-09-20) -- multi-start of the mass problem at delta = 0.
+Multi-start of the mass problem at delta = 0.
 
 Starts: `x0` (the production start), `x_c` (the energy optimum,
 AEP slack +0.146 %, below the 60 mm tip floor it predates), and the eight
@@ -25,7 +25,7 @@ Run from the repo root (about five minutes):
 `multistart_delta0.json`; no solve is run and no JSON is written.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import argparse

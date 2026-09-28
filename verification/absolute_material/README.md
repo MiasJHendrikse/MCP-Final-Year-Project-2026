@@ -1,182 +1,178 @@
-# The absolute material figures: kilograms, megapascals, millimetres
+# The blades in kilograms, megapascals and millimetres
 
-**New 2026-09-20 (evening).** The committed mass problem
-(`verification/mass_optimisation/`, the 60 mm floor, `delta = 0`) is
-unchanged; this artefact puts the laminate recorded that evening in
-`config/rotor_design.yaml::structure` (provenance:
-`docs/MATERIALS-STRUCTURAL-INPUTS.md`) under the three committed blades and
-reports what it turns the proxies into. Everything here is *evaluated* from
-`baseline/x0.json`, `load_constraint/result_eps0.json` (`x_c`) and
-`mass_optimisation/result_delta0.json` (`x_m`) except the two optimisation
-runs of section 4, which exist to measure whether the absolute stress row
-moves the optimum.
+The design problem in `verification/mass_optimisation/` works entirely in
+percentages of the Schmitz blade, so it doesn't need any material data. This
+folder applies one assumed laminate (`config/rotor_design.yaml::structure`,
+sources in `docs/OUTSTANDING-INPUTS.md` §11) to the three blades and reports
+their mass, root stress and tip deflection in engineering units.
 
-## What was run
+Everything here is evaluated from `baseline/x0.json`,
+`load_constraint/result_eps0.json` (x_c) and
+`mass_optimisation/result_delta0.json` (x_m). The exception is the two
+optimisation runs in section 4, which test whether an absolute stress
+constraint would change the optimum.
+
+## Reproducing it
 
     python verification/absolute_material/run_absolute_material.py     # 71 s
+    python verification/absolute_material/run_spanwise_stress.py       # ~5 s
 
-Reads the three blades above, `mass_optimisation/ablation.json` (the
-comparison case), `fd_step_size/sweep.json` (`h*`) and the config. Writes
-`result.json` and `absolute_material.png`. Shares `mass_optimisation/_common.py`
-and the Tier 3 / Taylor helpers of `mass_optimisation/run_mass_checks.py`.
-Runs after `mass_optimisation` in `verification/README.md`'s order.
+This reads the three blades, `mass_optimisation/ablation.json` (for the
+comparison case), `fd_step_size/sweep.json` (h\*) and the config, and writes
+`result.json` and `absolute_material.png`. It reuses
+`mass_optimisation/_common.py` and the Tier 3 and Taylor helpers from
+`mass_optimisation/run_mass_checks.py`, so it runs after `mass_optimisation`.
+Nothing else reads its output.
 
-## The inputs (all in `result.json::structural_inputs`)
+## The inputs
+
+All recorded in `result.json::structural_inputs`:
 
 | field | value | basis |
 |---|---|---|
-| `laminate_density_kg_m3` | 1920 | E-LT-5500/EP-3 unidirectional E-glass/epoxy, 54 % fibre volume, VARTM -- Griffith & Ashwill (2011) SAND2011-3779 p. 38 |
-| `shell_thickness_m` | 0.002 | design decision: the 60 mm tip is a 6 mm section, "two 2 mm skins + bond + web" |
-| `youngs_modulus_pa` | 41.8e9 | same laminate, `E_L`, Table 19 |
-| `allowable_stress_pa` | 702e6 | same laminate, ultimate compressive strength `UCS_L` (95/95), Table 19; the smaller of tension (972) and compression |
-| `safety_factor` | 3.5725 | GL combined loads x materials factor for a wet hand-laid, non-post-cured laminate: `1.35 x (1.35 x 1.35 x 1.1 x 1.2 x 1.1)`, Tables 9 and 12 of the same report |
+| `laminate_density_kg_m3` | 1920 | E-LT-5500/EP-3 unidirectional E-glass/epoxy, 54 % fibre volume, VARTM; Griffith & Ashwill (2011), SAND2011-3779, p. 38 |
+| `shell_thickness_m` | 0.002 | a design choice: the 60 mm tip is a 6 mm section, "two 2 mm skins, a bond line and a web" |
+| `youngs_modulus_pa` | 41.8e9 | the same laminate's longitudinal modulus, Table 19 |
+| `allowable_stress_pa` | 702e6 | the same laminate's compressive strength (95/95), Table 19; the lower of tension (972 MPa) and compression |
+| `safety_factor` | 3.5725 | Germanischer Lloyd loads × materials factor for a wet hand-laid laminate that isn't post-cured: `1.35 × (1.35 × 1.35 × 1.1 × 1.2 × 1.1)`, Tables 9 and 12 of the same report |
 | design allowable | **196.5 MPa** | `702 / 3.5725` |
-| `tip_clearance_m` | **TODO** | machine geometry; no defensible number |
-| `k_P`, `k_A`, `k_I`, `k_Z` | 2.0485, 0.0685, 0.003293, 0.05164 | exact from `data/airfoils/sg6043.dat` for a constant-thickness skin (`src/objective/mass.py`) |
+| `tip_clearance_m` | not set | depends on the tower and hub geometry; there's no defensible number for it |
+| `k_P`, `k_A`, `k_I`, `k_Z` | 2.0485, 0.0685, 0.003293, 0.05164 | calculated exactly from `data/airfoils/sg6043.dat` for a constant-thickness skin (`src/objective/mass.py`) |
 
-The construction these describe: one skin of one laminate at constant
-thickness round the whole section, fibres spanwise, no spar cap, no web
-mass, no root insert. They are representative laminate values for that
-construction, not measurements of a built blade.
+These describe one skin of one laminate at constant thickness around the
+whole section, with spanwise fibres, no spar cap, no web mass and no root
+insert. They are representative values for that construction, not
+measurements of a built blade.
 
-## 1. The three blades (`result.json::blades`, `absolute_material.png`)
+## 1. The three blades
 
-| | `x0` (Schmitz) | `x_c` (energy optimum) | **`x_m` (mass optimum)** |
+`result.json::blades`, `absolute_material.png`
+
+| | x₀ (Schmitz) | x_c (energy optimum) | **x_m (minimum material)** |
 |---|---|---|---|
-| shell mass, per blade | 1.678 kg | 1.782 kg (+6.17 %) | **1.622 kg (-3.38 %)** |
-| shell mass, per rotor (3 blades) | 5.035 kg | 5.346 kg | **4.865 kg** |
-| solid-section mass, per blade (reported, never optimised) | 4.290 kg | 4.899 kg | **3.977 kg (-7.28 %)** |
-| thin-shell root stress `KS M_ref / (k_Z c0^2 t)` | 22.6 MPa | 19.1 MPa | **22.6 MPa** |
-| against the 196.5 MPa design allowable | 11.5 % | 9.7 % | **11.5 %** |
-| tip deflection `delta_ref D / (E k_I t)` | 111.8 mm (5.6 % R) | 85.2 mm | **111.8 mm** |
-| against a tip clearance | -- | -- | -- (none specified) |
+| shell mass per blade | 1.678 kg | 1.782 kg (+6.17 %) | **1.622 kg (−3.38 %)** |
+| shell mass per rotor (3 blades) | 5.035 kg | 5.346 kg | **4.865 kg** |
+| solid-section mass per blade (reported only) | 4.290 kg | 4.899 kg | **3.977 kg (−7.28 %)** |
+| thin-shell root stress `KS M_ref / (k_Z c0² t)` | 22.6 MPa | 19.1 MPa | **22.6 MPa** |
+| as a share of the 196.5 MPa allowable | 11.5 % | 9.7 % | **11.5 %** |
+| tip deflection `delta_ref D / (E k_I t)` | 111.8 mm (5.6 % of R) | 85.2 mm | **111.8 mm** |
+| against a tip clearance | – | – | – (none specified) |
 
-The saving in kilograms is `1.678 - 1.622 = 0.057 kg` per blade, `0.17 kg`
-per rotor: the same -3.38 % as the committed headline, because the mass is
-the shell area times a constant. The stress and deflection of `x_m` equal
-`x0`'s to the digit because both relative rows are active at `x_m` -- that
-is what "no worse than the reference" means in engineering units.
+The saving is 1.678 − 1.622 = 0.057 kg per blade, or 0.17 kg per rotor. That
+is the same −3.38 % as the main result, because the mass is the shell area
+times a constant. x_m's stress and deflection match x₀'s exactly because both
+relative constraints are active at x_m, which is what "no worse than the
+reference" looks like in engineering units.
 
-The rated-point deflection of `x0` on its own (no KS aggregate) is
-111.79 mm (`references.rated_tip_deflection_x0_mm`); the KS over the load
-set is 111.84 mm.
+x₀'s deflection at the rated point alone (without the KS aggregate) is
+111.79 mm (`references.rated_tip_deflection_x0_mm`); the KS value over the
+load set is 111.84 mm.
 
-## 2. The absolute rows' Tier 3 and Taylor (`result.json::verification`)
+## 2. Gradient checks on the absolute constraints
 
-`stress_absolute` (`1 - sigma(u) / 196.5 MPa >= 0`) and, under an
-**injected 150 mm clearance that is a test value and nothing else**,
-`deflection_absolute` (`1 - delta_tip(u) / clearance >= 0`), at `x0` and
-`x_m`, acceptance `3 eps_j` at the committed `h*`:
+`result.json::verification`. The absolute stress constraint is
+`1 − σ(u) / 196.5 MPa ≥ 0`. The absolute deflection constraint,
+`1 − δ_tip(u) / clearance ≥ 0`, is checked with a **150 mm clearance
+injected purely as a test value**. Both are checked at x₀ and x_m against the
+3 ε_j threshold at the committed h\*:
 
-| row | point | worst `abs(adj - fd) / eps_j` | Taylor ratios per decade |
+| constraint | point | worst `|adj − fd| / ε_j` | Taylor ratios per decade |
 |---|---|---|---|
-| stress_absolute | `x0` | 0.728 (`chord_1`) | 114.6, 102.4 |
-| stress_absolute | `x_m` | 1.314 (`twist_1`) | 100.9, 102.1 |
-| deflection_absolute | `x0` | 0.839 (`twist_1`) | 144.8, 94.2 |
-| deflection_absolute | `x_m` | 0.249 (`chord_0`) | 105.0, 100.3 |
+| stress (absolute) | x₀ | 0.728 (`chord_1`) | 114.6, 102.4 |
+| stress (absolute) | x_m | 1.314 (`twist_1`) | 100.9, 102.1 |
+| deflection (absolute) | x₀ | 0.839 (`twist_1`) | 144.8, 94.2 |
+| deflection (absolute) | x_m | 0.249 (`chord_0`) | 105.0, 100.3 |
 
-All pass; the round-off floor was not measured (the Phase 4 rule: only on
-failure). Tiers 1 and 2 are the relative rows' -- each absolute row is the
-same cached adjoint result times a constant, which
-`tests/test_mass_problem.py` asserts to `1e-12`.
+All pass, so the round-off floor wasn't measured (it's only measured when a
+check fails). Tiers 1 and 2 are inherited from the relative constraints: each
+absolute constraint is the same cached adjoint result times a constant, which
+`tests/test_mass_problem.py` checks to 1e-12.
 
-## 3. Adding the absolute stress row (`runs.added_warm_from_x_m`)
+## 3. Adding the absolute stress constraint
 
-Rows: the committed seven plus `stress_absolute`, warm from `x_m`. SLSQP
-exits at iteration 1 at the same point (`u_inf` shift `0.0`, shell
-`-3.3788 %`, the same active set). The absolute row's slack at `x_m` is
-0.885 -- the root carries 11.5 % of its allowable. **The committed optimum
-is unchanged by the absolute row.**
+`runs.added_warm_from_x_m`. Here the absolute stress constraint is added to
+the seven committed ones, starting from x_m. SLSQP stops after one iteration
+at the same point (no change in u, shell −3.3788 %, same active set). The
+new constraint's slack at x_m is 0.885, since the root carries only 11.5 % of
+the allowable. **Adding it doesn't change the optimum.**
 
-## 4. Replacing the relative stress row by the absolute one (`runs.swapped_*`)
+## 4. Replacing the relative stress constraint with the absolute one
 
-Rows: the committed seven with `stress` **replaced** by `stress_absolute`,
-cold from `x0` (20 iterations) and warm from `x_m` (14); the two agree to
-`6.7e-8` in `u` (criterion `0.0166`).
+`runs.swapped_*`. Here the relative stress constraint is replaced by the
+absolute one. The problem is solved from x₀ (20 iterations) and from x_m
+(14), and the two agree to 6.7e-8 in u (tolerance 0.0166).
 
-| | committed `x_m` | **stress -> stress_absolute** | `no stress` ablation |
+| | x_m | **absolute stress instead of relative** | "no stress" ablation |
 |---|---|---|---|
-| shell material vs `x0` | -3.379 % | **-4.527 %** | -4.527 % |
-| shell mass per blade | 1.622 kg | **1.602 kg** | -- |
+| shell material vs x₀ | −3.379 % | **−4.527 %** | −4.527 % |
+| shell mass per blade | 1.622 kg | **1.602 kg** | – |
 | root stress (thin shell) | 22.6 MPa (ratio 1.000) | **38.4 MPa (ratio 1.702)** | ratio 1.702 |
-| tip deflection | 111.8 mm | **111.8 mm** (row active) | ratio 1.000 |
-| chord control points [mm] | 271 / 150 / 135 / 60 / 60 | **208 / 179 / 127 / 61 / 60** | -- |
-| active rows | AEP, stress, deflection, min chord x2, monotone | AEP, deflection, min chord `chord_4`, monotone twist | -- |
-| `u_inf` from `x_m` | 0 | **0.247** | -- |
+| tip deflection | 111.8 mm | **111.8 mm** (active) | ratio 1.000 |
+| chord control points [mm] | 271 / 150 / 135 / 60 / 60 | **208 / 179 / 127 / 61 / 60** | – |
+| active constraints | AEP, stress, deflection, minimum chord ×2, monotonicity | AEP, deflection, minimum chord at `chord_4`, twist monotonicity | – |
+| distance from x_m in u (max norm) | 0 | **0.247** | – |
 
-The swapped optimum **is the "no stress" ablation optimum of
-`mass_optimisation/ablation.json`** (`u_inf` distance `0.0`, the same
--4.527 %): with the allowable at 196.5 MPa and the operating stress at 38 MPa
-even after the root has thinned from 271 to 208 mm, the absolute row never
-comes within a factor of five of binding, so it constrains nothing and the
-optimiser takes the extra 1.15 points of material out of the root. That is
-the measured answer to "does the optimum move when the relative row is
-replaced by the absolute one": **it moves by 0.247 in `u` (15 x the
-agreement criterion) and saves 1.15 points more, to exactly the design the
-plan's ablation had already labelled "not a blade"** -- a root carrying
-1.7 x the reference's stress per unit load.
+The result **is exactly the "no stress" optimum** from
+`mass_optimisation/ablation.json` (distance 0.0 in u, the same −4.527 %).
+Even after the root thins from 271 to 208 mm, the operating stress is only
+38 MPa against a 196.5 MPa allowable, so the absolute constraint never gets
+within a factor of five of binding and constrains nothing. The optimiser
+takes an extra 1.15 points of material out of the root, moving 0.247 in u
+(15 times the agreement tolerance), and ends at a root carrying 1.7 times the
+reference's stress per unit load.
 
-**Why the relative rows stay the design rows.** The load set `L` is the
-operating set; the loads that size a small blade's root are IEC 61400-2's
-parked-at-`V_e50`, gust and fatigue cases, which this model does not
-compute. A 196.5 MPa allowable against a 22.6 MPa operating stress is
-therefore not evidence that the root has a factor of nine in hand -- it is
-evidence that the operating case is not the sizing case. The relative row
-is the statement that holds whatever the sizing load is: the optimum's root
-carries no more stress per unit of it than the reference's. The absolute
-row is kept as a *check* -- available by name, verified, slack at every
-committed blade, and the number the report can quote -- not as a
-replacement. The moment cap `KS <= KS0` is kept for the same reason in the
-other direction: it caps the hub, shaft and tower load, and is not a
-strength check at all.
+**Why the relative constraints stay the design constraints.** The load set
+covers normal operation only. The loads that size a small blade's root are
+the IEC 61400-2 cases, such as parked in the 50-year gust and fatigue, which
+this model doesn't compute. So a 196.5 MPa allowable against a 22.6 MPa
+operating stress isn't evidence that the root has a factor of nine in hand.
+It shows that normal operation isn't the sizing case. The relative
+constraint holds whatever the sizing load is: the new root carries no more
+stress per unit load than the reference. The absolute constraint is kept as a
+verified check, available by name and inactive at every blade, rather than as
+a replacement. The moment cap `KS ≤ KS0` is kept for a different reason: it
+limits the load on the hub, shaft and tower, and isn't a strength check at
+all.
+
+## 5. Stress along the span
+
+`spanwise_stress.json`. The stress constraint only looks at the root section.
+`run_spanwise_stress.py` evaluates the same thin-shell stress,
+`M(r) / (k_Z t c(r)²)`, at every BEM station at the rated point, where `M(r)`
+is the moment about each station from the load outboard of it (as in Table 9.1
+of the report):
+
+| | root (about `r_hub`) | peak along the span | where | peak / root |
+|---|---|---|---|---|
+| x₀ | 22.6 MPa | **39.8 MPa** | r = 0.95 m (r/R 0.48) | 1.76 |
+| x_c | 19.1 MPa | 33.1 MPa | r = 0.88 m (r/R 0.45) | 1.73 |
+| x_m | 22.6 MPa | **40.2 MPa** | r = 0.81 m (r/R 0.41) | 1.78 |
+
+With a constant-thickness skin, the root isn't the most stressed section of
+any of the three blades. The peak is near mid-span, at about 1.75 times the
+root value. x_m's peak is 1.0 % above x₀'s and 0.14 m further inboard; x_c's
+is 16.9 % below. The peak is still only 20 % of the 196.5 MPa allowable, so
+the conclusion above (normal operation isn't the sizing case) still holds.
+But it does mean the stress constraint holds the root at the reference value,
+not the blade's highest stress. A spanwise stress constraint, with one
+adjoint right-hand side per station, would constrain the peak.
 
 ## What would make this wrong
 
-- **A different laminate or thickness** rescales every kilogram, MPa and
-  mm here (mass and stress `~ 1/t`, deflection `~ 1/(E t)`) but not one
-  percentage in `mass_optimisation/`; `result.json::structural_inputs`
-  records what was used, and the fields are pinned in
+- **A different laminate or thickness** rescales every kilogram, megapascal
+  and millimetre here (mass and stress scale with `1/t`, deflection with
+  `1/(E t)`), but none of the percentages in `mass_optimisation/`. The values
+  used are recorded in `result.json::structural_inputs` and pinned in
   `tests/test_config.py`.
-- **A spar cap.** The thin-shell `k_I`, `k_Z` put all the bending material
-  on the skin; a blade with a cap is stiffer and stronger than these numbers
-  say, by an amount only a laminate schedule can give. Until one exists the
-  label "thin-shell" stays on every absolute figure.
-- **The load case.** Section 4 is the demonstration: at the operating
-  loads the absolute stress row cannot size a root. Quoting the 196.5 MPa
-  margin as a design margin would be the error this artefact exists to
-  forestall.
-- **The section axis.** `k_I` is about the chord-parallel axis through the
-  contour's centroid; the principal-axis rotation neglected is 0.086 deg
-  and the twist of the section relative to the rotor plane is neglected
-  exactly as in the relative proxies.
-- **A change to `x0`, `x_c` or `x_m`** (any upstream re-run) re-runs this.
-
-## Re-run order
-
-After `mass_optimisation` (it reads `result_delta0.json` and
-`ablation.json`); nothing reads this artefact's output.
-
-## The stress along the span (`spanwise_stress.json`, added 2026-09-26)
-
-Review roadmap item 4. The stress row constrains the thin-shell stress at the
-root section only. `run_spanwise_stress.py` evaluates the same thin-shell
-stress, `M(r) / (k_Z t c(r)^2)`, at every BEM station at the rated point
-(`M(r)` about the station from the outboard load, the report's Table 9.1):
-
-| | root (about `r_hub`) | peak over the stations | where | peak / root |
-|---|---|---|---|---|
-| `x0` | 22.6 MPa | **39.8 MPa** | r = 0.95 m (r/R 0.48) | 1.76 |
-| `x_c` | 19.1 MPa | 33.1 MPa | r = 0.88 m (r/R 0.45) | 1.73 |
-| `x_m` | 22.6 MPa | **40.2 MPa** | r = 0.81 m (r/R 0.41) | 1.78 |
-
-Under the constant-thickness skin the root is **not** the most stressed
-section of any of the three blades: the peak sits near mid-span at about
-1.75 times the root value. `x_m`'s peak is 1.0 % above `x0`'s (and moves
-inboard by 0.14 m); `x_c`'s is 16.9 % below. The peak is still 20 % of the
-196.5 MPa design allowable, so the conclusion of section 3 (the operating
-case is not the sizing case) stands; what changes is that the root-stress
-row holds the root at the reference value, not the blade's highest stress.
-A spanwise stress row, one adjoint right-hand side per station, would
-constrain the peak.
-
-    python verification/absolute_material/run_spanwise_stress.py     # ~5 s
+- **A spar cap.** The thin-shell constants put all the bending material in
+  the skin. A blade with a spar cap would be stiffer and stronger than these
+  figures say, by an amount only a laminate design can give. Until then,
+  every absolute figure carries the label "thin-shell".
+- **The load case.** Section 4 shows that at the operating loads the absolute
+  stress constraint can't size a root. Quoting the 196.5 MPa margin as a
+  design margin would be a mistake.
+- **The bending axis.** `k_I` is taken about the chord-parallel axis through
+  the contour's centroid. The 0.086° rotation of the principal axes is
+  neglected, as is the section's twist relative to the rotor plane (as in the
+  relative measures).
+- **Any change to x₀, x_c or x_m** means this folder has to be re-run.

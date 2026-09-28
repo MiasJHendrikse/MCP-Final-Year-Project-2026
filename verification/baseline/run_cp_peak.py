@@ -1,7 +1,7 @@
 """
 Where does the Schmitz reference's power coefficient peak, and how exact is it?
 
-Review roadmap item 5 (2026-09-26). The report called `x0` "the exact
+The report called `x0` "the exact
 maximiser of the power coefficient at the design tip-speed ratio" and the
 peak's position at lambda = 6.5 "the strongest available check" on its
 construction. Schmitz's closed form leaves out tip loss and treats drag and
@@ -16,7 +16,7 @@ Outputs, next to this script: `cp_peak.json`.
     python verification/baseline/run_cp_peak.py     # ~20 s
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import datetime

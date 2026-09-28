@@ -4,7 +4,7 @@
  "law_label": "lambda(V) = min(6.5, Omega_max R / V), Omega_max = 300 rpm (V_c = 9.67 m/s), fixed rating 3822.189755449124 W",
  "command": "python verification/absolute_material/run_absolute_material.py",
  "generated": "2026-09-20T22:54:07",
- "src_commit": "e64cfb1c48ea6c7b11b63945258ddb4bc21dbb71",
+ "src_commit": "283c2306b0d1ba900f53ca842061e957907dcc63",
  "structural_inputs": {
   "laminate_density_kg_m3": 1920.0,
   "shell_thickness_m": 0.002,

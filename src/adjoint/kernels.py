@@ -1,6 +1,6 @@
 """
 Station kernels: the BEM residual, the power integrand, and every first
-partial of both, at one station (Phase 3, B1).
+partial of both, at one station.
 
 This is `docs/adjoint_derivation.md` §2-§6 transcribed, one scalar station at
 a time. The *values* of `R` and `q` are computed with the same calls, in the
@@ -31,7 +31,7 @@ real dtype is allocated. The kernel is scalar; `adjoint.system` loops it
 over (operating point, station).
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import cmath

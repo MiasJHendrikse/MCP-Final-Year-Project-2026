@@ -1,7 +1,7 @@
 """
 Starting torque of the three committed blades, relative to the reference.
 
-Review roadmap, minor item on starting (2026-09-26). The design takes the
+The design takes the
 3 m/s cut-in as a machine requirement and never asks whether the
 minimum-material blade starts as readily as the Schmitz reference. Small
 rotors start slowly because at rest every section meets the wind at
@@ -30,7 +30,7 @@ Outputs, next to this script: `starting_torque.json`.
     python verification/starting/run_starting_torque.py     # ~2 s
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import datetime

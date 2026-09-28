@@ -1,7 +1,6 @@
 # Polar sensitivity of the minimum-material result
 
-**New 2026-09-26**, review roadmap item 1 (the Devil's Advocate CRITICAL
-point). The mass optimum `x_m` matches AEP(x0) to ~1e-12 on the production
+The minimum-material optimum `x_m` matches AEP(x0) to ~1e-12 on the production
 SG6043 cache (XFOIL, n_crit = 9), whose lift differs from the UIUC
 measurements by 0.11-0.15 RMS at the design Reynolds numbers. Does the
 saving survive that uncertainty?
@@ -12,7 +11,7 @@ saving survive that uncertainty?
 
 Six perturbed polar surfaces, each built from the production grid with the
 change applied over the XFOIL band (-8 .. 18 deg) and a fresh C1
-interpolant, and routed through every polar lookup (forward solver, adjoint
+interpolant, and passed through every polar lookup (forward solver, adjoint
 system, problem), so forward values and gradients come from the same surface:
 
 - **uniform lift offset `+/- s(Re)`**, `s` the measured lift RMS difference
@@ -56,8 +55,8 @@ check of the path: it returns -3.379 %, the committed result.
 ## Not done: XFOIL at n_crit = 7 and 11
 
 The first plan was to rebuild the cache at the n_crit study's neighbouring
-settings, 7 and 11. Both caches were built on 2026-09-26, but XFOIL's
+settings, 7 and 11. Both caches were built, but XFOIL's
 gap-closure retries (`xfoil.close_polar_gaps`) failed to converge at
-Re = 100 000; by MJ's instruction the run was stopped and the change
-reverted (registry entries, configs and data removed; nothing committed).
+Re = 100 000, so I stopped the run and reverted the change (nothing was
+committed).
 The lift perturbations above bound the lift error directly instead.

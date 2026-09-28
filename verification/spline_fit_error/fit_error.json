@@ -1,5 +1,5 @@
 {
- "description": "Fit error between the analytic Schmitz chord/twist and x0's spline projection (PROJECT_DIRECTION_v2 \u00a77.3 point 4), and the AEP of the analytic blade vs x0 vs A4's optimum.",
+ "description": "Fit error between the analytic Schmitz chord/twist and x0's spline projection, and the AEP of the analytic blade vs x0 vs A4's optimum.",
  "bounds_label": "under the configured bounds (chord_max_m = 0.30 m, resolved 2026-09-19; chord_min_m, twist_min, twist_max grounded 2026-09-13)",
  "command": "python verification/spline_fit_error/run_fit_error.py",
  "generated": "2026-09-19T15:57:13",

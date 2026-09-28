@@ -12,7 +12,7 @@ consistency check. It is also different from the n_crit sensitivity study
 at candidate n_crit values to pick one; this script compares the *finished,
 gap-closed cache* -- built at the calibrated n_crit=9, gap-filled where XFOIL
 would not converge -- against the same measurements, as the final acceptance
-check before calling the cache done (work order Task 2 / plan 1.2).
+check before calling the cache done.
 
 Only the XFOIL-converged band (`cache_format.load_xfoil_band`) is compared --
 the +/-180 deg Viterna extension is checked for stitch continuity, not
@@ -29,7 +29,7 @@ cache CSVs under `data/polars/sg6043/` and the committed UIUC tables under
     python src/validation/compare_sg6043_uiuc.py --replot  # redraw the six PNGs only, no JSON write
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import argparse

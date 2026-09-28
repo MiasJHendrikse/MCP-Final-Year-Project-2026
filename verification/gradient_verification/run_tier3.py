@@ -1,5 +1,5 @@
 """
-Phase 3, B3 -- Tier 3: the adjoint gradient against the FD noise floor.
+Tier 3: the adjoint gradient against the FD noise floor.
 
 At three points -- `x0`, the mid-run iterate `k = 17` of the FD-driven SLSQP
 run (`verification/fd_optimisation/iterates.json`, `nit/2`), and that run's
@@ -12,7 +12,7 @@ optimum `u*` -- for all 10 scaled design variables:
                    points it is re-measured by the same three-step local
                    sweep, because the floor is a property of the point.
 
-Acceptance, derived not invented (the implementation plan §6 B3):
+Acceptance, derived not invented:
 
     |adjoint_j - FD_j| <= 3 eps_j          and        |adjoint_j - FD_j| / |FD_j| <= 1e-3
 
@@ -45,7 +45,7 @@ Run from the repo root (about 1.5 min):
     python verification/gradient_verification/run_tier3.py --replot   # figure only
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import argparse

@@ -4,7 +4,7 @@
  "law_label": "lambda(V) = min(6.5, Omega_max R / V), Omega_max = 300 rpm (V_c = 9.67 m/s), fixed rating 3822.189755449124 W",
  "command": "python verification/mass_optimisation/run_mass_checks.py",
  "generated": "2026-09-21T18:52:50",
- "src_commit": "9e4fc9d45f26aaa02181b193607e9c79261874f9",
+ "src_commit": "0a6f8b14427f40dcedf2098cfd48d6ffd266524e",
  "sources": {
   "x0": "verification/baseline/x0.json",
   "x_c": "verification/load_constraint/result_eps0.json (x_c)",

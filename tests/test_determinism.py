@@ -1,26 +1,26 @@
 """
-Bitwise reproducibility of the solver (work order Task 7).
+Bitwise reproducibility of the solver.
 
-The brief's determinism requirement is stated on AEP: the same design vector
-must give a bitwise identical answer, including "via a different code path
-(fresh process)". `src/objective/` does not exist yet -- it lands with plan
-step 1.5 -- so the AEP-level test lands with it.
+The determinism requirement is stated on AEP: the same design vector must
+give a bitwise identical answer, including via a different code path (a
+fresh process). The AEP-level test is in `tests/test_objective.py`; this file
+covers the solver underneath it.
 
 What is testable now is the layer everything above it inherits: `solve_rotor`,
 and specifically that its answer does not depend on call order, on what ran
 before it in the process, or on process-local state. That is the property
-Task 4 bought by deleting `xfoil.polar_lookup`'s `ACTIVE_AIRFOIL` global and
+gained by deleting `xfoil.polar_lookup`'s `ACTIVE_AIRFOIL` global and
 `bem.airfoil.S809Polar`'s module-level lookup, and it is worth pinning at this
 level rather than waiting: if it fails here, the AEP test would fail for a
 reason that has nothing to do with AEP.
 
-Both halves of the brief's requirement are covered:
+Both halves of the requirement are covered:
 
   * same process, repeated and interleaved with other work
   * fresh subprocess, compared byte-for-byte against this one
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import json
@@ -82,7 +82,7 @@ def test_result_does_not_depend_on_call_order():
 
     This is the direct guard on what `ACTIVE_AIRFOIL` cost. Under a
     module-level "current airfoil", solving a different rotor in between --
-    which from Phase 1.4 means a different *cache* -- could change what the
+    which now means a different *cache* -- could change what the
     next caller got. Both caches are touched between the two solves here.
     """
 
@@ -123,7 +123,7 @@ print(json.dumps({{
 
 def test_fresh_subprocess_reproduces_the_same_bits():
     """
-    The brief's "same vector via a different code path (fresh process)".
+    The same vector via a different code path (a fresh process).
 
     A fresh interpreter shares no memoised interpolant, no imported module
     state and no accumulated call history with this one, so agreement here

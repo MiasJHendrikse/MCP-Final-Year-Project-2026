@@ -1,5 +1,5 @@
 """
-Step 3 -- the cost-scaling study: gradient wall time against the
+The cost-scaling study: gradient wall time against the
 number of design variables.
 
 Plan section 8.6: the parameterisation is run at 5, 10, 20, 40 and 80 control
@@ -49,7 +49,7 @@ objective evaluations, five times):
     python verification/cost_scaling/run_scaling.py
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import argparse
@@ -427,7 +427,7 @@ def main(argv=None):
     plot(rows, fitted, FIGURE_PATH)
 
     summary = {
-        "description": ("Step 3 cost-scaling study: wall time of one objective "
+        "description": ("Cost-scaling study: wall time of one objective "
                         "evaluation and of one gradient by central FD, tangent (direct) "
                         "mode, the discrete adjoint and the root-moment adjoint, against "
                         "the number of design variables n = 2k, at the least-squares "

@@ -1,18 +1,18 @@
 """
-Power curve and Cp-lambda sweep generation on top of the Stage 1-4 solver.
+Power curve and Cp-lambda sweep generation on top of the rotor solver.
 
 `rotor.solve_rotor` answers a single operating point and reports only the
-dimensionless Ct/Cp. Everything downstream of Phase 1 -- the Cp-lambda
-validation curve, and the AEP integration in Phase 4 -- needs the same solver
+dimensionless Ct/Cp. Everything downstream -- the Cp-lambda validation
+curve and the AEP integration -- needs the same solver
 swept over a range of operating points, in dimensional units (watts, newtons,
 newton-metres). That sweep is what this module adds; it contains no new
 aerodynamics of its own and deliberately calls straight through to
 `solve_rotor` so there is exactly one BEM implementation in the project.
 
 Two machine types, because the sweep convention differs and mixing them up is
-the single easiest way to produce a meaningless comparison (see the
-2026-07-28 journal entry, where exactly that mistake -- wind speed vs TSR --
-faked a 40-degree AoA disagreement against QBlade):
+the single easiest way to produce a meaningless comparison (exactly that
+mistake -- wind speed vs TSR -- once faked a 40-degree AoA disagreement
+against QBlade):
 
   fixed-speed    (`rpm=`)  rotor speed is held constant and TSR therefore
                            falls as wind speed rises. This is the NREL Phase
@@ -26,10 +26,10 @@ faked a 40-degree AoA disagreement against QBlade):
 
 Power here is aerodynamic rotor power: no generator/gearbox efficiency, no
 rated-power cap or pitch regulation above rated. Those belong with the AEP
-work in Phase 4, not in the aerodynamic solver.
+objective (`objective/power.py`), not in the aerodynamic solver.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import math

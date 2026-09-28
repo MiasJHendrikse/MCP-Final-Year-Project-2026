@@ -1,9 +1,8 @@
 """
-The Schmitz baseline `x0`, and the reference numbers measured from it
-(plan step 1.7).
+The Schmitz baseline `x0`, and the reference numbers measured from it.
 
-The plan is emphatic about what this is: the evaluated performance of this
-blade gives "**the reference numbers for the entire results chapter**". Every
+The evaluated performance of this blade gives **the reference numbers for
+the entire results chapter**. Every
 later claim about what the optimiser achieved is a comparison against these,
 so they are constructed once, committed as a fixed artefact, and not
 recomputed casually.
@@ -20,21 +19,19 @@ Construction, in order:
      recorded if violated.
   4. Evaluated with the same solver and settings as everything else.
 
-Step 3 is currently a no-op that reports itself as such: the bounds are still
-`TODO` in `config/rotor_design.yaml` (see `docs/OUTSTANDING-INPUTS.md`), so
-`feasibility` comes back as "not checked" with the reason attached rather than
-as a quiet pass. The distinction matters -- a baseline that was never checked
-must not read as a baseline that passed.
+Step 3 uses the bounds in `config/rotor_design.yaml`. If the bounds were
+unresolved, `feasibility` would come back as "not checked" with the reason
+attached rather than as a quiet pass. The distinction matters -- a baseline
+that was never checked must not read as a baseline that passed.
 
 AEP was likewise absent rather than approximated while the Weibull parameters
-were `TODO`. They resolved on 2026-09-13, so `evaluate_baseline` now reports a
-real `aep_mwh_per_year` alongside the wind-resource-independent numbers
-(Cp-lambda, spanwise loading, root bending moment, peak thrust), together with
-whether it falls in plan 1.4's sanity band (revised to 8-12 MWh/yr on
-2026-09-13; it does, at 10.25 under the 2026-09-19 operating law).
+were unresolved. `evaluate_baseline` now reports a real `aep_mwh_per_year`
+alongside the wind-resource-independent numbers (Cp-lambda, spanwise loading,
+root bending moment, peak thrust), together with whether it falls in the
+8-12 MWh/yr sanity band (it does, at 10.25 under the 300 rpm operating law).
 
-THE OPERATING LAW MOVED ON 2026-09-19 (B1: 300 rpm, so V_tip,max = 62.83 m/s
-and V_c = 9.67 m/s). `evaluate_baseline` used to sweep the operating line at
+THE OPERATING LAW. With the 300 rpm ceiling, V_tip,max = 62.83 m/s and
+V_c = 9.67 m/s. `evaluate_baseline` used to sweep the operating line at
 the design tip-speed ratio and solve the design point at `lambda = 6.5` at
 11 m/s -- 341 rpm, a speed this machine cannot reach. The line and the design
 point now both come from `objective.power.tsr_schedule`, so this artefact and
@@ -43,18 +40,18 @@ old headlines (Cp 0.4720, 206.7 N.m, 597.2 N at lambda = 6.5) are kept as
 history in `verification/baseline/README.md`.
 
 A NOTE ON HOW THAT WAS WIRED, because it is the kind of thing that should not
-recur. Until 2026-09-13 this module did not import the objective at all: the
+recur. Originally this module did not import the objective at all: the
 `outstanding` entry for AEP was a hard-coded string, and
 `test_aep_is_reported_as_outstanding_not_estimated` asserted against that
-string. The resumption checklist expected that test to go red when the
-resource landed. It did not, and could not have -- the test and the code were
+string. I expected that test to go red when the resource data arrived. It did
+not, and could not have -- the test and the code were
 both describing a blockage rather than being blocked by one. Nothing in the
 suite would ever have said "the data is here now". The reminder has to be
 attached to the thing that actually changes, and here that is
 `WeibullResource.from_config()` raising; see `tests/test_baseline.py`.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import math
@@ -198,7 +195,7 @@ def evaluate_baseline(baseline, wind_speeds=None, tsr_values=None,
 
     The operating line follows the configured schedule
     `lambda(V) = min(lambda_design, V_tip,max / V)` from cut-in to rated,
-    which is the design strategy below rated (plan step 1.5) and the same
+    which is the design strategy below rated and the same
     law the objective runs. Under the 2026-09-19 machine decision
     (`max_rotor_speed_rpm: 300`, `V_tip,max = 62.83 m/s`) every point from
     about 9.7 m/s up is held at the ceiling, so the line is no longer at
@@ -266,7 +263,7 @@ def evaluate_baseline(baseline, wind_speeds=None, tsr_values=None,
         })
 
     # Spanwise detail and the root bending moment at the design point, which
-    # is the rated wind speed on the schedule -- the point Phase 4's load
+    # is the rated wind speed on the schedule -- the point the load
     # constraint is evaluated at.
     design_tsr = tsr_schedule(design.rated_wind_speed_ms, design.design_tsr,
                               design.max_tip_speed_ms)

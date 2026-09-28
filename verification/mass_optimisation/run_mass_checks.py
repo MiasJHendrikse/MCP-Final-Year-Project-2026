@@ -1,5 +1,5 @@
 """
-Phase 5 (2026-09-20) -- the checks behind the mass optimum, and the
+The checks behind the mass optimum, and the
 reference-blades table.
 
 At `x0` and at the production optimum `x_m` (`result_delta0.json`):
@@ -28,7 +28,7 @@ deflection ratios, cut-in `reynolds_min`, control points) -- where the
 "+6.2 % shell for +0.15 % energy" motivation and the "-4.2 % shell for
 0 % energy" result both come from -- and the re-evaluation of `x_m` from
 its JSON through the forward path only, confirming the recorded AEP, root
-moment and tip deflection to 1e-10 (plan, Verification 5).
+moment and tip deflection to 1e-10.
 
 Outputs, next to this script: `checks.json`, `reference_blades.json`,
 `reference_blades.png`, `blades_rendered.png` and `blades_rendered_edge.png`
@@ -44,7 +44,7 @@ Run from the repo root (about three minutes):
 `reference_blades.json`; no check is run and no JSON is written.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import argparse

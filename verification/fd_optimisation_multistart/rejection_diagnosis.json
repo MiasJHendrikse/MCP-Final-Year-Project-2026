@@ -2,7 +2,7 @@
  "description": "Why the rejected random draws of `starts.json` do not converge.",
  "command": "python verification/fd_optimisation_multistart/diagnose_rejections.py",
  "generated": "2026-09-26T12:24:17",
- "src_commit": "3a78527fc39b17a6d8c2a636a2cb4cfe6ea05cdd",
+ "src_commit": "53913b883afbb1569661772b03a2bed52dec3c93",
  "n_rejected_for_convergence": 34,
  "failure_kinds_station_points": {
   "no bracket in the momentum region (propeller-brake state)": 3120

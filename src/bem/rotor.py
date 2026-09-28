@@ -1,12 +1,11 @@
 """
-Stage 4: multi-station spanwise loop over the Stage 1-3 single-station
-solver, using real cached polar data (polars.polar.CachedPolar) instead of
-Stage 1's synthetic linear polar. Which cache is a property of the blade --
+Multi-station spanwise loop over the single-station solver, using real
+cached polar data (polars.polar.CachedPolar) instead of a synthetic linear
+polar. Which cache is a property of the blade --
 see RotorGeometry.polar_cache.
 
 Each station is solved independently via station.solve_station -- there is
-deliberately no spanwise coupling/smoothing between stations at this stage
-(see PROJECT_PLAN.md Phase 1). This module only adds: (a) a container for
+deliberately no spanwise coupling/smoothing between stations. This module only adds: (a) a container for
 spanwise geometry, (b) a per-station Reynolds estimate so the real polar
 can be queried, (c) the loop itself, and (d) trapezoidal spanwise
 integration to rotor-level Ct, Cp.
@@ -17,15 +16,14 @@ units -- lives in powercurve.py, which calls straight through to
 `solve_rotor` and adds no aerodynamics of its own.
 
 Not done here (explicitly deferred): validation against NREL Phase VI
-*experimental* performance data (still unsourced -- see the 2026-07-25
-journal entry, Stage 5), AEP integration, and anything adjoint-related. The demo
+*experimental* performance data (still unsourced), AEP integration, and anything adjoint-related. The demo
 geometry below is a synthetic, smoothly-tapered/twisted blade chosen only to
 exercise the pipeline sensibly -- it is NOT NREL Phase VI's published
 chord/twist table, which will be sourced properly in the dedicated
 Phase VI validation stage.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import math
@@ -67,11 +65,10 @@ class RotorGeometry:
 
         Required, with no default, and carried here rather than passed to
         `solve_rotor`, for one reason: the airfoil is a property of the blade,
-        not of the call. Two caches are live simultaneously from Phase 1.4
-        onward, and anything that lets the two drift apart -- a module-level
-        "active airfoil" (retired in Task 4), or a default on the solver --
+        not of the call. Two caches are in use at the same time, and anything that lets the two drift apart -- a module-level
+        "active airfoil" (since removed), or a default on the solver --
         produces a plausible number computed from the wrong table. This is the
-        same rule Task 1 applied to air density and viscosity: a default is
+        same rule that removed the air density and viscosity defaults: a default is
         worse than no default when the wrong answer stays inside the
         believable band.
     n_blades : int
@@ -102,15 +99,14 @@ def demo_rotor_geometry(n_stations=15, R=5.5, r_hub=0.5, n_blades=3,
     A synthetic, smoothly-tapered/twisted blade spanning r_hub to R --
     linear chord taper (0.5 m -> 0.1 m) and linear twist (15 deg -> -2 deg),
     both monotonic so the spanwise loop has no built-in discontinuities to
-    confound the Stage 4 smoothness checks. This is a placeholder geometry
+    confound smoothness checks. This is a placeholder geometry
     for exercising the pipeline, not NREL Phase VI's actual blade (see
     module docstring).
 
     `polar_cache` defaults to "s809" only because that is what this
     placeholder has always been solved with -- naming it here keeps
     `RotorGeometry`'s required field satisfied at the one place this blade is
-    defined, rather than reintroducing a solver-side default. Retire with the
-    function after Phase 1.7.
+    defined, rather than reintroducing a solver-side default.
     """
 
     stations = n_stations
@@ -172,7 +168,7 @@ PHASE_VI_ROOT_EXCLUDED_NOTE = (
     "constant at 0.218/0.183 m, twist 0 deg, no S809 polar applies), plus a "
     "transition region blending into the S809 profile by r=1.2575 m. "
     "PHASE_VI_TABLE_A1_STATIONS omits all of these, consistent with how "
-    "Stage 4/5 handled the demo geometry's root: no published 2D polar "
+    "the demo geometry's root is handled: no published 2D polar "
     "exists for this non-airfoil section, and it contributes negligible "
     "torque at its small radius. r_hub is still set to the real 0.508 m "
     "hub-attachment point for the Prandtl hub-loss factor."
@@ -193,13 +189,12 @@ def phase_vi_geometry(tip_pitch_deg=PHASE_VI_SEQUENCE_S_TIP_PITCH_DEG):
     NREL Phase VI blade geometry (Sequence S configuration), from the
     published Table A-1 station table -- see PHASE_VI_TABLE_A1_STATIONS
     and PHASE_VI_ROOT_EXCLUDED_NOTE above for exactly what is and is not
-    included, and module docstring / the 2026-07-25 journal entry for how
-    this was sourced and verified.
+    included, and the module docstring for how this was sourced.
 
     This is real published geometry, unlike demo_rotor_geometry()'s
-    synthetic blade -- built for the Stage 6 pyBEMT cross-check, not (yet)
+    synthetic blade -- used for the pyBEMT and CCBlade cross-checks, not (yet)
     for validation against Phase VI experimental performance data, which
-    remains unavailable (see the Stage 5 journal entry).
+    remains unavailable.
 
     Parameters
     ----------
@@ -234,7 +229,7 @@ def solve_rotor(geometry: RotorGeometry, tsr, v_inf=7.0, *,
                 air_density, kinematic_viscosity,
                 airfoil_for_reynolds=None, airfoils=None):
     """
-    Solve every station independently (Stage 1-3 solver, real cached polar)
+    Solve every station independently (single-station solver, real cached polar)
     and integrate to rotor-level Ct, Cp.
 
     Parameters
@@ -245,7 +240,7 @@ def solve_rotor(geometry: RotorGeometry, tsr, v_inf=7.0, *,
     v_inf : float
         Freestream wind speed, m/s. Only affects the per-station Reynolds
         estimate (used to query the real polar) -- the induction solve
-        itself is dimensionless (local tsr only), as in Stage 1-3.
+        itself is dimensionless (local tsr only).
     air_density : float
         kg/m^3, used only for the rotor-level Ct/Cp integration. Required,
         and keyword-only: there is no defensible default. The validation
@@ -265,7 +260,7 @@ def solve_rotor(geometry: RotorGeometry, tsr, v_inf=7.0, *,
         default airfoil on this signature to get wrong.
     airfoils : list of airfoil objects or None
         Optional, one per station, overriding both of the above -- used by the
-        Stage 6 pyBEMT cross-check (compare_pybemt.py) and the QBlade
+        pyBEMT cross-check (compare_pybemt.py) and the QBlade
         comparison to force both solvers onto the exact same discretized
         (alpha, Re-bucket) polar table rather than this module's normal
         continuous Re interpolation, so any difference in results comes from
@@ -276,7 +271,7 @@ def solve_rotor(geometry: RotorGeometry, tsr, v_inf=7.0, *,
     ------
     polars.interpolant.PolarDomainError
         If a station's estimated Reynolds number or solved angle of attack
-        falls outside what `geometry.polar_cache` covers. Since Task 4 this
+        falls outside what `geometry.polar_cache` covers. This
         raises rather than clamping to the table edge: an out-of-envelope
         station is a cache-coverage fact the caller needs, not something to
         be silently replaced with the nearest value that happens to exist.
@@ -305,8 +300,7 @@ def solve_rotor(geometry: RotorGeometry, tsr, v_inf=7.0, *,
         # Zero-induction relative-velocity estimate for the polar's Reynolds
         # number -- a fixed Re per station, not re-solved iteratively;
         # adequate for this stage's sanity check, not for AEP-grade accuracy.
-        # Since Task 4 this estimate is load-bearing in a way it was not
-        # before: an estimate outside the cache's Reynolds range raises here
+        # This estimate is load-bearing: an estimate outside the cache's Reynolds range raises here
         # instead of clamping to the ceiling, which is what hid the total loss
         # of Reynolds dependence in every Phase VI run before 2026-07-28.
         w_approx = math.hypot(v_inf, omega * r)
@@ -339,7 +333,7 @@ def solve_rotor(geometry: RotorGeometry, tsr, v_inf=7.0, *,
             "F": result["F"],
             "reynolds": reynolds,
             "w": w,
-            # Solver status, carried per station since Task 5. A station that
+            # Solver status, carried per station. A station that
             # did not converge is reported, not raised -- see solve_station.
             "converged": result["converged"],
             "residual": result["residual"],
@@ -366,7 +360,7 @@ def solve_rotor(geometry: RotorGeometry, tsr, v_inf=7.0, *,
     cp_rotor = power / (0.5 * air_density * v_inf ** 3 * math.pi * geometry.R ** 2)
 
     # Rotor-level status. Ct and Cp are still returned when a station failed,
-    # deliberately: the Step 8 smoothness gate has to be able to plot the point
+    # deliberately: the smoothness gate has to be able to plot the point
     # to see where the objective breaks down, and a None there would make it
     # blind exactly where it most needs to see. The flag sits alongside the
     # number rather than replacing it, and `failed_stations` names which.

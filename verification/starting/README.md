@@ -1,7 +1,7 @@
-# Starting torque of the committed blades (relative)
+# Starting torque of the three blades (relative)
 
-**New 2026-09-26**, review roadmap (minor item on starting). The design takes
-the 3 m/s cut-in as a machine requirement; this artefact asks whether the
+The design takes the 3 m/s cut-in as a requirement of the machine. This
+checks whether the
 minimum-material blade `x_m` starts as readily as the Schmitz reference `x0`.
 
 ## What was run

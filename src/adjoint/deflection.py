@@ -1,7 +1,7 @@
 """
 `DeflectionSystem`: the third right-hand side -- the KS aggregate of the
 static flapwise tip deflection over the load operating set `L`, and its
-discrete adjoint (the mass problem, Step 2; `docs/adjoint_derivation.md` §11).
+discrete adjoint (`docs/adjoint_derivation.md` §11).
 
 It subclasses `RootMomentSystem` and inherits everything: the forward solve,
 the residual, the station partials, the matrix-free operators, the load set
@@ -40,7 +40,7 @@ moment methods (`moments`, `KS`, `dKS_dx`, ...) remain callable on the same
 instance and the same state.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 from dataclasses import dataclass

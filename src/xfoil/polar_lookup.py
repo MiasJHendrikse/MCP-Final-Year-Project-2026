@@ -6,10 +6,10 @@ Reads the CSVs produced by build_polar_cache.py (one file per Reynolds number,
 columns alpha,cl,cd,cm) and exposes cl/cd/cm as a function of (alpha, Re) via
 bilinear interpolation.
 
-Nothing in the solver calls this any more. Work order Task 3 replaced the
-interpolation core with `polars.interpolant.PolarInterpolant` (C1, analytically
+Nothing in the solver calls this any more. The interpolation core was
+replaced with `polars.interpolant.PolarInterpolant` (C1, analytically
 differentiable) because bilinear's alpha-derivative is piecewise constant with
-a jump at every 0.5 deg knot; Task 4 replaced the adapter above it with
+a jump at every 0.5 deg knot, and the adapter above it was replaced with
 `polars.polar.CachedPolar`. `tests/test_invariants.py` asserts that nothing
 under `bem/` imports this package at all.
 
@@ -17,22 +17,22 @@ What this module is still for, and why it was not deleted with the rest:
 
   * `verification/polar_interpolant/generate_plots.py` draws the "before"
     curve of the committed staircase figure from it. That figure is the direct
-    evidence for Task 3's central claim, and it has to stay regenerable.
-  * `tests/test_polar_cache.py` checks the Task 2 gap-free guarantee through
+    evidence for the interpolant's central claim, and it has to stay regenerable.
+  * `tests/test_polar_cache.py` checks the gap-free guarantee through
     the same rectangularisation the audit measured, rather than through a
     re-derivation of it.
 
-Task 4 removed what did not survive: the module-level `ACTIVE_AIRFOIL` /
+What didn't survive was removed: the module-level `ACTIVE_AIRFOIL` /
 `set_active_airfoil()` pair, the `get_polar()` façade over them, and the
 `_lookup_cache` dict. A single global "current airfoil" was reasonable with one
-airfoil in the project; from Phase 1.4 two caches are live simultaneously and
-it made the answer depend on call order — a direct threat to the brief's
-"same vector via a different code path" determinism requirement. The airfoil is
+airfoil in the project; once two caches were in use at the same time it
+made the answer depend on call order, a direct threat to the requirement
+that the same vector via a different code path gives the same answer. The airfoil is
 now a property of the blade (`bem.rotor.RotorGeometry.polar_cache`), stated
 once where the blade is defined. Construct `PolarLookup(cache_dir)` explicitly.
 
 Author: MJ Hendrikse
-Project: DSP810S — Inverse Design of Small Wind Turbine Blades
+Project: MCP820S — Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import glob
@@ -80,7 +80,7 @@ class PolarLookup:
         as a NaN result and __call__ raises PolarCacheError instead of silently
         returning an extrapolated value.
 
-        Since work order Task 2 the caches are written over the full -180..180
+        The caches are written over the full -180..180
         deg circle with a provenance column, so a curve no longer *has* a
         ragged edge and no NaN survives this step -- but the reindexing is
         kept, both because the NACA 4412 reference cache predates the change
@@ -150,7 +150,7 @@ class PolarLookup:
         # For a cache written before the provenance column existed this is
         # simply the whole table. Callers that must not step onto the Viterna
         # extrapolation (the QBlade export, the pyBEMT comparison tables, the
-        # Stage 4 alpha clamp) read it from here rather than assuming -8..18.
+        # old alpha clamp) read it from here rather than assuming -8..18.
         self.xfoil_alpha_min = max(b[0] for b in bands)
         self.xfoil_alpha_max = min(b[1] for b in bands)
 

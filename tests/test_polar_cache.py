@@ -1,15 +1,15 @@
 """
-Task 2 acceptance: the polar caches are gap-free, span the full circle, keep
+The polar caches are gap-free, span the full circle, keep
 provenance, and the promoted Viterna module changed nothing.
 
-Each test here corresponds to one of the work order's "done when" clauses for
-Task 2. The one clause not covered by a test is `validate_polars.py`'s 5 checks
+Each test here corresponds to one acceptance criterion for the caches. The
+one criterion not covered by a test is `validate_polars.py`'s 5 checks
 still giving 4/5 on S809 -- that script prints a report and is run by hand
 (`python -m validation.validate_polars s809`); its result is recorded in
 config/polars_s809.yaml.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import glob
@@ -28,7 +28,7 @@ REPO_ROOT = os.path.abspath(os.path.join(_HERE, ".."))
 POLAR_DIR = os.path.join(REPO_ROOT, "data", "polars")
 QBLADE_DIR = os.path.join(REPO_ROOT, "data", "qblade")
 
-#: Caches committed to the repo, as cache-name -> whether Task 2 extended it.
+#: Caches committed to the repo, as cache-name -> whether it was extended to +/-180.
 #: NACA 4412 is a retained secondary reference dataset (see
 #: build_polar_cache.AIRFOILS); it is deliberately left as built -- extending
 #: it would be a rebuild of validated data nothing currently reads.
@@ -46,7 +46,7 @@ def _paths(cache):
 @pytest.mark.parametrize("cache", sorted(CACHES))
 def test_no_nan_after_rectangularisation(cache):
     """
-    A NaN here is what Task 3 cannot fit a spline over.
+    A NaN here is what the C1 interpolant cannot fit a spline over.
 
     PolarLookup reindexes every Reynolds curve onto the union alpha axis and
     leaves NaN wherever a curve does not reach. That is the rectangularisation
@@ -212,7 +212,7 @@ def test_stitch_value_continuity_is_exact():
     The extrapolation is anchored at the last converged alpha, so it must
     reproduce that point exactly. The slope jump is the interesting quantity
     and is not asserted -- it is measured and recorded (see the cache README);
-    a threshold here would be a tuning knob, which is not what Task 2 asks for.
+    a threshold here would be a tuning knob, which is not the point.
     """
 
     rows = check_stitch_continuity.check_cache("s809")
@@ -231,7 +231,7 @@ def test_sg6043_bounds_cover_the_computed_envelope_with_margin():
     """
     Recomputed from config, not read back from the file that records it.
 
-    Task 4 makes an out-of-range Reynolds lookup raise, so this is the check
+    An out-of-range Reynolds lookup raises, so this is the check
     that stands between a design-rotor sweep and a hard crash in the low
     wind-speed bins.
     """
@@ -251,9 +251,8 @@ def test_sg6043_bounds_cover_the_computed_envelope_with_margin():
 # validate_polars.py's five physical-plausibility checks, per cache
 # ---------------------------------------------------------------------------
 #
-# Work order Task 7. This was the one Task 2 clause with no test behind it --
-# "that script prints a report and is run by hand" -- which is exactly the
-# harness problem Task 7 exists to fix: a check whose known-good state is a
+# This was the one criterion with no test behind it -- "that script prints a
+# report and is run by hand" -- which is exactly the harness problem to fix: a check whose known-good state is a
 # non-zero exit cannot be part of a suite.
 #
 # The five checks are imported and called, not reimplemented. They are the
@@ -262,9 +261,8 @@ def test_sg6043_bounds_cover_the_computed_envelope_with_margin():
 # the test would mean maintaining two versions of the same physics.
 #
 # Four of the fifteen (cache x check) combinations are known residuals with
-# documented physical causes. They are xfail with the reason attached, per the
-# work order: "a known residual is an xfail with a reason, not a non-zero
-# exit". xfail rather than skip, deliberately -- if one of them starts passing
+# documented physical causes. They are xfail with the reason attached: a
+# known residual is an xfail with a reason, not a non-zero exit. xfail rather than skip, deliberately -- if one of them starts passing
 # pytest reports XPASS, which is the notification that something changed.
 
 _POLAR_CHECKS = {
@@ -289,7 +287,7 @@ _KNOWN_RESIDUALS = {
         "steps Cl 1.1137 -> 1.4287 across half a degree, a slope of 0.63/deg "
         "against the thin-airfoil bound of 0.11/deg -- and every point on both "
         "sides is source=xfoil, independently converged, not a fill. Textbook "
-        "behaviour for a thin section at low Re. Per ground rule 5 nothing was "
+        "behaviour for a thin section at low Re. Nothing was "
         "retuned to make this pass; see data/polars/sg6043/README.md."
     ),
     ("sg6043", 5): (
@@ -302,8 +300,8 @@ _KNOWN_RESIDUALS = {
     ),
     ("naca4412", 2): (
         "Legacy cache, retained as a methodology precedent and read by nothing "
-        "in Phase 1. Never rebuilt at Ncrit=5 and never extended to +/-180 deg "
-        "(work order, out of scope). Recorded here so its state is visible "
+        "in the solver. Never rebuilt at Ncrit=5 and never extended to +/-180 deg "
+        "(out of scope). Recorded here so its state is visible "
         "rather than assumed."
     ),
     ("naca4412", 5): (

@@ -4,7 +4,7 @@
  "law_label": "lambda(V) = min(6.5, Omega_max R / V), Omega_max = 300 rpm (V_c = 9.67 m/s), fixed rating 3822.189755449124 W",
  "command": "python verification/load_constraint/run_pareto.py",
  "generated": "2026-09-19T19:18:35",
- "src_commit": "7f209edfff5c276ad21dbbed26644ff12b378e0c",
+ "src_commit": "141baaccb5083536fc9b9e47e9fa72140b29a91c",
  "multistart_u_spread_inf": 0.016563224478690297,
  "eps_steps": [
   {

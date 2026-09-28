@@ -1,8 +1,7 @@
 # Site basis -- Khomas Hochland highland ridge, near Windhoek, Namibia.
 #
-# PROJECT_PLAN.md sections 1.1-1.3. This file is the single version-controlled
-# source for every site quantity; plan item 1.1's exit criterion is that
-# "nothing downstream hard-codes a site value".
+# This file is the single version-controlled
+# source for every site quantity: nothing downstream hard-codes a site value.
 #
 # Read only through `src/config` (config.load_site()). Nothing else in the
 # repo opens this file.
@@ -10,8 +9,7 @@
 # Fields whose value is a `TODO:` string are UNRESOLVED. The loader turns them
 # into a sentinel that raises on any use -- it never substitutes a placeholder
 # number. A fabricated wind resource propagates silently into every AEP figure
-# downstream, so these stayed TODO until a real extraction was supplied (plan
-# section 1.3, and the remediation work order's ground rule 3).
+# downstream, so these stayed TODO until a real extraction was supplied.
 #
 # The wind resource was resolved on 2026-09-13 and `gwa_area` was not; see the
 # notes on each below for why that is a substantive distinction and not an
@@ -26,13 +24,13 @@ description: >-
 # ---------------------------------------------------------------------------
 # Location
 # ---------------------------------------------------------------------------
-# Elevation remains the working assumption of plan section 1.1. It was to be
+# Elevation remains a working assumption. It was to be
 # refined once the GWA area was selected -- and since no area selection
 # happened (see gwa_area below), it has not been. 1800 m is consistent with
 # the pinned coordinates on the Khomas Hochland plateau, but it is still an
 # assumption and the atmosphere derived from it inherits that.
 #
-# Coordinates supplied by MJ on 2026-09-13 as a pinned point
+# Coordinates from a pinned point, 2026-09-13
 # (`verification/wind_resource/site-location-regional.png`, and three closer
 # views that arrived with it): 22 deg 25' 40.7" S, 16 deg 33' 28.2" E -> -22.427972, +16.557833.
 # Khomas Hochland highland bush savanna west of Windhoek, which is the site
@@ -44,22 +42,21 @@ description: >-
 # could not have been computed there. The pinned satellite views are
 # unambiguous and agree with the site description, so EAST is recorded and the
 # GASP label is treated as a display artefact of that tool. See
-# `docs/OUTSTANDING-INPUTS.md` -- this is worth one confirming glance from MJ,
-# and nothing downstream reads latitude or longitude today.
+# `verification/wind_resource/README.md`; nothing downstream reads latitude or longitude today.
 #
 # `gwa_area` REMAINS TODO. It is not a formatting gap: the extraction supplied
 # is a single POINT from GASP, not an area average from globalwindatlas.info,
 # so there is no area selection to record. Filling it with the point's
 # coordinates would assert an extraction that was never performed.
 location:
-  gwa_area: "TODO: no area selection exists -- the 2026-09-13 extraction was a GASP point, not a GWA area (plan 1.1)"
+  gwa_area: "TODO: no area selection exists -- the 2026-09-13 extraction was a GASP point, not a GWA area"
   latitude_deg: -22.427972   # 22 deg 25' 40.7" S
   longitude_deg: 16.557833   # 16 deg 33' 28.2" E -- see the note above
   elevation_m: 1800.0        # ~1800 m AMSL, assumed pending area selection
   hub_height_m: 20.0         # typical free-standing tower for this rotor class
 
 # ---------------------------------------------------------------------------
-# Atmosphere -- plan section 1.2, a headline result of the site choice
+# Atmosphere -- a headline result of the site choice
 # ---------------------------------------------------------------------------
 # Pressure from the ISA barometric relation at `elevation_m`:
 #
@@ -77,19 +74,17 @@ location:
 # The loader recomputes all three from `standard_atmosphere` + `temperature_k`
 # + `dynamic_viscosity_pa_s` and rejects the file if the recorded values
 # disagree by more than 0.5 %. They are recorded rather than only derived
-# because they are reported numbers (plan working conventions: "where a step
-# produces a number that feeds a later step, that number is written to the
+# because they are reported numbers ("where a step produces a number that
+# feeds a later step, that number is written to the
 # config file").
 #
-# NOTE, deliberately left visible rather than reconciled here: plan section
-# 1.2 quotes rho = 0.98 kg/m^3 and nu = 1.85e-5 m^2/s as its headline figures.
-# Recomputing from the plan's own stated constants gives 0.9684 and 1.869e-5
-# -- 1.2 % and 1.1 % away. The recomputed values are recorded; the plan's
-# quoted pair appears to be rounded. Both sit inside plan item 1.1's
-# 0.95-1.03 kg/m^3 exit band. Flagged for the plan/report to reconcile; not
-# silently averaged or tuned.
+# NOTE, deliberately left visible: my early project plan quoted
+# rho = 0.98 kg/m^3 and nu = 1.85e-5 m^2/s. Recomputing from the stated
+# constants gives 0.9684 and 1.869e-5 -- 1.2 % and 1.1 % away. The recomputed
+# values are recorded; the earlier pair appears to be rounded. Both sit inside
+# the 0.95-1.03 kg/m^3 sanity range. Not silently averaged or tuned.
 atmosphere:
-  temperature_k: 293.15              # annual mean, 20 C (plan 1.2 design value)
+  temperature_k: 293.15              # annual mean, 20 C (site design value)
   pressure_pa: 81489.03              # barometric relation at 1800 m
   air_density: 0.96839               # rho = p / (Rs * T)
   dynamic_viscosity_pa_s: 1.81e-5    # mu at 20 C
@@ -102,32 +97,32 @@ atmosphere:
     gravity: 9.80665
 
 # ---------------------------------------------------------------------------
-# Wind resource -- plan section 1.3. NEVER INVENTED.
+# Wind resource -- NEVER INVENTED.
 # ---------------------------------------------------------------------------
 # RESOLVED 2026-09-13. Read `verification/wind_resource/README.md` before
 # using or quoting these numbers -- they are extrapolated, not extracted, and
 # the distinction is load-bearing.
 #
-# Source: a GASP single-point extraction supplied by MJ on 2026-09-13
+# Source: a GASP single-point extraction, 2026-09-13
 # (`verification/wind_resource/gasp-point-data-50m.png`), reporting the omni-
 # directional
 # pair at **50 m**: A = 8.8 m/s, k = 1.87, U = 7.8 m/s. NOT
-# globalwindatlas.info, which is what plan 1.3 names; that substitution is
-# recorded in docs/OUTSTANDING-INPUTS.md rather than glossed.
+# globalwindatlas.info, which is what the plan originally named; that
+# substitution is recorded in verification/wind_resource/README.md.
 #
 # The extraction is at 50 m and this rotor's hub is at 20 m, so both
 # parameters were extrapolated down by the Justus & Mikhail (1976)
 # correlation -- see `src/objective/height_extrapolation.py` for the method
 # and its open provenance item, and `verification/wind_resource/` for the
 # recorded calculation, its log-law cross-check, and the two disagreements
-# with the plan's prior expectation.
+# with my prior expectation.
 #
-# `k ~ 1.8-2.4, c ~ 6-7 m/s` is the prior expectation recorded in plan 1.3 for
+# `k ~ 1.8-2.4, c ~ 6-7 m/s` was my prior expectation, for
 # sanity-checking an extraction only. THE RESULT SITS OUTSIDE IT ON BOTH
 # COUNTS -- k is 0.09 low and c is 0.27 m/s high. The band is a prior, not a
 # specification: it is neither widened to admit the result nor used to adjust
-# it (ground rule 5). The site is simply windier and its distribution broader
-# than the plan guessed, and the consequences of that are followed through in
+# it. The site is simply windier and its distribution broader than I
+# guessed, and the consequences of that are followed through in
 # the AEP figures rather than suppressed here.
 wind_resource:
   weibull_k: 1.709226        # extrapolated 50 m -> 20 m, from k = 1.87

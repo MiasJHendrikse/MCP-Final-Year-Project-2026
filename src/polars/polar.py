@@ -2,7 +2,7 @@
 `CachedPolar`: one airfoil polar at one fixed Reynolds number, adapting the
 C1 interpolant to the BEM solver's duck-typed .cl(alpha)/.cd(alpha) interface.
 
-Work order Task 4. This replaces `bem.airfoil.S809Polar`, which carried three
+This replaces the old `bem.airfoil.S809Polar`, which carried three
 behaviours that are fine for a lookup and fatal for anything differentiable:
 
   * **alpha clamped** to the XFOIL-converged band. Past the edge the
@@ -21,10 +21,10 @@ behaviours that are fine for a lookup and fatal for anything differentiable:
     completely different angle of attack was indistinguishable from a correct
     one, inside the residual.
 
-None of it is needed any more. Task 2 made both caches gap-free over the full
+None of it is needed any more. Both caches are now gap-free over the full
 -180..180 deg circle, so there is no hole to step around and no edge to clamp
-at within the angles a blade element can physically reach; Task 3 turned that
-grid into a C1 surface. What is left for this module to do is convert radians
+at within the angles a blade element can physically reach, and the grid is
+a C1 surface. What is left for this module to do is convert radians
 to degrees, hold the station's Reynolds number, and get out of the way.
 
 Out of range raises
@@ -32,12 +32,12 @@ Out of range raises
 `CachedPolar` clamps nothing and substitutes nothing: an alpha or Reynolds
 outside the built grid raises `PolarDomainError`. That is the point of the
 task, not a rough edge of it. For the design rotor, alpha leaving the table is
-information the Step 8 smoothness gate needs to see; a plausible number
+information the smoothness gate needs to see; a plausible number
 returned in its place is the failure mode this whole layer exists to remove.
 
 Reynolds is checked once, at construction, rather than on first evaluation.
 A station whose Reynolds number the cache does not cover is a cache-coverage
-problem -- the envelope study of Task 2 step 0 is what sets those bounds --
+problem -- the envelope study (`polars/envelope.py`) is what sets those bounds --
 and it should say so with the station's number and the cache's range in the
 message, not surface later as an opaque failure from inside a residual
 evaluation a root-finder happens to be in the middle of.
@@ -53,7 +53,7 @@ the interpolant's per-degree values, because radians are what the BEM
 residual differentiates with respect to.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import math
@@ -99,7 +99,7 @@ class CachedPolar:
     def __init__(self, interpolant, reynolds):
         re_lo = float(interpolant.re_values[0])
         re_hi = float(interpolant.re_values[-1])
-        # Range-checked on the real part and stored as given (Phase 3, B0):
+        # Range-checked on the real part and stored as given:
         # a complex-step perturbation to the chord arrives here as a complex
         # Reynolds number, and `float()` would have dropped its imaginary
         # part -- the `Re(c)` path of the gradient, silently zeroed. For a
@@ -110,8 +110,8 @@ class CachedPolar:
                 f"Reynolds={reynolds_real:,.0f} is outside the cached range "
                 f"[{re_lo:,.0f}, {re_hi:,.0f}]. The cache does not cover this "
                 "station's operating point; extend the cache's Reynolds "
-                "bounds rather than clamping to the edge (work order Task 2 "
-                "step 0, Task 4)."
+                "bounds rather than clamping to the edge (see "
+                "polars/envelope.py)."
             )
 
         self._interpolant = interpolant
@@ -192,9 +192,9 @@ def interpolant_for(cache_name):
 
     Why this memo is not the `ACTIVE_AIRFOIL` global back again
     -----------------------------------------------------------
-    Task 4 retires `xfoil.polar_lookup`'s module-level "active airfoil"
-    because it made the answer depend on call order: two caches are live from
-    Phase 1.4 onward, and whichever ran last decided what the next caller got.
+    The old `xfoil.polar_lookup` module-level "active airfoil" was removed
+    because it made the answer depend on call order: two caches are in use at
+    the same time, and whichever ran last decided what the next caller got.
     This is a different thing. It is a pure memo keyed on the argument -- a
     given `cache_name` always returns the same surface, nothing mutates it,
     and no caller can change what another caller sees. `PolarInterpolant` and
@@ -202,7 +202,7 @@ def interpolant_for(cache_name):
     station of every rotor is safe as well as ~15 ms cheaper per rotor.
 
     The cache's location comes from `config/polars_<name>.yaml`, so no data
-    path is written down anywhere under `src/` (the Task 1 rule).
+    path is written down anywhere under `src/`.
 
     Parameters
     ----------

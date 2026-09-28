@@ -1,7 +1,7 @@
 """
 The thin-shell bending stress along the span, not only at the root.
 
-Review roadmap item 4 (2026-09-26). The stress row of the mass problem
+The stress row of the mass problem
 constrains `KS / c0^2`, the thin-shell stress at the root section, and
 `run_absolute_material.py` turns that one section into megapascals. This
 script evaluates the same thin-shell stress at every BEM station of the three
@@ -22,7 +22,7 @@ Inputs: `verification/baseline/x0.json`, `load_constraint/result_eps0.json`
     python verification/absolute_material/run_spanwise_stress.py     # ~5 s
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import datetime

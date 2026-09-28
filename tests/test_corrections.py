@@ -1,5 +1,5 @@
 """
-Task 6 acceptance: the Glauert/Buhl correction's constants, its C0/C1
+The Glauert/Buhl correction's constants, its C0/C1
 continuity at the blend, and the gamma-form reparameterisation.
 
 The audit measured the blend continuity by finite difference and recorded
@@ -15,12 +15,11 @@ That the coefficients are *Buhl's*. They prove the three numbers are the
 unique solution of C0 + C1 at a = 0.4 plus Ct(1) = 2, which means any
 transcription error would show up here immediately -- but a self-consistent
 set of constants transcribed from the wrong paper would pass every test in
-this file. The plan (1.3) and the Phase 1 brief require a check against
-NREL/TP-500-36834 directly, which is still open; see the PROVENANCE note in
+this file. A check against NREL/TP-500-36834 directly is still open; see the PROVENANCE note in
 `bem/corrections.py`'s module docstring.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 from decimal import Decimal, getcontext
@@ -239,7 +238,7 @@ def test_induction_is_strictly_increasing_in_loading(F):
     a(Y) rises monotonically, through the blend and across both conditioning
     forms.
 
-    This is the direct guard on what Task 6 removed. The old implementation
+    This is the direct guard on what the gamma form removed. The old implementation
     picked between the quadratic's two roots by "closest to a_naive", with a
     fallback of "closest to ac"; a heuristic like that fails by selecting the
     other root somewhere, and the signature of that is a non-monotone step in
@@ -262,7 +261,7 @@ def test_induction_is_strictly_increasing_in_loading(F):
 
 def test_no_heuristic_root_selection_remains():
     """
-    The work order's third "done when" clause, asserted against the source.
+    The third acceptance criterion, asserted against the source.
 
     Both removed expressions chose between two genuinely different roots by
     proximity to a reference value. The conditioning switch that remains
@@ -288,7 +287,7 @@ def test_ac_is_a_constant_not_a_parameter():
     """
     The coefficients 8/9, 40/9 and 50/9 are derived from ac = 0.4, so an
     `ac=` argument that did not move them was a knob that produced a
-    discontinuity if turned. Task 6 removed it.
+    discontinuity if turned. It was removed.
     """
 
     import inspect

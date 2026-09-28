@@ -1,13 +1,13 @@
 """
 Cross-evaluation of the optimum under a rotor-speed ceiling
-(2026-09-19; docs/journal/CROSS_EVALUATION_ROTOR_SPEED_CEILING.md).
+(see this folder's README).
 
 Originally: does the blade optimised WITHOUT a rotor-speed ceiling (the
 adjoint-driven SLSQP optimum x*, verification/adjoint_optimisation/) still
 beat the Schmitz baseline x0 once a ceiling is imposed? No re-optimisation;
 pure evaluation of two fixed blades under several operating strategies.
 
-RE-RUN 2026-09-19 under the 300 rpm operating law (B1) and the configured
+RE-RUN under the 300 rpm operating law and the configured
 bounds. The machine ceiling is now a config fact, so x* itself is the
 CEILING-CONSTRAINED optimum and the first case below is its own law rather
 than a counterfactual. The `none` case survives as the diagnostic it always
@@ -32,7 +32,7 @@ The 62.83 m/s case uses `design.max_tip_speed_ms` from config, never a
 hard-coded number, so this file follows the law rather than restating it.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import datetime

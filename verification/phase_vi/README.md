@@ -1,17 +1,16 @@
-# Phase VI solver verification
+# Solver convergence on the NREL Phase VI rotor
 
-Versioned report figures and data for the NREL Phase VI rotor. Distinct from
-`results/`, which is generated output and partly gitignored — everything here
-is committed because it is evidence for a claim in the writeup.
+This checks that the BEM solver converges reliably, including on blade shapes
+well away from the one it was built for.
 
-## Residual histories (work order Task 5)
+## Residual histories
 
 `generate_residual_histories.py` → `residual_histories.json`,
 `residual_convergence.png`.
 
-Task 5 requires the solver to converge "across the full operating envelope for
-baseline **and** perturbed geometries", with residual histories committed.
-These are those histories: not a summary, the actual sequence of `(φ, R)` the
+The requirement was for the solver to converge across the whole operating
+envelope, for the baseline **and** perturbed geometries, with the residual
+histories committed. These are those histories: not a summary, the actual sequence of `(φ, R)` the
 root-finder evaluated at every station, so the reduction can be read off
 rather than taken on trust.
 
@@ -39,7 +38,7 @@ and those are where a bracketing scheme fails if it is going to.
 | maximum residual evaluations | **14** |
 
 The convergence criterion is `|R| ≤ 1e-9 · R₀` — relative to the initial
-residual norm, never absolute (the Phase 1 brief, item 5). What is achieved is
+residual norm, never absolute. What is achieved is
 six orders tighter than that, and a returned pole would sit around `|R| ~ 1e15`,
 so the criterion has roughly twenty-four orders of magnitude of separation
 either side. That is what makes it a check rather than a tuned threshold.
@@ -51,7 +50,7 @@ plateaus, and no station taking a materially different path from the rest.
 
 ### Context: what this replaced
 
-Before Task 5 the bracket was located by sampling the residual at **2000**
+Originally the bracket was located by sampling the residual at **2000**
 trial φ per station and taking the sign change nearest `atan(1/λ_r)` — a
 heuristic that could select a pole (both cross the residual's sign) and that
 raised `ValueError` when it found nothing, aborting an entire sweep over one

@@ -2,8 +2,8 @@
 The polar-cache CSV schema, and the one place its provenance column is defined.
 
 A cache CSV is `alpha,cl,cd,cm,source`, one file per Reynolds number, ascending
-in alpha. The first four columns are what they always were. The fifth is new
-with work order Task 2 and says where each row came from:
+in alpha. The first four columns are the usual ones. The fifth says where
+each row came from:
 
     0  xfoil       converged in the main XFOIL sweep
     1  gap_retry   converged in the finer-step retry that closed a hole
@@ -16,7 +16,7 @@ with work order Task 2 and says where each row came from:
 
 Why the column exists at all
 -----------------------------
-Task 2 requires two things that pull in opposite directions: the cache must
+Two requirements pull in opposite directions: the cache must
 cover -180..180 with no holes (a C1 interpolant cannot be fitted over a grid
 with a NaN in it, and a ragged edge is the same problem), and a filled or
 extrapolated point must stay *distinguishable* from a converged measurement.
@@ -33,7 +33,7 @@ Legacy 4-column files (the NACA 4412 reference cache) load fine: every row is
 reported as `xfoil`, which is what they are.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import os

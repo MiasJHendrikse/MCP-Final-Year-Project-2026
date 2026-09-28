@@ -1,5 +1,5 @@
 """
-Phase 3, B2 -- Tier 2: the transpose identity `<v, A u> = <A^T v, u>`.
+Tier 2: the transpose identity `<v, A u> = <A^T v, u>`.
 
 Tier 1 verified every *entry* of the partial arrays. What it cannot see is
 an indexing error in how those entries are wired together: a bin index
@@ -29,7 +29,7 @@ Bounds enter only through `BEMSystem`'s constructor (the scaling chain),
 from `DesignBounds.from_config()`.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import json

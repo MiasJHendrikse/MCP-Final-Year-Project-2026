@@ -1,17 +1,17 @@
 """
-The mass problem, Step 3 -- the rows `ScaledProblem` hands SLSQP
-(`docs/PLAN-mass-objective-2026-09-20.md`): the material objective, the AEP
+The mass problem -- the rows `ScaledProblem` hands SLSQP
+(`docs/DESIGN-BASIS.md` section 6): the material objective, the AEP
 floor, the root-stress proxy, the manufacturability rows, the assembly, the
 shared load solve and the failed-trial guard. The deflection row's own
 Tier 3 is in `tests/test_deflection.py`.
 
 Every relative row is zero-slack at `u0` to the bit; the stress row's
-Jacobian is checked against central FD at the committed `h*` on the Phase 4
-pattern (floor reported only on failure); the guard returns `-FAILED_SLACK`
+Jacobian is checked against central FD at the committed `h*` in the same
+way as the moment constraint (floor reported only on failure); the guard returns `-FAILED_SLACK`
 and logs, and never substitutes a Jacobian.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import dataclasses
@@ -370,7 +370,7 @@ def test_manufacturing_rows_are_the_control_point_differences(problem, u0):
 def test_min_chord_floor_is_a_row_on_every_chord_control_point(problem, u0):
     """`manufacturing.min_chord_m` (0.060, 2026-09-20) as rows `c_i - 0.060 >= 0`:
     Schmitz clears it by 7 mm at the tip; a 50 mm tip violates it; the box
-    bound (0.045) is untouched so the Phase 1-4 scaling is the committed one."""
+    bound (0.045) is untouched so the variable scaling is the committed one."""
 
     matrix, rhs, labels = problem.min_chord_rows()
     assert matrix.shape == (5, problem.n) and np.array_equal(rhs, np.full(5, 0.060))
@@ -425,7 +425,7 @@ def test_ablation_drops_rows_without_reordering(problem):
 
 def test_the_energy_optimum_is_feasible_for_the_mass_problem(problem, u_c):
     """`x_c` (the counter-example) satisfies every state row at `delta = 0`: the
-    moment cap is active (Phase 4), the stress and deflection rows are slack,
+    moment cap is active, the stress and deflection rows are slack,
     the monotone rows are slack. The one row it violates is the 60 mm
     min-chord floor of 2026-09-20 (its tip is 47.7 mm, from the 45 mm box it
     was optimised under): recorded, not patched -- it is the energy

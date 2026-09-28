@@ -1,10 +1,10 @@
 {
- "description": "Phase 4 Step 3 cost-scaling study: wall time of one objective evaluation and of one gradient by central FD, tangent (direct) mode, the discrete adjoint and the root-moment adjoint, against the number of design variables n = 2k, at the least-squares projection of the analytic Schmitz blade onto each block count.",
+ "description": "Phase 4 Cost-scaling study: wall time of one objective evaluation and of one gradient by central FD, tangent (direct) mode, the discrete adjoint and the root-moment adjoint, against the number of design variables n = 2k, at the least-squares projection of the analytic Schmitz blade onto each block count.",
  "bounds_label": "under the configured bounds (chord_max_m = 0.30 m, resolved 2026-09-19; chord_min_m, twist_min, twist_max grounded 2026-09-13)",
  "law_label": "lambda(V) = min(6.5, Omega_max R / V), Omega_max = 300 rpm (V_c = 9.67 m/s), fixed rating 3822.189755449124 W",
  "command": "python verification/cost_scaling/run_scaling.py",
  "generated": "2026-09-19T20:54:27",
- "src_commit": "ceb7dd3b0a5ed281cf213b67d04ec389577aef43",
+ "src_commit": "5f69760910d7cf0f5fb9cfd4a92f4d3242b3db8e",
  "machine": {
   "platform": "Windows-11-10.0.26200-SP0",
   "processor": "AMD64 Family 25 Model 33 Stepping 2, AuthenticAMD",

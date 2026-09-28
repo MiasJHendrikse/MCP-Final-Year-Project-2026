@@ -2,16 +2,16 @@
 Quantify the Viterna stitch: how continuous is a cached polar where measured
 data meets extrapolation?
 
-Work order Task 2, item 5. The extension is anchored to the airfoil's state at
+The extension is anchored to the airfoil's state at
 the last converged alpha, so *value* continuity is exact by construction --
 that is checked here rather than assumed. The question that matters is the
-**slope**, because Task 3 fits a C1 interpolant across this join and it can
+**slope**, because the C1 interpolant is fitted across this join and it can
 only do one of two things with a kink: reproduce it, breaking the smoothness
 guarantee the whole task exists to provide, or smooth it away, misrepresenting
 the physics. Either way the size of the kink has to be known and recorded.
 
 Normal operation keeps alpha well below stall, so the stitch sits outside the
-working range -- but optimiser excursions and the Step 8 smoothness sweeps will
+working range -- but optimiser excursions and the smoothness sweeps will
 visit it, which is exactly when an unrecorded discontinuity turns into an
 unexplained gradient artefact.
 
@@ -36,7 +36,7 @@ Writes `results/polar_cache/<airfoil>_stitch_continuity.json` and prints the
 markdown table that `data/polars/<airfoil>/README.md` records.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import argparse
@@ -218,7 +218,7 @@ def report(airfoil):
           f"({lo['slope_jump_vs_thin_airfoil']:.0%}).")
     print(f"Reported as continuous below {_SMOOTH_RELATIVE:.0%} of that slope; "
           f"neither stitch is, so both are kinks a C1 fit will have to make a "
-          f"choice about (work order Task 3).")
+          f"choice about.")
 
     out_path = os.path.join(RESULTS_DIR, "polar_cache",
                             f"{airfoil}_stitch_continuity.json")

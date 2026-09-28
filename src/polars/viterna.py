@@ -7,7 +7,7 @@ nothing to do with QBlade:
 
   * the polar caches themselves, which are written over the full circle so the
     (alpha, Re) grid has no ragged edge for a C1 interpolant to fit across
-    (remediation work order, Tasks 2 and 3);
+    (see `polars/interpolant.py`);
   * the pyBEMT/QBlade comparison tables, which already reached into
     `export_qblade` across the `validation` package boundary to get at it.
 
@@ -20,7 +20,7 @@ The three tuned constants
 -------------------------
 `CD_MAX`, the reversed-flow lift amplitude and the negative-side scale were
 fitted to match QBlade rather than derived. Reviewed here before they can enter
-a design-rotor cache (work order Task 2, item 3):
+a design-rotor cache:
 
 * **CD_MAX.** Now a parameter, not a constant. `cd_max_finite_blade()` gives
   Viterna & Corrigan's finite-blade relation `1.11 + 0.018 AR`, a *derived*
@@ -49,7 +49,7 @@ extrapolation is anchored to the measured endpoint and reproduces it exactly
 there (verified per Reynolds row by `validation/check_stitch_continuity.py`).
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import math
@@ -84,7 +84,7 @@ def cd_max_finite_blade(aspect_ratio):
     """
     Viterna & Corrigan's finite-blade post-stall drag maximum, `1.11 + 0.018 AR`.
 
-    The derived alternative to the fitted 1.8 (work order Task 2, item 3). Use
+    The derived alternative to the fitted 1.8. Use
     it for a cache built for a blade whose aspect ratio is known: the design
     rotor's Schmitz baseline gives AR ~ 13 and hence CD_MAX ~ 1.35, well below
     the fitted value.

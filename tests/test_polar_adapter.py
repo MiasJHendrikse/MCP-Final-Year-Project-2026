@@ -1,14 +1,14 @@
 """
-Task 4 acceptance: the polar adapter clamps nothing, substitutes nothing, and
-holds no module-level airfoil state.
+The polar adapter clamps nothing, substitutes nothing, and holds no
+module-level airfoil state.
 
-Each test here corresponds to one of the work order's "done when" clauses for
-Task 4. The clause "Phase VI cross-check figures unchanged" is not testable
-here -- it is what `test_golden_regression.py` covers, and Task 4 moves those
-figures deliberately (see `tests/golden/README.md`'s change log).
+Each test here corresponds to one acceptance criterion for the adapter. The
+criterion "Phase VI cross-check figures unchanged" is not testable here -- it
+is what `test_golden_regression.py` covers, and replacing the adapter moved
+those figures deliberately (see `tests/golden/README.md`'s change log).
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import math
@@ -176,11 +176,11 @@ def test_two_caches_are_live_simultaneously_and_order_independent():
     """
     The direct guard on what the `ACTIVE_AIRFOIL` global cost.
 
-    From Phase 1.4 the S809 validation cache and the SG6043 design cache are
+    The S809 validation cache and the SG6043 design cache are
     both in use in the same process. Under a module-level "active airfoil",
     whichever was set last decided what the next caller got, so the answer
-    depended on call order -- a direct threat to the brief's "same vector via
-    a different code path" determinism requirement. Constructed in both
+    depended on call order -- a direct threat to the "same vector via a
+    different code path" determinism requirement. Constructed in both
     orders, interleaved, the answers must be identical.
     """
 

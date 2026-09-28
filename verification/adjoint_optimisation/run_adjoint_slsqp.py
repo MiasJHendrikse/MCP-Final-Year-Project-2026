@@ -1,5 +1,5 @@
 """
-Phase 3, B5: adjoint-driven SLSQP, end to end -- A4's run with the adjoint
+Adjoint-driven SLSQP, end to end -- the finite-difference run with the adjoint
 gradient in place of central differences.
 
     minimise   fun(u) = J(u) / |J(u0)|,   J = -AEP [MWh/yr]
@@ -7,7 +7,7 @@ gradient in place of central differences.
     subject to the polar-cache Reynolds envelope (linear, 50 rows, margin 5 %)
                and the configured local-solidity cap (25 rows, inactive while
                chord_max_m = 0.30 m binds first) -- `problem.constraints()`
-    gradient   ScaledProblem.jac_adjoint  (discrete adjoint, Phase 3)
+    gradient   ScaledProblem.jac_adjoint  (discrete adjoint)
 
 Everything else is A4's (`verification/fd_optimisation/run_fd_slsqp.py`):
 `scipy.optimize.minimize(method="SLSQP", ftol=1e-8, maxiter=200)`, the same
@@ -15,7 +15,7 @@ starting point `x0`, the same constraint set and margin escalation,
 the same iterate recording, the same sanity gates on the AEP gain, the same
 bounds label. The one change is the `jac` argument.
 
-The comparison with A4 is the point. the implementation plan §6 B5: the two
+The comparison with the finite-difference run (A4) is the point: the two
 optima "must agree to SLSQP's tolerance; a different optimum is a suspected
 silent gradient error -- investigate before reporting". `result.json`
 records `||u*_adj - u*_fd||_inf`, the AEP difference, and the counters side
@@ -35,7 +35,7 @@ Run from the repo root:
     python verification/adjoint_optimisation/run_adjoint_slsqp.py [--maxiter N]
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import argparse

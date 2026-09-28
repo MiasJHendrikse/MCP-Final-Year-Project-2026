@@ -1,11 +1,7 @@
 # Packaging + test configuration.
 #
-# Pulled forward from the remediation work order's Task 7 (test
-# infrastructure) because Task 0's golden regression cannot run without it:
-# `src/` is not otherwise importable from the repo root, and every module in
-# the project assumes `cwd == src/`. Only this one file is pulled forward --
-# the rest of Task 7 (the ported stage validators, the import-invariant test,
-# the polar-cache checks) stays in Task 7.
+# Without this file `src/` is not importable from the repository root, and
+# every module in the project assumes `cwd == src/`.
 #
 # Two mechanisms, deliberately both present:
 #
@@ -13,8 +9,7 @@
 #                                   validation/, demos/ on the path properly.
 #   [tool.pytest]     pythonpath    makes `pytest` work from the repo root
 #                                   with no install step at all, which is how
-#                                   the golden regression is actually run
-#                                   after every remediation task.
+#                                   the test suite is normally run.
 
 [build-system]
 requires = ["setuptools>=68"]

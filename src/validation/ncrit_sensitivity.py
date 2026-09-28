@@ -1,11 +1,11 @@
 """
-SG6043 n_crit sensitivity study (PROJECT_PLAN.md §1.2).
+SG6043 n_crit sensitivity study.
 
 `config/polars_sg6043.yaml` specifies the design-rotor polar cache but leaves
 `build.ncrit` a raising sentinel: S809's Ncrit=5 was calibrated against that
 section's own tunnel data at 21% thickness and low Re, and does not transfer
-to a 10%-thick laminar-flow section (ground rule: no cache inherits another
-cache's calibration). This script runs that calibration for SG6043.
+to a 10%-thick laminar-flow section (no cache inherits another cache's
+calibration). This script runs that calibration for SG6043.
 
 Method: XFOIL is swept at Re = 100k, 150k, 200k, 300k, 400k, 500k -- the
 Reynolds numbers the UIUC LSAT Vol. 3 clean-model data actually covers
@@ -21,7 +21,7 @@ config/polars_sg6043.yaml, written to results/ncrit_sensitivity/.
 Run: python -m validation.ncrit_sensitivity   (from src/)
 
 Author: MJ Hendrikse
-Project: DSP810S — Inverse Design of Small Wind Turbine Blades
+Project: MCP820S — Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import json

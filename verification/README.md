@@ -1,92 +1,94 @@
-# `verification/`
+# Verification
 
-Versioned report figures and data — the artefacts that back a claim in the
-writeup. Work order Task 8, and the plan's working conventions.
+This folder holds the evidence behind every number and figure in the project.
+Each subfolder contains the script that produced its results, the results
+themselves (usually JSON), the figures, and a README explaining what was
+checked, what came out, how to reproduce it and what would show it to be
+wrong.
 
-Distinct from `results/`, which is generated output and partly gitignored.
-The rule is: if regenerating it would change what the dissertation says, it
-lives here and is committed. If it is scratch, a sweep you ran once, or an
-intermediate you would not cite, it belongs in `results/`.
+It is separate from `results/`, which holds generated output that isn't cited
+anywhere. The rule I followed: if regenerating something would change what the
+report says, it lives here and is committed.
 
-Each subdirectory carries its own README stating what the artefact shows, how
-it was produced, and what would make it wrong.
+## What's here
 
-| Directory | Status | Backs |
-|---|---|---|
-| `polar_interpolant/` | populated (Task 3) | that the C¹ interpolant removed the bilinear derivative staircase |
-| `phase_vi/` | populated (Task 5) | that the solver converges across the envelope with checked residuals |
-| `wind_resource/` | populated | the 20 m hub-height Weibull fit and the site extrapolation behind AEP |
-| `baseline/` | **re-run 2026-09-19** | the Schmitz `x0` and the reference numbers every result is compared to |
-| `spline_fit_error/` | **re-run 2026-09-19** | that the baseline's spline projection is not what A4 "gained" |
-| `fd_step_size/` | **re-run 2026-09-19** | the per-variable FD step `h*_j` and the disagreement scale `ε_j` the gradient tests use |
-| `fd_optimisation/` | **re-run 2026-09-19** | A4: FD-driven SLSQP from `x0`, end to end |
-| `adjoint_optimisation/` | **re-run 2026-09-19** | B5: adjoint-driven SLSQP, and its agreement with A4 |
-| `load_constraint/` | **new 2026-09-19** | Phase 4: the root-moment KS constraint -- Tiers 1-3, the `eps = 0` constrained optimum (`x_c`, the energy optimum -- the Phase 5 production optimum until the 2026-09-20 re-pitch; now the reference blade the mass optimum is set against), and the 0/2/5/10 % Pareto |
-| `mass_optimisation/` | **new 2026-09-20, re-run that afternoon under the 60 mm tip floor** | Phase 5: the AEP-constrained minimum-material blade -- `x_m` at `delta = 0` (-3.38 % shell material at equal energy; -5.27 % within 0.5 %), the 10-start agreement, the 0/0.25/0.5/1/2 % energy-floor front with KKT exchange rates, the ablation of the stress, deflection, monotone and moment rows, Tiers 1-3 of the stress and deflection Jacobians at `x0` and `x_m`, the `x0 / x_c / x_m` table, and the cross-evaluation under other resources and ceilings |
-| `absolute_material/` | **new 2026-09-20 (evening)** | the recorded laminate under `x0 / x_c / x_m`: shell mass 1.678 / 1.782 / 1.622 kg per blade, the thin-shell root stress 22.6 MPa against a 196.5 MPa design allowable, the tip deflection 111.8 mm; Tier 3 of the absolute rows at the new constants; and the measurement that adding the absolute stress row leaves `x_m` unchanged while *replacing* the relative row by it returns the `no stress` ablation optimum (-4.53 %, root stress 1.70 x) |
-| `cost_scaling/` | **new 2026-09-19** | Phase 4 Step 3: wall time of `J`, the FD, tangent, adjoint and moment-adjoint gradients against `n = 10 ... 160`, with the `t = a n^p` fits and the forward-solve counts |
-| `gradient_verification/` | **re-run 2026-09-19** | Tier 3 (adjoint vs the FD noise floor) and Tier 4 (attribution of what is left); **one red variable, reported and accepted** |
-| `fd_optimisation_multistart/` | **re-run 2026-09-19** | that A4's gain is not an artefact of the starting point |
-| `aep_gain_audit/` | **history — one file re-run** | the measurements behind `docs/AEP_GAIN_AUDIT.md`, under the retired provisional bounds; `cross_evaluate_xstar.json` is the exception, re-run 2026-09-19 with the current `x*` |
-| `smoothness_gate/` | **re-run 2026-09-21 under the committed law and rating** | that the objective is smooth enough to differentiate: `J` is C¹ but not C², the C² defects are single-step slope changes traced to the Buhl blend and the polar knots, and four of the ten variables are swept only over the part of the design box on which the objective is defined and the solver converges |
-| `representation_study/` | populated 2026-09-10, figure redrawn from its JSON | the choice of blade parameterisation and control-point count; a geometric comparison, unaffected by the bounds or the power model |
-| `aep_optimisation_experiment/` | **port, not a re-run** | the 2026-09-19 experiment behind inputs B1 and O4 (the 300 rpm ceiling and the 0.30 m chord cap), frozen as a record |
+**Setting up the problem**
 
-Statuses are current as of 2026-09-20.
+| Folder | What it shows |
+|---|---|
+| `wind_resource/` | the site's Weibull wind distribution at the 20 m hub height, extrapolated from 50 m |
+| `polar_interpolant/` | the smooth (C¹) polar interpolant removes the derivative "staircase" of plain bilinear interpolation |
+| `phase_vi/` | the BEM solver converges, with checked residuals, across the NREL Phase VI operating envelope |
+| `representation_study/` | how many spline control points the blade needs (5 chord + 5 twist) |
+| `baseline/` | the Schmitz reference blade x₀ that every result is compared with |
+| `spline_fit_error/` | fitting the Schmitz blade to the spline costs almost nothing, so it isn't where the optimiser's gain comes from |
+| `smoothness_gate/` | the energy function is smooth enough to differentiate (C¹, with explained curvature breaks) |
 
-## Re-run order
+**Gradients**
 
-The 2026-09-19 re-run had to respect a dependency chain — several artefacts
-consume a file an earlier artefact writes — so this is the order, not an
-alphabetical list:
+| Folder | What it shows |
+|---|---|
+| `fd_step_size/` | the best finite-difference step for each variable, and the noise floor used to judge agreement |
+| `gradient_verification/` | adjoint gradients agree with finite differences to the noise floor (Tier 3), and what's left over is round-off (Tier 4) |
+| `cost_scaling/` | an adjoint gradient costs about one objective evaluation, whatever the number of design variables |
 
-    baseline               x0.json, baseline_reference.json    →
-    fd_step_size           sweep.json (h*_j, ε_j)             → consumed by the gradient tests
-    fd_optimisation        result.json, iterates.json         → x* consumed by Tier 3/4, fit_error, multistart
-    spline_fit_error       fit_error.json                     → consumes result.json's x*
-    gradient_verification  tier3.json, tier4.json             → consumes sweep.json + iterates.json + result.json
-    fd_optimisation_multistart  starts.json, results.json     → consumes the feasible region and A4's result.json
-    adjoint_optimisation   result.json                        → checked against fd_optimisation's; reads the multistart's
-                                                                 `spread_of_optima_u_inf` for its u-agreement tolerance,
-                                                                 so it runs AFTER the multistart (corrected 2026-09-19, audit)
-    load_constraint       checks.json, result_eps*.json,      → consumes adjoint_optimisation/result.json's u* and the
-                          pareto.json                            baseline; runs AFTER adjoint_optimisation
-    cross_evaluate_xstar   cross_evaluate_xstar.json          → consumes the adjoint x* and evaluates it under 5 ceilings
-    mass_optimisation     result_delta*.json, multistart_delta0.json, → consumes baseline/x0.json, load_constraint/result_eps0.json (x_c),
-                          pareto.json, ablation.json, checks.json,     the multistart spread and fd_step_size/sweep.json's h*; runs AFTER
-                          reference_blades.json, cross_evaluation.json load_constraint (2026-09-20)
-    absolute_material      result.json, absolute_material.png  → consumes baseline/x0.json, load_constraint/result_eps0.json,
-                                                                 mass_optimisation/result_delta0.json + ablation.json and
-                                                                 fd_step_size/sweep.json; runs AFTER mass_optimisation (2026-09-20 evening)
-    cost_scaling           scaling.json, scaling.png          → reads only h* (fd_step_size) and AEP(x0) (baseline);
-                                                                 independent of every optimisation artefact
-    aep_optimisation_experiment  (port only)
+**Optimisation**
 
-`cross_evaluate_xstar.py` is the one script inside the frozen `aep_gain_audit/`
-directory that was re-run: it reads the *current* `x*` from
-`adjoint_optimisation/result.json` and evaluates blades rather than optimising
-them, so it has no stale input. Everything else in that directory stays as
-written, under the retired provisional bounds.
+| Folder | What it shows |
+|---|---|
+| `fd_optimisation/` | SLSQP driven by finite-difference gradients, run from x₀ to convergence |
+| `fd_optimisation_multistart/` | the energy optimum doesn't depend on the starting point |
+| `adjoint_optimisation/` | SLSQP driven by adjoint gradients reaches the same optimum, far faster |
+| `load_constraint/` | the root-moment constraint, the moment-capped energy optimum x_c, and the energy–moment trade-off |
+| `mass_optimisation/` | **the main result**: the minimum-material blade x_m at the reference energy (−3.38 % shell material; −5.27 % within 0.5 % of the energy), multi-start, the energy–material trade-off, which constraints matter, and robustness checks |
+| `absolute_material/` | the three blades in kilograms, megapascals and millimetres for an assumed laminate, and the stress along the span |
 
-## Regenerating
+**Further checks**
 
-Every subdirectory has a generator script next to its output, and the output is
-committed alongside it. Regeneration is deliberate, not routine — the same rule
-`tests/golden/README.md` states for the golden files. A figure that changes
-without an explanation in the commit message is a defect, not an update.
+| Folder | What it shows |
+|---|---|
+| `polar_sensitivity/` | how the results change if the SG6043 polars are wrong by a plausible amount |
+| `starting/` | the parked-rotor starting torque of the three blades |
+| `aep_gain_audit/` | an earlier investigation into why maximising energy gained so little. It used an earlier model configuration and is kept as a record |
+| `aep_optimisation_experiment/` | an earlier experiment with rotor-speed ceilings that informed the 300 rpm choice. Also kept as a record |
 
-## Regenerating the figures
+## Re-running
 
-Every committed figure is written through `src/plotting/figstyle.py`. That
-module sets the project's figure style (serif text, sentence-case axis labels
-with their symbols and units, two panels at most, side by side) and refuses, at
-write time, a figure that carries more than two panels, a super-title, or any
-project-history string in its text — a date, a phase number, "audit", an
-old/new legend, a bounds label. The refusal is mechanical, so a figure cannot
-acquire history by accident.
+Several results feed into later ones, so they must be re-run in this order:
 
-The figures are redrawn **from the committed JSON beside them**, never by
-re-running the physics behind them, in this order:
+    baseline                     x0.json, baseline_reference.json
+    fd_step_size                 sweep.json (h*_j, ε_j)                 used by the gradient tests
+    fd_optimisation              result.json, iterates.json             x* used by Tiers 3/4, spline_fit_error, multi-start
+    spline_fit_error             fit_error.json
+    gradient_verification        tier3.json, tier4.json
+    fd_optimisation_multistart   starts.json, results.json
+    adjoint_optimisation         result.json                            needs the multi-start spread for its tolerance
+    load_constraint              checks.json, result_eps*.json, pareto.json
+    aep_gain_audit/cross_evaluate_xstar.py                              evaluates the current x* under five ceilings
+    mass_optimisation            result_delta*.json, multistart_delta0.json, pareto.json,
+                                 ablation.json, checks.json, reference_blades.json,
+                                 cross_evaluation.json
+    absolute_material            result.json, absolute_material.png
+    polar_sensitivity            polar_sensitivity.json
+    cost_scaling                 scaling.json                           independent of the optimisation results
+
+`cross_evaluate_xstar.py` is the only script in `aep_gain_audit/` that is
+kept up to date. It only evaluates the current energy optimum, so it has no
+out-of-date inputs; the rest of that folder stays as it was run.
+
+Re-running is deliberate, not routine. A result or figure that changes
+without a reason given in the commit message should be treated as a bug.
+
+## Redrawing the figures
+
+Every figure is drawn through `src/plotting/figstyle.py`, which sets one
+consistent style (serif text, labelled axes with units, at most two panels
+side by side). It refuses to save a figure with more than two panels, a
+super-title, or any project-history text in it, such as a date or a phase
+number.
+
+The figures are redrawn from the committed JSON, without re-running the
+physics:
 
     python verification/baseline/generate_baseline.py --replot
     python verification/phase_vi/generate_residual_histories.py --replot
@@ -101,30 +103,12 @@ re-running the physics behind them, in this order:
     python src/validation/plot_bem_comparison.py
     python src/validation/compare_sg6043_uiuc.py --replot
 
-Two exceptions. `smoothness_gate/run_gate.py` has no `--replot`: it is the one
-gate whose figure *is* its run (12.6 minutes, 3000 objective evaluations), and
-it must be re-run when the objective changes rather than redrawn from a stale
-JSON. `polar_interpolant/generate_plots.py` and the two `src/validation/`
-scripts read the committed polar caches and the two BEM comparison results —
-tables, not runs — so they need no physics either.
+The exception is `smoothness_gate/run_gate.py`, which has no `--replot`
+option: its figure *is* the run (3,000 objective evaluations, about 13
+minutes), so it has to be re-run whenever the objective changes.
 
-The figures left in place but no longer written by any script — `baseline.png`,
-`smoothness_gate.png`, `blade_delta0.png`, `pareto.png`, and the unplaced
-figures of `load_constraint/`, `fd_optimisation/`, `adjoint_optimisation/`,
-`aep_optimisation_experiment/` and `spline_fit_error/` — predate the style
-module and are kept as the record of the run that produced them.
-
-## Added 2026-09-26 (review roadmap)
-
-Evaluation-only artefacts; none moves a committed optimum.
-
-- `polar_sensitivity/` -- the three blades re-evaluated, and the mass problem
-  re-optimised, under perturbed SG6043 polars (runs after `mass_optimisation`).
-- `starting/` -- parked-rotor starting torque of the three blades, relative.
-- `absolute_material/run_spanwise_stress.py` -- the thin-shell stress along
-  the span.
-- `mass_optimisation/run_energy_split.py` -- the share of AEP fixed by the
-  rating, and the KKT multipliers in comparable units.
-- `baseline/run_cp_peak.py` -- where the Schmitz reference's C_P peaks.
-- `fd_optimisation_multistart/diagnose_rejections.py` -- why 34 random draws
-  were rejected.
+A few older figures are no longer produced by any script (`baseline.png`,
+`smoothness_gate.png`, `blade_delta0.png`, `pareto.png`, and some figures in
+`load_constraint/`, `fd_optimisation/`, `adjoint_optimisation/`,
+`aep_optimisation_experiment/` and `spline_fit_error/`). They predate the
+style module and are kept as the output of the runs that made them.

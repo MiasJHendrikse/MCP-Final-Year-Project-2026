@@ -2,7 +2,7 @@
  "description": "Starting torque of the three committed blades, relative to the reference.",
  "command": "python verification/starting/run_starting_torque.py",
  "generated": "2026-09-26T12:34:06",
- "src_commit": "b74ecf2e8839ac4530acfca0499c66083380720b",
+ "src_commit": "fe3cb53918834b88f899ea9cb7149d14b827e106",
  "wind_speed_ms": 3.0,
  "reynolds_row_read": 40000.0,
  "caveats": "ratio between blades only; coefficients from the cache's Viterna extension on its 40 000 row (station Re at cut-in is below the cache floor); no generator resistance or inertia model",

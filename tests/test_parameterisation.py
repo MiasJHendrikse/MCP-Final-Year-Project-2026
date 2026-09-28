@@ -1,14 +1,13 @@
 """
 Plan step 1.6 acceptance: the blade parameterisation and its derivatives.
 
-Named in work order Task 7's list, which noted it "lands with Phase 1.6" --
-this is that landing. The headline criterion is complex-step agreement to
+The headline criterion is complex-step agreement to
 ~1e-14 on `dc/dd` and `dtheta/dd`; what is actually achieved is exact
 agreement, for a structural reason the tests below assert directly rather than
 just benefiting from.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import math
@@ -30,7 +29,7 @@ def _design_vector(parameterisation):
 
 
 # The design-variable bounds are in `config/rotor_design.yaml` since
-# 2026-09-19 (chord_max_m = 0.30 m, O4) and are read with
+# 2026-09-19 (chord_max_m = 0.30 m) and are read with
 # `DesignBounds.from_config()`. The provisional set that lived here from
 # 2026-09-13 (chord_max_m = 0.45 m, a placeholder with no basis) is retired;
 # `verification/aep_gain_audit/` carries its own copy as a historical record.
@@ -45,8 +44,8 @@ def test_chord_derivative_matches_complex_step(n_chord, n_twist):
     """
     dc/dd against complex-step differentiation, every design variable.
 
-    The plan asks for ~1e-14. The tolerance here is 1e-15 -- tighter than
-    asked -- because a B-spline is linear in its control points, so the
+    The target was ~1e-14. The tolerance here is 1e-15 -- tighter than
+    that -- because a B-spline is linear in its control points, so the
     Jacobian is not an approximation of anything: `dc_i/dd_j` IS the basis
     function `N_j(s_i)`. Anything above round-off would mean the basis matrix
     and the evaluation disagree, which is a wiring bug rather than a
@@ -265,7 +264,7 @@ def test_strip_count_and_control_point_count_are_independent():
 
 
 def test_defaults_come_from_config():
-    """25 strips, 5 + 5 control points -- the plan's intended configuration."""
+    """25 strips, 5 + 5 control points -- the chosen configuration."""
 
     design = load_design_rotor()
     parameterisation = BladeParameterisation()
@@ -285,8 +284,8 @@ def test_bounds_from_config_carry_the_decided_values():
     """
     The bounds were TODO until 2026-09-19; `from_config()` raised, and the
     test in this slot asserted that it did, as the reminder to replace it
-    with a real check the day the values landed. They landed (O4, MJ's
-    decision, basis in `config/rotor_design.yaml`), so this checks the real
+    with a real check the day the values landed. They landed (basis in
+    `config/rotor_design.yaml`), so this checks the real
     values in the units `DesignBounds` works in -- chord in metres, twist in
     radians -- and that the control-point counts follow the config.
     """

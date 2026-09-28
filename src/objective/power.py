@@ -1,5 +1,5 @@
 """
-Wind-speed bins and the operating strategy: P(V; d) (plan step 1.5).
+Wind-speed bins and the operating strategy: P(V; d).
 
 Everything here is independent of the wind resource: the bin scheme, the
 operating strategy and the per-bin power are the same whatever `k` and `c`
@@ -22,8 +22,8 @@ The bin count and the quadrature are properties of the *objective*, not tuning
 knobs: changing either changes J, so they are constants here rather than
 arguments, and any study that varies them has to say so.
 
-Operating strategy (plan step 1.5, revised 2026-09-19)
---------------------------------------------------------
+Operating strategy
+------------------
 Variable speed with a maximum rotor speed:
 
     lambda(V) = min( lambda_design, Omega_max R / V )
@@ -38,8 +38,8 @@ pinned bit-for-bit by `tests/test_operating_law_control.py`.
 Why this is the one structural change to the objective: with lambda fixed
 at every bin AEP is a fixed convex combination of `Cp(6.5, Re_b; d)` and the
 optimum is a Cp-at-one-TSR optimum, of which the polar-consistent Schmitz
-blade is the analytic maximiser (`docs/AEP_GAIN_AUDIT.md` section 1.1). A
-ceiling is the machine fact (outstanding input B1) that gives the objective
+blade is the analytic maximiser (`docs/DESIGN-BASIS.md` §2). A ceiling is
+the machine fact that gives the objective
 a TSR dimension; 300 rpm is a provisional value with a stated basis, in the
 config with its reasons. The schedule is a function of `V` alone -- it does
 not depend on the design -- so it is a fixed per-bin constant to every
@@ -54,13 +54,13 @@ with `P_rated` a fixed number from `config/rotor_design.yaml`
 
 Until 2026-09-19 the cap floated with the design, `P_rated = P_aero(V_rated;
 d)`, so a blade that made more power at 11 m/s was credited with a larger
-generator at every wind speed above it. The AEP-gain audit
-(`docs/AEP_GAIN_AUDIT.md` sections 1.2 and 3.2) measured that at 0.096 of the
+generator at every wind speed above it. The investigation of the energy
+gain (`verification/aep_gain_audit/`) measured that at 0.096 of the
 +0.217 % floating-cap gain -- 42 % of this site's energy is in the capped
 region -- and found the floating rating the less defensible model: a
 nameplate does not grow because the blade got better. The rating is now
 frozen; its current value is provisional (the baseline's own `P_aero(11 m/s;
-x0)`, pending the nameplate, outstanding input B2) and the config says so.
+x0)`, pending a generator nameplate) and the config says so.
 
 Two things about this matter to the smoothness gate and the adjoint. It puts
 a kink in P against *V* -- deliberately, that is what limiting is. Against
@@ -75,7 +75,7 @@ rotor power, as `bem.powercurve` documents; a drivetrain model would multiply
 through and belongs with the AEP write-up rather than here.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import math

@@ -2,8 +2,8 @@
 Close the interior holes in a committed polar cache, and write it out over the
 full -180..180 deg circle.
 
-Work order Task 2, items 1 and 4. This is a *repair* pass over an existing
-cache, not a rebuild (ground rule 1): every converged row already in the cache
+This is a *repair* pass over an existing cache, not a rebuild: every
+converged row already in the cache
 is written back bit-for-bit, at the same `%.6f` it was written with, and the
 `Ncrit = 5` / 240-panel settings the cache was built at are read from
 `config/polars_<name>.yaml` rather than restated, so a retry cannot silently
@@ -31,8 +31,8 @@ Why holes matter enough to repair. `PolarLookup` reindexes every curve onto the
 union alpha axis; an interior hole is bridged by linear interpolation between
 its neighbours, so it does not raise -- it quietly returns a chord across a
 region where XFOIL could not find a solution, at exactly the near-stall alphas
-where the curve has the most structure. Task 3 fits a C1 interpolant over this
-grid, and a bridged hole becomes a fitted feature.
+where the curve has the most structure. The C1 interpolant is fitted over
+this grid, and a bridged hole would become a fitted feature.
 
 Run directly (from `src/`):
 
@@ -41,7 +41,7 @@ Run directly (from `src/`):
     python -m xfoil.close_polar_gaps s809 --no-xfoil # extend only, no retries
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import argparse

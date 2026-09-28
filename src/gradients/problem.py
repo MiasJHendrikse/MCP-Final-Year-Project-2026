@@ -1,5 +1,5 @@
 """
-`ScaledProblem`: the optimisation problem as SLSQP sees it (Phase 2, Stage A2).
+`ScaledProblem`: the optimisation problem as SLSQP sees it.
 
 What an optimiser is handed
 ----------------------------
@@ -7,7 +7,7 @@ What an optimiser is handed
     objective   fun(u) = J(u) / |J(u0)|,  J = -AEP [MWh/yr]
     constraint  the polar-cache Reynolds envelope, linear in u (below)
     gradient    jac_fd(u, h): central differences of `fun`
-                jac_adjoint(u): the discrete adjoint (Phase 3), same units
+                jac_adjoint(u): the discrete adjoint, same units
 
 The objective is normalised by |J| at the first point evaluated (recorded as
 `J0`) because SLSQP's `ftol` is an *absolute* tolerance on the objective:
@@ -63,7 +63,7 @@ active at a point.
 
 The mass problem (2026-09-20)
 ------------------------------
-`docs/PLAN-mass-objective-2026-09-20.md`. The energy objective above becomes
+`docs/DESIGN-BASIS.md` §6. The energy objective above becomes
 a constraint and the objective becomes the material proxy:
 
     minimise    mass(u)  = A_shell(d) / A_shell(x0)          `objective.mass`, no BEM
@@ -90,7 +90,7 @@ accepted iterate that cannot be evaluated is a failed start.
 The absolute rows (2026-09-20, evening)
 ----------------------------------------
 With the laminate resolved (`config/rotor_design.yaml::structure`,
-`docs/MATERIALS-STRUCTURAL-INPUTS.md`) the two proxies have absolute
+`docs/OUTSTANDING-INPUTS.md` section 11) the two proxies have absolute
 counterparts on the same adjoints, with the constants carried instead of
 cancelled:
 
@@ -100,7 +100,7 @@ cancelled:
     stress_absolute      1 - sigma(u) / (sigma_allow / SF)      >= 0
     deflection_absolute  1 - delta_tip(u) / tip_clearance_m     >= 0
 
-Each is the inequality of the brief (`sigma_allow/SF - sigma >= 0`,
+Each is the natural inequality (`sigma_allow/SF - sigma >= 0`,
 `delta_allow - delta_tip >= 0`) divided by its allowable, so that the row
 SLSQP sees is of order one like every other row rather than of order
 1e8 Pa; the feasible set is the same and `mass_problem_slacks` quotes the
@@ -135,7 +135,7 @@ an injected clearance and `absolute_rows_available()` says why it is not
 assembled until then.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import math
@@ -153,7 +153,7 @@ from polars.polar import interpolant_for
 #: recorded, if a run still trips `PolarDomainError` -- never tuned beyond.
 DEFAULT_ENVELOPE_MARGIN = 0.05
 
-#: KS stiffness for the root-moment aggregate (Phase 4). The default the load
+#: KS stiffness for the root-moment aggregate. The default the load
 #: constraint is built at; `moment_report` also quotes 30 and 300.
 DEFAULT_KS_RHO = 100.0
 
@@ -236,7 +236,7 @@ class ScaledProblem:
         self.domain_errors = []
         self._adjoint = None
 
-        # Phase 4 load constraint (Step 2c): built on first use from the
+        # Load constraint: built on first use from the
         # committed baseline. KS0 is `KS_rho(u0)` alongside J0; n_moment_solves
         # counts the 9-point forward solves the constraint's fun/jac need.
         self.KS0 = None
@@ -371,7 +371,7 @@ class ScaledProblem:
     def jac_adjoint(self, u):
         """
         Discrete-adjoint gradient of `fun` at `u`:
-        `gradient(d) * span / |J0|` (Phase 3, B3).
+        `gradient(d) * span / |J0|`.
 
         One forward solve plus the partials -- the cost of about two
         objective evaluations, against `2n` for `jac_fd`. `J0` must be set
@@ -390,7 +390,7 @@ class ScaledProblem:
         self.n_adjoint_evals += 1
         return result.dJ_dd * self.bounds.span() / abs(self.J0)
 
-    # -- the root-moment functional (Phase 4, Step 2c) -----------------------
+    # -- the root-moment functional -----------------------
 
     def _system_for(self, rho):
         """
@@ -529,7 +529,7 @@ class ScaledProblem:
 
     def moment_constraint(self, eps, rho=None):
         """
-        SciPy inequality for the Phase 4 load cap:
+        SciPy inequality for the root-moment load cap:
 
             g_eps(u) = (1 - eps) KS0 - KS(u)  =  (KS0 - KS(u)) - eps KS0  >= 0
 
@@ -552,7 +552,7 @@ class ScaledProblem:
         return {"type": "ineq", "fun": fun, "jac": jac}
 
     def constraints_with_moment(self, eps):
-        """The full Phase 4 inequality set: envelope, solidity, moment."""
+        """The full inequality set: envelope, solidity, moment."""
 
         return self.constraints() + [self.moment_constraint(eps)]
 
@@ -572,7 +572,7 @@ class ScaledProblem:
         Everything the load-constraint artefacts record at `u`, forward path
         only: the per-point moments and softmax weights, `KS` and its
         conservatism `KS - max` over `rho in {30, 100, 300}`, the
-        design-condition thrust and `Ct`, and the **B3-dependent** cut-out
+        design-condition thrust and `Ct`, and the cut-out
         post-check at 20 m/s on the ceiling (reported, never constrained).
         """
 
@@ -1020,7 +1020,7 @@ class ScaledProblem:
         The buildable-tip floor `c_i - min_chord_m >= 0` on every chord
         control point (`manufacturing.min_chord_m`, 2026-09-20): `(matrix,
         rhs, labels)` with `matrix = [I 0]` and `rhs = min_chord_m`. A row
-        rather than the box bound so the Phase 1-4 scaling of `u` stays as
+        rather than the box bound so the scaling of `u` stays as
         committed. Empty when the floor is at or below the box bound.
         """
 
@@ -1264,7 +1264,7 @@ class ScaledProblem:
         `solidity` (row labels), the tightest row of each constraint with
         its slack, and every station's solidity.
 
-        With `moment_eps` given, the Phase 4 moment row is attached too (its
+        With `moment_eps` given, the moment row is attached too (its
         slack is `(KS0 - KS(u)) - eps KS0`, from `moment_active`). With
         `mass_delta` given, every scalar row of the mass problem is attached
         under `mass_problem` (`mass_problem_slacks`).

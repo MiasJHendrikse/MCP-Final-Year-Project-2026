@@ -2,7 +2,7 @@
  "problem": "minimise shell material k_P int c dr subject to AEP >= (1 - delta) AEP(x0), the Phase 4 moment cap, the root-stress and tip-deflection proxies, monotone chord and twist control points, the 60 mm min-chord floor, the envelope and solidity",
  "command": "python verification/mass_optimisation/run_sweep.py",
  "generated": "2026-09-20T12:29:17",
- "src_commit": "41d3ccabda7a4fade9cd40b38a4643d817dce66d",
+ "src_commit": "10769c292233465669280213e2c2b1fd124f1467",
  "delta": 0.0,
  "cases": [
   {

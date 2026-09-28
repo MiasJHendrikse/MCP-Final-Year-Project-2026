@@ -14,7 +14,7 @@ Two entry points, and the difference between them matters
 which are `TODO`, so it raises today.
 
 `energy_surrogate(d)` is the same sum with **unit weights instead of Weibull
-weights**. It exists for one purpose: plan step 1.8's smoothness gate, which
+weights**. It exists for one purpose: the smoothness gate, which
 asks whether `J` is smooth enough to differentiate, must be able to run before
 the wind resource arrives.
 
@@ -36,7 +36,7 @@ quoted as a performance figure. `annual_energy_mwh` is the only thing that may
 be, and it raises until the data lands.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import numpy as np
@@ -126,7 +126,7 @@ def objective(design_vector, resource=None, parameterisation=None,
     """
     J(d) = -AEP(d), the quantity an optimiser minimises.
 
-    Negated because the plan states the problem as a minimisation and SciPy's
+    Negated because the problem is stated as a minimisation and SciPy's
     optimisers minimise; the sign lives here, once, rather than at every call
     site.
     """
@@ -136,7 +136,7 @@ def objective(design_vector, resource=None, parameterisation=None,
 
 
 def sanity_band():
-    """The configured plausibility band for AEP, MWh/yr (plan section 1.4)."""
+    """The configured plausibility band for AEP, MWh/yr."""
 
     design = load_design_rotor()
     return design.aep_mwh_per_year_min, design.aep_mwh_per_year_max

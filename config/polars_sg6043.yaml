@@ -1,15 +1,14 @@
-# SG6043 polar cache -- the design rotor's cache. PROJECT_PLAN.md section 3.3.
+# SG6043 polar cache -- the design rotor's cache.
 #
 # BUILT 2026-09-10. data/polars/sg6043/README.md has the full account: gap
 # closure, Viterna stitch measurement, and -- the piece S809 has no
 # equivalent of -- validation against real UIUC LSAT measurements. Both
-# inputs the build was blocked on were landed first (remediation work order,
-# ground rule 3 -- neither was invented):
+# inputs the build depended on were obtained first (neither was invented):
 #
 #   * the SG6043 coordinates -- LANDED 2026-08-29 as data/airfoils/sg6043.dat,
 #     fetched verbatim from the UIUC coordinate database and geometry-verified
 #     against published thickness/camber (see data/airfoils/README.md);
-#   * n_crit -- LANDED 2026-09-09, selected by plan 1.2's sensitivity study
+#   * n_crit -- LANDED 2026-09-09, selected by the sensitivity study
 #     (python -m validation.ncrit_sensitivity, results/ncrit_sensitivity/).
 #     S809's Ncrit = 5 is a result about a 21 % thick section at low Re and
 #     does not transfer; this cache's own calibration is `build.ncrit` below.
@@ -53,7 +52,7 @@ build:
   # floor against a computed minimum of 49.4k (19 % margin); 1.0M ceiling
   # against a computed maximum of 854k (17 % margin). Spacing is finer at the
   # low end, where dCd/dRe is steepest and where the design rotor actually
-  # lives, and the interpolant of work order Task 3 works in log(Re), so even
+  # lives, and the C1 interpolant works in log(Re), so even
   # ratios matter more than even differences.
   reynolds:
     - 40000
@@ -71,25 +70,25 @@ build:
     - 1000000
 
 # ---------------------------------------------------------------------------
-# Reynolds envelope -- work order Task 2, item 0
+# Reynolds envelope
 # ---------------------------------------------------------------------------
 # Computed by `python -m polars.envelope` (from src/), which derives it from
 # config/rotor_design.yaml and config/site.yaml alone. Established BEFORE any
-# SG6043 polar is generated, because work order Task 4 removes the Reynolds
-# clamp and makes an out-of-range lookup raise: a cache floor above the real
+# SG6043 polar is generated, because the polar layer has no Reynolds clamp
+# and an out-of-range lookup raises: a cache floor above the real
 # envelope would turn a silent wrong answer into a hard crash across the
 # low wind-speed bins, which carry most of this site's AEP.
 #
 # Method: Re = W c / nu with W = hypot(V, Omega r), over
 #   * 25 stations over r/R = 0.15..1.0 plus the tip;
 #   * every 1 m/s wind bin from cut-in (3) to cut-out (20);
-#   * Schmitz optimum chord at C_L = 1.0 -- plan 1.4's own basis for choosing
+#   * Schmitz optimum chord at C_L = 1.0 -- the same basis used for choosing
 #     R = 2.0 m -- perturbed by 0.7, 1.0 and 1.4;
 #   * three rotor-speed schedules (see `cases`).
 #
-# The chord band is an assumption, not a config value: plan 7.1's chord bounds
-# are unset, so a stand-in is needed and is stated rather than hidden. It
-# covers the design-lift lever the plan records (chord scales as 1/C_L, so
+# The chord band is an assumption, not a config value: the chord bounds were
+# not yet set when this was built, so a stand-in was needed and is stated
+# rather than hidden. It covers the design-lift lever (chord scales as 1/C_L, so
 # C_L in 0.71..1.43 is the same band) and any plausible optimiser excursion.
 # Recompute when 7.1 fixes real bounds.
 reynolds_envelope:
@@ -116,7 +115,7 @@ reynolds_envelope:
     low end of the tip-speed-ratio band the root sees little relative velocity
     despite its large chord. Rows below Re = 60k sit outside the UIUC
     Low-Speed Airfoil Tests range (60k, 100k, 200k, 300k) and inherit the
-    low-Re XFOIL uncertainty plan 3.3 names as a dominant error source; they
+    low-Re XFOIL uncertainty, a dominant error source; they
     are cached to keep the envelope covered, not because they are as
     trustworthy as the rest. The 49k-854k span is the envelope this cache was
     sized against -- a synthetic Schmitz chord model and an unregulated
@@ -128,7 +127,7 @@ reynolds_envelope:
     about 2.5 at the top.
 
 # ---------------------------------------------------------------------------
-# Post-stall extrapolation -- work order Task 2, item 3
+# Post-stall extrapolation
 # ---------------------------------------------------------------------------
 # The +/-180 deg extension is written at build time (polars.viterna). CD_MAX
 # for this cache is DERIVED from the blade's aspect ratio through Viterna &
@@ -184,11 +183,11 @@ history:
   - date: 2026-08-29
     change: >-
       specified -- Reynolds envelope computed and bounds set with margin
-      (work order Task 2, item 0). No polars generated: coordinates and
+      No polars generated: coordinates and
       n_crit are still outstanding.
   - date: 2026-09-09
     change: >-
-      n_crit calibrated to 9.0 by the sensitivity study (plan 1.2); see
+      n_crit calibrated to 9.0 by the sensitivity study; see
       build.ncrit above and results/ncrit_sensitivity/README.md for the full
       comparison and the reasoning for overriding the study script's own
       naive pick of 11. n_crit in {5,7,13} left incompletely characterized
@@ -205,7 +204,7 @@ history:
       measurements for the first time (compare_sg6043_uiuc.py): mean Cl RMSE
       0.0914, Cd RMSE 0.00856 over the six shared Reynolds numbers, improving
       monotonically with Re. Stitch continuity measured, real kinks present
-      at both stitches (see README), same characterisation Task 3 needs.
+      at both stitches (see README), the characterisation the C1 interpolant needs.
 
 validation:
   script: python -m validation.validate_polars sg6043
@@ -237,4 +236,4 @@ validation:
     40k-80k rows are XFOIL alone, in the regime where XFOIL is least
     trustworthy, and the n_crit study could only validate 100k-500k and must
     assume the calibration carries downward. Name this in the limitations
-    chapter (plan 3.3, risk R4).
+    chapter.

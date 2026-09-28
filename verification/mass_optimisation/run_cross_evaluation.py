@@ -1,5 +1,5 @@
 """
-Phase 5 (2026-09-20) -- cross-evaluation of `x0`, `x_c` and `x_m` under other
+Cross-evaluation of `x0`, `x_c` and `x_m` under other
 resources and other rotor-speed ceilings. No optimisation: three fixed
 blades, evaluated.
 
@@ -14,8 +14,8 @@ when either is changed, which is the honest caveat on a "-4.2 % material for
     band of `verification/wind_resource/README.md`, `z0 = 0.05 .. 0.5 m`) x
     `k in {1.5, 2.0}` (about +/- 0.25 around the extrapolated 1.709; the GWA
     source value at 50 m is 1.87). THIS BAND IS AN ASSUMPTION OF THIS
-    ARTEFACT: plan 1.3's sensitivity band has not been chosen (the README
-    says so) and nothing here chooses it. The loads do not depend on the
+    ARTEFACT: no sensitivity band has been formally chosen (the README says
+    so) and nothing here chooses it. The loads do not depend on the
     resource, so only AEP is evaluated here.
   * **rotor-speed ceilings** -- `V_tip,max in {62.83 (300 rpm, config), 60,
     55, 50} m/s`, the operating law `lambda(V) = min(6.5, V_tip,max / V)` and
@@ -30,7 +30,7 @@ Run from the repo root (about one minute):
     python verification/mass_optimisation/run_cross_evaluation.py
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import datetime

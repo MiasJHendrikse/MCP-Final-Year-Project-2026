@@ -72,7 +72,7 @@ omega_rad_s = RPM * 2.0 * 3.141592653589793 / 60.0
 tsr = omega_rad_s * geometry.R / V_INF_MS
 
 # One CachedPolar per station, all pinned to the same Re so both solvers query
-# the identical XFOIL curve (see module docstring). Since Task 4 this reads the
+# the identical XFOIL curve (see module docstring). This reads the
 # +/-180 deg Viterna-extended cache with no alpha clamp -- the same extension
 # that was exported to the .plr QBlade is running, so the two solvers now see
 # the same post-stall model as well as the same measured band.

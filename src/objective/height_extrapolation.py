@@ -1,10 +1,10 @@
 """
-Weibull parameter extrapolation between heights (plan step 1.3).
+Weibull parameter extrapolation between heights.
 
 The site's wind resource was extracted at **50 m**. The rotor's hub height is
 **20 m** (`config/site.yaml:hub_height_m`). The two Weibull parameters must
-therefore be moved down 30 m, and the resumption checklist in
-`docs/journal/Session Notes/2026-09-10.md` is explicit about how:
+therefore be moved down 30 m, and the project log (2026-09-10) is explicit
+about how:
 
     "not at GWA's default 10 m or 50 m, and if only those are available the
      height extrapolation must be done and recorded, not fudged."
@@ -36,7 +36,7 @@ chosen over a bare power law:
 2. **It needs no surface roughness.** The exponent comes from A_ref, not from
    a z0 that would have to be assumed for this terrain. That matters here:
    no roughness survey exists for the site, so a log-law central case would
-   have required inventing one -- which ground rule 3 forbids. z0 appears in
+   have required inventing one, which I won't do. z0 appears in
    this project only in the *cross-check* band, where a range is honest.
 
 The 10 m in both denominators is the correlation's own anchor height, not a
@@ -61,7 +61,7 @@ a faithful transcription of the wrong correlation, which is what the
 provenance item is for.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import math

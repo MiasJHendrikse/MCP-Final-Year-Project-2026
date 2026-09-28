@@ -1,6 +1,6 @@
-# Objective smoothness gate
+# Is the objective smooth enough to differentiate?
 
-The readiness test for all gradient work: is `J` smooth enough to
+This is the check that had to pass before any gradient work: is `J` smooth enough to
 differentiate? For each design variable in turn, hold the others at `x0` and
 sweep that one; plot `J` against it and the **first difference**, which is
 where the defects actually show.
@@ -73,7 +73,7 @@ statement about the model's validity range, not about the box.
 | twist CP 3 | ✓ | 0 | 1.000 | 0 | 3.00 | 15.65 |
 | twist CP 4 | ✓ | 0 | 1.000 | 0 | 5.33 | 3.58 |
 
-Against the four defects the gate names:
+Checking for the four kinds of defect:
 
 - **Staircasing — absent.** `distinct = 1.000` means every one of the 300 `J`
   values is unique on every sweep, and there is not a single zero step in any
@@ -128,8 +128,7 @@ than quadratic) and would no longer be Buhl's, so "fixing" it would mean
 departing from the cited method to remove something that does not obstruct the
 work.
 
-**Expected effect on gradient work**, which is what the exit criterion asks to
-be recorded:
+**Expected effect on the gradient work:**
 
 - **Adjoint: none.** The adjoint needs `J` to be C¹. It is. The derivative is
   well-defined and continuous everywhere in the swept range.
@@ -140,7 +139,7 @@ be recorded:
   a curvature jump as a station crosses a break. Expect slightly degraded
   superlinear convergence near such a crossing, not incorrect results.
 
-## What this gate has already caught
+## What this check has already caught
 
 A station failed to converge at Re = 70,995 while the Schmitz baseline was
 being built — a genuine value discontinuity in the polar interpolant at every

@@ -1,7 +1,7 @@
 """
-The Task 1 acceptance criteria, as executable checks.
+Checks on the configuration layer.
 
-Task 1 of the remediation work order removed two hard-coded air properties that
+The configuration layer replaced two hard-coded air properties that
 produced *silently wrong answers rather than errors*: `air_density=1.225` as a
 default argument on four solver signatures, and a sea-level
 `AIR_KINEMATIC_VISCOSITY` module constant. An AEP call that omitted the density
@@ -22,7 +22,7 @@ tolerance, across the whole Cp(lambda) curve and the spanwise state. It is not
 duplicated here.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import contextlib
@@ -42,7 +42,7 @@ from bem.rotor import phase_vi_geometry, solve_rotor
 _HERE = os.path.dirname(os.path.abspath(__file__))
 SRC_DIR = os.path.abspath(os.path.join(_HERE, "..", "src"))
 
-#: The two literals Task 1 removed. Written as regexes rather than substrings
+#: The two literals that were removed. Written as regexes rather than substrings
 #: so `1.2255` or a Reynolds number ending in the same digits cannot match by
 #: accident, and so both spellings of the exponent are caught.
 AIR_PROPERTY_LITERALS = (
@@ -63,7 +63,7 @@ def test_no_air_property_literals_in_src():
     """
     No sea-level air property appears as a literal anywhere under `src/`.
 
-    This is the work order's own acceptance check ("grep is the check"), and it
+    This is the acceptance check ("grep is the check"), and it
     covers comments and docstrings as well as code deliberately: a comment
     carrying the number is how it gets copied back into code later. The values
     live in `config/`, which is input data, not source.
@@ -95,7 +95,7 @@ def test_solver_entry_points_require_air_properties(call):
     """
     Every solver entry point refuses to run without rho and nu.
 
-    A `TypeError` here is the entire point of Task 1: the previous behaviour
+    A `TypeError` here is the entire point: the previous behaviour
     was a plausible-looking number computed at the wrong site.
     """
 
@@ -140,19 +140,19 @@ def test_site_atmosphere_is_internally_consistent():
 
     `load_site` recomputes p, rho and nu from elevation, mean temperature, mu
     and the ISA constants and rejects the file on disagreement, so simply
-    loading it is the check. Re-asserted here against the plan's exit band so
+    loading it is the check. Re-asserted here against the expected band so
     a change to the tolerance cannot quietly widen it.
     """
 
     site = config.load_site()
 
     assert 0.95 < site.air_density < 1.03, (
-        "plan item 1.1's exit criterion: site density between 0.95 and 1.03 kg/m^3"
+        "expected site density between 0.95 and 1.03 kg/m^3"
     )
     assert site.kinematic_viscosity == pytest.approx(
         site.dynamic_viscosity_pa_s / site.air_density, rel=config.ATMOSPHERE_TOLERANCE
     )
-    # The site is markedly less dense than sea level -- the point of plan 1.2.
+    # The site is markedly less dense than sea level.
     assert site.air_density < 1.0
 
 
@@ -212,7 +212,7 @@ def _clear_config_caches():
 
 def test_an_inconsistent_atmosphere_is_rejected():
     """
-    The atmosphere check has guarded site.yaml since Task 1 but its rejection
+    The atmosphere check has always guarded site.yaml, but its rejection
     path was never actually exercised. Driving it here, alongside the new wind
     resource check, so both are known to fire rather than assumed to.
     """
@@ -320,7 +320,7 @@ def test_a_partially_resolved_wind_resource_is_rejected():
 
 def test_design_bounds_are_resolved_with_their_recorded_values():
     """
-    The design-variable bounds were TODO (plan 7.1) until 2026-09-19; they
+    The design-variable bounds were TODO until 2026-09-19; they
     are resolved now, with the basis recorded in the YAML. Pinned to the
     decided numbers so an edit has to restate its basis, and so a `TODO`
     creeping back in would fail here rather than three modules downstream.
@@ -329,7 +329,7 @@ def test_design_bounds_are_resolved_with_their_recorded_values():
     bounds = config.load_design_rotor().parameterisation
 
     assert float(bounds.chord_min_m) == pytest.approx(0.045)
-    assert float(bounds.chord_max_m) == pytest.approx(0.30)      # O4, 2026-09-19
+    assert float(bounds.chord_max_m) == pytest.approx(0.30)
     assert float(bounds.twist_min_deg) == pytest.approx(-2.0)
     assert float(bounds.twist_max_deg) == pytest.approx(35.0)
 
@@ -348,8 +348,7 @@ def test_a_todo_bound_still_raises_when_used():
 
 def test_the_machine_facts_are_recorded():
     """
-    B1 (rotor-speed ceiling) and the solidity cap, resolved provisionally on
-    2026-09-19. `max_tip_speed_ms` is derived from the rpm and the radius so
+    The rotor-speed ceiling and the solidity cap. `max_tip_speed_ms` is derived from the rpm and the radius so
     the two cannot drift apart.
     """
 
@@ -382,15 +381,15 @@ def test_resolved_design_values_are_present():
     assert design.design_tsr == pytest.approx(6.5)
     assert design.cut_in_wind_speed_ms == pytest.approx(3.0)
     assert design.cut_out_wind_speed_ms == pytest.approx(20.0)
-    # Strip count and design-variable count are independent quantities (plan
-    # 4.1); conflating them is the plan's named most-likely misreading.
+    # Strip count and design-variable count are independent quantities;
+    # conflating them is the most likely misreading.
     assert design.parameterisation.n_bem_strips == 25
     assert design.parameterisation.n_design_variables == 10
 
 
 def test_the_mass_problem_is_recorded():
     """
-    The 2026-09-20 re-pitch (docs/PLAN-mass-objective-2026-09-20.md): the
+    The minimum-material problem (docs/DESIGN-BASIS.md section 6): the
     objective is the shell material and both manufacturability rows are on.
     """
 
@@ -408,7 +407,7 @@ def test_the_laminate_is_recorded_with_its_source():
     The structural inputs resolved 2026-09-20 (evening): one laminate, the
     E-LT-5500/EP-3 row of Griffith & Ashwill (2011) Table 19, a 2 mm skin
     tied to the 60 mm tip, and the GL hand-lay-up safety factor
-    (docs/MATERIALS-STRUCTURAL-INPUTS.md). Pinned so an edit has to restate
+    (docs/OUTSTANDING-INPUTS.md section 11). Pinned so an edit has to restate
     its basis, as for the bounds.
     """
 

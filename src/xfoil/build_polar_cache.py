@@ -15,10 +15,10 @@ one row per alpha on a -180..180 deg grid, columns:
     source : provenance code -- see polars/cache_format.py. Rows outside the
              XFOIL-converged band are Viterna extrapolation, written at build
              time so the committed cache spans the full circle with no ragged
-             edge (work order Task 2).
+             edge.
 
 Author: MJ Hendrikse
-Project: DSP810S — Inverse Design of Small Wind Turbine Blades
+Project: MCP820S — Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import argparse
@@ -34,18 +34,15 @@ DATA_DIR = os.path.abspath(os.path.join(RESULTS_DIR, "..", "data"))
 
 # Re = 100k-500k was the original range: it spans the expected operating range
 # for a small turbine at a ~5-6 m/s mean-wind, low-Re site (Windhoek-area).
-# That range does NOT cover the real NREL Phase VI rotor used from Stage 4
-# onward: bem.rotor.phase_vi_geometry's chord-based station Reynolds numbers
+# That range does NOT cover the real NREL Phase VI rotor: bem.rotor.phase_vi_geometry's chord-based station Reynolds numbers
 # run from ~525k (5 m/s, inboard) to ~1.31M (25 m/s, outboard) across the
 # Sequence S wind-speed sweep (see compare_pybemt.py) -- every station at
 # every wind speed was clamping to this cache's old 500k ceiling (S809Polar's
 # out-of-range clamp in bem/airfoil.py), so there was zero real Re variation
 # in any Phase VI run. 600k-1.3M in 100k steps was added (2026-07-28) to
-# bracket that actual range with the same resolution as the original sweep;
-# see the 2026-07-28 journal entry for the before/after and the convergence
-# check at the new, higher-Re end.
+# bracket that actual range with the same resolution as the original sweep.
 # alpha -8 to 18 deg covers attached flow plus enough post-stall range for the
-# Viterna extrapolation (Phase 1 BEM) to have a real XFOIL-derived baseline
+# Viterna extrapolation to have a real XFOIL-derived baseline
 # near the stall boundary.
 _DEFAULT_REYNOLDS_LIST = [
     100_000, 150_000, 200_000, 300_000, 400_000, 500_000,
@@ -54,8 +51,7 @@ _DEFAULT_REYNOLDS_LIST = [
 _DEFAULT_ALPHA_MIN, _DEFAULT_ALPHA_MAX, _DEFAULT_ALPHA_STEP = -8, 18, 0.5
 
 # Transition/paneling settings. These are NOT XFOIL's defaults, and the reason is
-# specific to S809 at the low end of the Re range above (see the 2026-07-26
-# journal entry for the full comparison):
+# specific to S809 at the low end of the Re range above:
 #
 #   ncrit=5 — XFOIL's default Ncrit=9 models a clean wind tunnel. On a section as
 #     thick as the S809 (21% t/c) at Re <= 150k that assumption keeps the boundary
@@ -77,7 +73,7 @@ _DEFAULT_NCRIT = 5.0
 _DEFAULT_N_PANEL = 240
 
 # Registry of airfoils this pipeline knows how to cache. NACA 4412 was the
-# original primary target (see PROJECT_PLAN.md); the primary target has since
+# original primary target; the primary target has since
 # moved to S809 (NREL Phase VI's actual airfoil, with real low-Re tunnel data from
 # Delft/OSU/CSU) but the NACA 4412 cache is retained as a secondary reference
 # dataset — the pipeline and interpolation layer are airfoil-agnostic, so there is
@@ -89,11 +85,11 @@ AIRFOILS = {
         label="s809",
     ),
     # The design-rotor cache -- its own Reynolds range and calibration, per
-    # config/polars_sg6043.yaml (plan 1.2). n_crit=9 selected by the
+    # config/polars_sg6043.yaml. n_crit=9 selected by the
     # sensitivity study (results/ncrit_sensitivity/README.md, 2026-09-09);
     # cd_max is DERIVED from the Schmitz-baseline aspect ratio (~11.7) via
     # Viterna & Corrigan's 1.11 + 0.018*AR, not the S809/QBlade-matched 1.8
-    # (work order Task 2, item 3 -- see polars/viterna.py).
+    # (see polars/viterna.py).
     "sg6043": dict(
         airfoil_cmd="LOAD " + os.path.join(DATA_DIR, "airfoils", "sg6043.dat"),
         label="sg6043",
@@ -216,8 +212,7 @@ def save_polar_csv(polar, csv_path, source=None, extend=True,
     Write a converged XFOIL polar array to a cache CSV.
 
     The file spans -180..180 deg: the converged rows as XFOIL produced them,
-    Viterna-extrapolated outside the converged band (work order Task 2, item
-    4), with a provenance column saying which is which. Extending at *write*
+    Viterna-extrapolated outside the converged band, with a provenance column saying which is which. Extending at *write*
     time rather than at read time is what makes "the cache has no ragged edge"
     a property of the committed data instead of a property of whoever happens
     to be reading it -- see polars/cache_format.py.

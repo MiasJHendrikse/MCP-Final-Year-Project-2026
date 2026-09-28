@@ -4,11 +4,11 @@ dependency.
 
 `src/xfoil/` generates caches (it shells out to XFOIL); this package reads
 them, extrapolates them and reasons about the Reynolds envelope they have to
-cover. Keeping the two apart is what makes plan section 3.4's "XFOIL never runs
-in the solve loop" a testable invariant rather than an intention -- nothing
+cover. Keeping the two apart is what makes "XFOIL never runs in the solve
+loop" a testable invariant rather than an intention -- nothing
 importable from here can start an XFOIL process.
 
-Task 2 adds:
+Post-stall extension:
   `viterna`       -- post-stall extrapolation to +/-180 deg, promoted out of
                      validation/export_qblade.py.
   `cache_format`  -- the cache CSV schema, including the provenance column
@@ -17,21 +17,21 @@ Task 2 adds:
   `envelope`      -- the design rotor's per-station Reynolds envelope, which
                      is what sets the SG6043 cache bounds.
 
-Task 3 adds:
+The smooth interpolant:
   `cache`         -- CSV load and ragged->rectangular reindexing into a
                      `PolarGrid`, lifted from `xfoil.polar_lookup`.
   `interpolant`   -- `PolarInterpolant`, the C1 analytically differentiable
                      (alpha, Reynolds) -> (Cl, Cd, Cm) surface built on top
                      of a `PolarGrid`.
 
-Task 4 adds:
+The solver's view of it:
   `polar`         -- `CachedPolar`, the BEM solver's per-station view of that
                      surface at one fixed Reynolds number. Replaces
                      `bem.airfoil.S809Polar`; clamps nothing, substitutes
                      nothing, raises out of range.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 from polars.cache import PolarGrid, PolarGridError

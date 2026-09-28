@@ -1,7 +1,7 @@
 """
-`RootMomentSystem`: the Phase 4 second right-hand side -- the KS aggregate
+`RootMomentSystem`: the second right-hand side -- the KS aggregate
 of the flapwise root-bending moment over the load operating set `L`, and its
-discrete adjoint (Step 2b).
+discrete adjoint.
 
 It subclasses `BEMSystem` and inherits the forward solve, the residual, the
 partials, `dR/dx`, `dR/dd`, the matrix-free operators and `state_sensitivity`
@@ -25,7 +25,7 @@ still returns a `limited` mask but every entry of `L` is below the rating at
 `x0` (asserted in `tests/test_loads.py`).
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 from dataclasses import dataclass

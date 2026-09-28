@@ -41,7 +41,7 @@ the Tier 3 / Taylor helpers of `mass_optimisation/run_mass_checks.py`.
 (the only path that re-runs the structural evaluation is the one above it).
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import argparse

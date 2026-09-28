@@ -1,5 +1,5 @@
 # Validation rotor -- NREL Phase VI (Hand et al. 2001, NREL/TP-500-29955),
-# Sequence S configuration. PROJECT_PLAN.md section 2.1.
+# Sequence S configuration.
 #
 # Purpose: validate the BEM solver. Nothing else. This rotor is never
 # optimised and has no connection to the design site.
@@ -9,8 +9,7 @@
 # sea level, so sea-level rho and nu are what reproduce it. Before this file
 # existed the same two numbers were default arguments in four solver
 # signatures and module constants in four scripts, where omitting them
-# returned a wrong answer instead of an error (remediation work order,
-# Task 1).
+# returned a wrong answer instead of an error.
 #
 # The blade geometry itself is NOT here. Table A-1's 19-station chord/twist
 # table stays in `bem.rotor.PHASE_VI_TABLE_A1_STATIONS` with its sourcing

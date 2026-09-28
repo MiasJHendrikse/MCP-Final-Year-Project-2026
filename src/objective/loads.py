@@ -1,7 +1,6 @@
 """
 The forward load path, independent of the adjoint: flapwise root bending
-moment per blade, the load operating set `L`, and the KS aggregate over it
-(Phase 4, Step 2).
+moment per blade, the load operating set `L`, and the KS aggregate over it.
 
 The adjoint's own `RootMomentSystem` (`adjoint/loads.py`) is checked against
 this module: `RootMomentSystem.moments(phi, d)` at the solved state must equal
@@ -12,7 +11,7 @@ The mass problem (2026-09-20) adds the deflection twin on the same station
 records: `normal_load`, `spanwise_moments`, `tip_deflection`, checked to
 round-off against `adjoint/deflection.py` in `tests/test_deflection.py`.
 
-The load set `L` is the B3-independent operating points, fixed at
+The load set `L` is the operating points at or below rated, fixed at
 construction from the committed baseline `x0` and never recomputed per design
 (a set that changed with `d` would be a non-smooth constraint):
 
@@ -28,7 +27,7 @@ objective.loads -> objective.objective`). The baseline `x0` and its per-bin
 powers are imported lazily inside `load_operating_points`.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import numpy as np

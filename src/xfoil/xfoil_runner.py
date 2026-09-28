@@ -5,7 +5,7 @@ Runs XFOIL as a subprocess, sweeps angle of attack at a given Reynolds number,
 and returns the polar as a NumPy array.
 
 Author: MJ Hendrikse
-Project: DSP810S — Inverse Design of Small Wind Turbine Blades
+Project: MCP820S — Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import os

@@ -2,8 +2,7 @@
 The `TODO` mechanism: how an input that has not arrived yet is represented,
 and why it is an object rather than a number.
 
-Plan section 1.3 and the remediation work order's ground rule 3 both say the
-same thing: a fabricated wind resource propagates silently into every AEP
+The rule is simple: a fabricated wind resource propagates silently into every AEP
 figure downstream and invalidates the whole results chapter. So a config field
 that is still `TODO` must not be a plausible-looking float, and must not be
 `None` either -- `None` fails late, somewhere far from the config, with a
@@ -14,7 +13,7 @@ from the YAML file in the message. Every arithmetic and conversion protocol is
 wired to raise, so there is no path by which one of these reaches a result.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 

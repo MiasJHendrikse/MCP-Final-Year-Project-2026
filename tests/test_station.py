@@ -1,12 +1,12 @@
 """
-Task 5 acceptance: the residual form, the momentum-region bracket, the
+The residual form, the momentum-region bracket, the
 post-solve residual check, and reported non-convergence.
 
-Each test corresponds to one of the work order's "done when" clauses. The cost
-gate is `test_cost.py`; everything else is here.
+Each test corresponds to one acceptance criterion. The cost gate is
+`test_cost.py`; everything else is here.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import math
@@ -32,7 +32,7 @@ OMEGA_RATED = PHASE_VI_RATED_RPM * 2.0 * math.pi / 60.0
 
 #: The envelope the bracket guarantee was established over. Wind speed and
 #: rotor speed set the operating point; the chord and twist perturbations are
-#: what the work order means by "baseline **and** perturbed geometries", and
+#: what "baseline **and** perturbed geometries" means, and
 #: are the shape of excursion an optimiser line search actually makes.
 ENVELOPE = [
     ("v=5 rated", 5.0, OMEGA_RATED, 1.0, 0.0),
@@ -81,7 +81,7 @@ def test_every_station_converges_across_the_envelope(name, v_inf, omega,
 
     This is the sweep the bracket guarantee was established over -- 13 cases
     times 19 stations -- run as a test rather than left as a one-off
-    measurement in a journal entry.
+    measurement.
     """
 
     for i, station in enumerate(_stations(v_inf, omega, chord_scale, twist_delta)):
@@ -190,7 +190,7 @@ def _degenerate_station():
 
 def test_non_convergence_is_reported_not_raised():
     """
-    Task 5 item 5: the Phase 0 `ValueError` on no-bracket aborted a whole
+    The original `ValueError` on no-bracket aborted a whole
     sweep over one bad station. In a several-hundred-point smoothness sweep or
     an optimiser line search that is the difference between a plot with a gap
     and no plot at all.
@@ -212,7 +212,7 @@ def test_a_pole_is_rejected_by_the_residual_check():
     """
     Feed the convergence check a pole and confirm it is rejected.
 
-    The Phase 0 failure mode was `solve_station` never evaluating the residual
+    The original failure mode was `solve_station` never evaluating the residual
     after brentq returned, so a pole came back as a converged result with
     |R| ~ 1e+15 and nothing noticed. The check now added is relative to R0,
     and the separation is enormous: a converged station sits at |R|/R0 ~ 1e-15

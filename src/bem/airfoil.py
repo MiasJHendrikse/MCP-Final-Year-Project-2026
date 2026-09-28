@@ -1,23 +1,23 @@
 """
 `LinearPolar`: a synthetic airfoil polar with exactly-known derivatives.
 
-Real cached polars live in `polars.polar.CachedPolar` since work order Task 4.
+Real cached polars live in `polars.polar.CachedPolar`.
 This module used to hold `S809Polar` alongside, adapting the XFOIL cache
 through `xfoil.polar_lookup` with alpha and Reynolds clamped to the table
 bounds and a silent inward-stepping fallback over cache gaps. All three are
 gone -- see `polars/polar.py`'s module docstring for what each one was hiding
-and why a gap-free +/-180 deg cache (Task 2) plus a C1 interpolant (Task 3)
+and why a gap-free +/-180 deg cache plus a C1 interpolant
 makes them unnecessary. Nothing under `bem/` imports `xfoil` any more, which
 `tests/test_invariants.py` asserts.
 
 What is left here is deliberately kept, not left behind. An analytic polar
 whose Cl(alpha) and its derivative are known in closed form is the right
-fixture for complex-step-verifying the BEM partials in Phase 3: it puts no
+fixture for complex-step-verifying the BEM partials in the adjoint: it puts no
 interpolation noise between the residual and the number being checked, so a
 disagreement there is the solver's, not the polar's.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 from dataclasses import dataclass

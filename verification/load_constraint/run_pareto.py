@@ -1,5 +1,5 @@
 """
-Step 2d -- the eps-sweep Pareto front for the root-moment constraint.
+The eps-sweep Pareto front for the root-moment constraint.
 
 For `eps in {0, 0.02, 0.05, 0.10}` the constrained problem of
 `run_constrained_slsqp.py` is solved twice: **cold** from `x0` and **warm**
@@ -21,7 +21,7 @@ Run from the repo root (about ten minutes: eight SLSQP runs):
     python verification/load_constraint/run_pareto.py
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import datetime

@@ -1,5 +1,5 @@
 """
-The Weibull height extrapolation (plan step 1.3), and the artefact it produced.
+The Weibull height extrapolation, and the artefact it produced.
 
 `src/objective/height_extrapolation.py` carries an open provenance item: the
 Justus & Mikhail (1976) formulae are transcribed from general knowledge, not
@@ -21,7 +21,7 @@ correlation. That is what the provenance item in docs/OUTSTANDING-INPUTS.md is
 for, and no test should be read as closing it.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import json
@@ -277,7 +277,7 @@ def test_the_plan_prior_disagreement_is_recorded(artefact):
     Plan 1.3 expected k ~ 1.8-2.4 and c ~ 6-7 m/s. The result is outside both.
 
     Pinned here so it stays visible. This is a prior, not a specification --
-    ground rule 5 means the disagreement is documented rather than tuned away,
+    the disagreement is documented rather than tuned away,
     and a later edit that quietly brings them into line has to change this
     test and say why.
     """

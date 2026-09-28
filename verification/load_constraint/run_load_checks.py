@@ -1,5 +1,5 @@
 """
-Step 2d -- the root-moment KS functional and its constraint: the
+The root-moment KS functional and its constraint: the
 four-tier checks at `x0` and at the unconstrained optimum `u*`.
 
 At each point:
@@ -19,7 +19,7 @@ At each point:
 Also recorded, per point: the per-point root moments and softmax weights over
 the nine-point load set `L`; `KS` and its conservatism `KS - max` at
 `rho in {30, 100, 300}`; the design-condition `Ct` and thrust; the
-**B3-dependent** cut-out post-check at 20 m/s; and the wall time of one
+cut-out post-check at 20 m/s (not the real machine's state above rated); and the wall time of one
 objective evaluation, one moment evaluation and one moment-constraint gradient.
 
 Outputs, next to this script: `checks.json`, `moments_x0_xstar.png`, and a
@@ -30,7 +30,7 @@ Run from the repo root (about two minutes):
     python verification/load_constraint/run_load_checks.py
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import argparse
@@ -403,7 +403,7 @@ def main(argv=None):
 
     summary = {
         "description": ("Root-moment KS functional and constraint: Tiers 1-3, "
-                        "the per-point moments and weights, and the B3-dependent cut-out "
+                        "the per-point moments and weights, and the above-rated cut-out "
                         "post-check at x0 and the unconstrained optimum u*."),
         "bounds_label": BOUNDS_LABEL,
         "law_label": LAW_LABEL,

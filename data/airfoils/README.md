@@ -1,15 +1,15 @@
+# Airfoil coordinates
+
 Selig-format coordinate files for airfoils with no NACA parametric equivalent, loaded
 into XFOIL via `run_xfoil_polar(airfoil_cmd="LOAD <path>")` (see `src/xfoil/xfoil_runner.py`).
 
 - `s809.dat` — NREL S809, fetched from the airfoiltools.com mirror of the UIUC
   Applied Aerodynamics coordinate database (the canonical
   m-selig.ae.illinois.edu path 404'd at fetch time). 66 points, unit chord.
-  Geometry re-verified 2026-07-26 against an independently downloaded
-  percent-chord copy of the same section — see the 2026-07-26 journal entry for
-  the numbers.
+  Geometry checked against an independently downloaded percent-chord copy of
+  the same section.
 
-- `sg6043.dat` — SG6043, the design rotor's section (plan §3.1). Fetched
-  2026-08-29 from the canonical UIUC Applied Aerodynamics coordinate database,
+- `sg6043.dat` — SG6043, the design rotor's section. Fetched from the canonical UIUC Applied Aerodynamics coordinate database,
   `https://m-selig.ae.illinois.edu/ads/coord/sg6043.dat`, and kept **verbatim**
   — the file is byte-for-byte what UIUC serves, including its leading-dot
   number format and the `.999999` closing x, rather than reformatted to match
@@ -22,12 +22,10 @@ into XFOIL via `run_xfoil_polar(airfoil_cmd="LOAD <path>")` (see `src/xfoil/xfoi
   is what identifies the file as genuinely SG6043; the contour is also closed,
   x-monotonic on each surface, and has zero trailing-edge gap.
 
-  This closes one of the two inputs plan §1.2 was waiting on. The other — the
-  UIUC *Summary of Low-Speed Airfoil Data* Vol. 3 experimental tables at
-  Re = 60k/100k/200k/300k — is still outstanding, and without it the `n_crit`
-  sensitivity study can sweep values but cannot *select* one against measured
-  data the way S809's `Ncrit = 5` was selected. See
-  `config/polars_sg6043.yaml`.
+  The matching wind-tunnel data (UIUC *Summary of Low-Speed Airfoil Data*,
+  Vol. 3) is in `../sg6043_uiuc_lsat/`, and was used to select `n_crit` for
+  the SG6043 polar table (`config/polars_sg6043.yaml`,
+  `results/ncrit_sensitivity/`).
 
 - `s809_qblade.dat` — the same section, formatted for import into QBlade
   (Airfoil Design > Import Airfoil). QBlade reads the same Selig layout XFOIL

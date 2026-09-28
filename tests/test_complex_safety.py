@@ -1,5 +1,5 @@
 """
-Phase 3, B0: complex-step safety of the residual, with the real path
+Complex-step safety of the residual, with the real path
 bit-identical.
 
 The discrete adjoint's Tier 1 check (`test_adjoint_partials.py`) verifies
@@ -24,7 +24,7 @@ with a central difference to the precision a central difference has.
 Bounds do not enter here. `x0` is the committed baseline design.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import json

@@ -1,7 +1,6 @@
 """
 The material proxy: blade shell area and section volume from the planform,
-and their exact gradients through the spline basis (the mass problem, Step 1;
-`docs/PLAN-mass-objective-2026-09-20.md` section 1).
+and their exact gradients through the spline basis (`docs/DESIGN-BASIS.md` §6).
 
 What is measured
 -----------------
@@ -16,8 +15,8 @@ per unit chord squared, both read once from the airfoil coordinates
 (`data/airfoils/<cache>.dat`: SG6043 gives 2.0485 and 0.0685). They are
 geometry, not assumptions. What turns either into a mass is a laminate --
 `rho_lam * t_shell` for the shell, `rho` for the solid -- read from
-`config/rotor_design.yaml::structure` (resolved 2026-09-20 evening:
-1920 kg/m^3 and 2 mm, provenance in `docs/MATERIALS-STRUCTURAL-INPUTS.md`).
+`config/rotor_design.yaml::structure` (1920 kg/m^3 and 2 mm; sources in
+`docs/OUTSTANDING-INPUTS.md` section 11).
 `mass_kg` returns a mass per blade in kg while they are resolved and `None`
 if either is re-opened to `TODO` -- never a substitute number. The
 production headline is still the percentage of the reference blade's
@@ -75,7 +74,7 @@ Import direction: `adjoint` imports `objective`, so the trapezoid rule is
 imported lazily inside `planform_weights` (the `objective.loads` precedent).
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import os

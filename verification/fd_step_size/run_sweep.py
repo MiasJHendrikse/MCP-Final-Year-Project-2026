@@ -1,5 +1,5 @@
 """
-Phase 2, Stage A3: the central-FD step-size study at `x0`.
+The central-FD step-size study at `x0` (step A3).
 
 What it does
 ------------
@@ -46,7 +46,7 @@ Run from the repo root (about 65 s):
     python verification/fd_step_size/run_sweep.py --reference gradient.json
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import argparse

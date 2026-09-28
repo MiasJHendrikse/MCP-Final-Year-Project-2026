@@ -2,8 +2,8 @@
 The design rotor's per-station Reynolds envelope -- what the SG6043 cache has
 to cover.
 
-Work order Task 2, item 0, and it is load-bearing for Task 4. Task 4 deletes
-the Reynolds clamp and makes an out-of-range lookup raise; if the cache floor
+This is load-bearing: the polar layer has no Reynolds clamp, and an
+out-of-range lookup raises; if the cache floor
 sits above the real envelope that turns a silent wrong answer into a hard crash
 across the low wind-speed bins, which at this site carry most of the AEP. So
 the envelope is established first, the cache bounds are set beyond it with
@@ -15,18 +15,18 @@ not exist yet.
 
 The chord model
 ---------------
-The design rotor's chord distribution is not fixed: Phase 1 has yet to run the
-Schmitz design and Phases 2-5 will move it. What is fixed is the family it
+The design rotor's chord distribution is not fixed in advance: the Schmitz
+design sets a starting point and the optimiser moves it. What is fixed is the family it
 comes from, so the envelope is computed over the Schmitz optimum chord
 
     c(r) = (16 pi r) / (B C_L) * sin^2( (1/3) arctan( R / (lambda r) ) )
 
-which is the same model plan section 1.4 used to choose R = 2.0 m, scaled by a
+which is the same model used to choose R = 2.0 m, scaled by a
 band of perturbation factors standing in for everything that will move it: the
-design-lift lever the plan records (chord scales as 1/C_L, so C_L in
-[0.71, 1.43] about the plan's C_L = 1.0 is the same thing as a 0.7-1.4 chord
-factor), the optimiser's chord control points, and the manufacturability bounds
-plan section 7.1 has not yet set. The band is an assumption, stated here and
+design-lift lever (chord scales as 1/C_L, so C_L in [0.71, 1.43] about
+C_L = 1.0 is the same thing as a 0.7-1.4 chord
+factor), the optimiser's chord control points, and the manufacturability
+bounds, which were set later. The band is an assumption, stated here and
 recorded in `config/polars_sg6043.yaml`, not a config value -- and the envelope
 is reported as a function of it so a later, narrower band can be read straight
 off rather than re-derived.
@@ -55,7 +55,7 @@ Run directly (from `src/`):
     python -m polars.envelope
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import math
@@ -66,7 +66,7 @@ from config import load_design_rotor, load_site
 
 #: Radial band the stations are placed over, as a fraction of R -- now read
 #: from `config/rotor_design.yaml` rather than declared here. It used to be a
-#: local `0.15`; plan step 1.6's parameterisation needs the same span, and two
+#: local `0.15`; the parameterisation needs the same span, and two
 #: copies of a number that must agree is how they stop agreeing. The value is
 #: unchanged, so the envelope this module computes is unchanged.
 _ROOT_FRACTION = load_design_rotor().root_fraction
@@ -78,8 +78,8 @@ _CHORD_FACTORS = (0.7, 1.0, 1.4)
 #: Tip-speed ratios evaluated below rated, about the design value.
 _TSR_OFFSETS = (-1.5, 0.0, 1.5)
 
-#: Design lift coefficient the Schmitz baseline is drawn at -- plan section
-#: 1.4's own basis for the R = 2.0 m choice. The chord factors above cover
+#: Design lift coefficient the envelope is drawn at -- the same basis used
+#: for the R = 2.0 m choice. The chord factors above cover
 #: moving it.
 _DESIGN_CL = 1.0
 

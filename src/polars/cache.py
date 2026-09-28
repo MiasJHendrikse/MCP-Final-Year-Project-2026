@@ -9,7 +9,7 @@ each curve is resampled by 1D linear interpolation onto the union of every
 alpha seen anywhere in the cache, with NaN left wherever a curve's own
 convergence range does not reach.
 
-Since work order Task 2, every cache is written gap-free over the full
+Every cache is written gap-free over the full
 -180..180 deg circle with identical alpha coverage in every row, so in
 practice no NaN survives this step for a Task-2-built cache. The reindexing
 is kept anyway: it costs nothing when the grid is already rectangular, and it
@@ -17,7 +17,7 @@ is what turns a hole in a future or hand-edited cache into a NaN that a
 consumer can detect, rather than a silently misaligned row.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import glob

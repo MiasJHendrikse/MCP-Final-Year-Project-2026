@@ -1,12 +1,12 @@
 """
 A C1, analytically differentiable (alpha, Reynolds) -> (Cl, Cd, Cm) surface.
 
-Work order Task 3. This replaces querying `RegularGridInterpolator` with
+This replaces querying `RegularGridInterpolator` with
 `method='linear'` (the default `xfoil.polar_lookup.PolarLookup` uses), whose
 alpha-derivative is piecewise constant with a jump at every 0.5 deg knot --
 measured in the audit as exactly four distinct values of dCl/dalpha across
 alpha in [4.0, 5.6] deg at Re=600k. That staircase is what a gradient-based
-optimiser (Phase 2/3) or a smoothness sweep (plan Step 8) sees as noise.
+optimiser or a smoothness sweep sees as noise.
 
 Interpolation scheme, and why it is two different schemes glued together
 --------------------------------------------------------------------------
@@ -54,7 +54,7 @@ Why not blend the spline coefficients (the scheme this replaced)
 -----------------------------------------------------------------
 The original construction fitted a cubic spline in alpha per Reynolds row and
 PCHIP-blended the resulting *coefficients* across log(Re). That is subtly but
-definitely wrong, and plan step 1.7 caught it: continuity at an alpha knot is
+definitely wrong, and building the Schmitz baseline caught it: continuity at an alpha knot is
 a **linear** constraint relating the coefficient channels of the two adjacent
 intervals, and PCHIP is **nonlinear** in its data -- its slope limiter is a
 harmonic mean. Blending channel-by-channel therefore does not preserve the
@@ -94,7 +94,7 @@ S809 cache.
 
 Why plain Python arithmetic, not vectorised NumPy, inside `evaluate`
 ----------------------------------------------------------------------
-Measured (see the Task 3 journal entry): a version of this evaluator written
+Measured: a version of this evaluator written
 with NumPy array slicing and elementwise ops costs roughly 30 microseconds
 per call, dominated by NumPy's per-op dispatch overhead on 4-element arrays,
 not by the arithmetic itself. Rewritten with plain Python floats/lists and
@@ -104,7 +104,7 @@ NumPy is still exactly what the one-off construction (`CubicSpline`,
 `PchipInterpolator`) is built from; only the hot per-query path avoids it.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import bisect
@@ -204,7 +204,7 @@ class _CubicPchipSurface:
         if np.isnan(field_grid).any():
             raise PolarDomainError(
                 "cannot build a C1 interpolant over a grid containing NaN -- "
-                "the gap-free, +/-180 deg extension (Task 2) is a "
+                "the gap-free, +/-180 deg extension is a "
                 "precondition of this module, not something it enforces "
                 "itself."
             )
@@ -312,7 +312,7 @@ class PolarInterpolant:
     surface built from a `polars.cache.PolarGrid`.
 
     Exposes value accessors (`cl`, `cd`, `cm`) and the four analytic partials
-    Task 3 asks for (`dcl_dalpha`, `dcl_dre`, `dcd_dalpha`, `dcd_dre`). Cm has
+    the adjoint needs (`dcl_dalpha`, `dcl_dre`, `dcd_dalpha`, `dcd_dre`). Cm has
     no partial exposed -- nothing downstream differentiates it (the BEM
     residual and its Jacobian need only Cl and Cd; Cm is carried through for
     the moment/pitching calculations that consume it as a value).
@@ -332,7 +332,7 @@ class PolarInterpolant:
         if grid.has_gaps:
             raise PolarDomainError(
                 "cache grid has NaN gaps; a C1 interpolant needs the "
-                "gap-free, +/-180 deg extension from Task 2 first."
+                "gap-free, +/-180 deg extension first."
             )
 
         self.alpha_values = grid.alpha_values

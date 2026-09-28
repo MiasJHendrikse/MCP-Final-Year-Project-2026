@@ -1,17 +1,16 @@
 """
-The Phase 0 stage validators, ported to pytest (work order Task 7).
+The staged validators of the BEM solver, ported to pytest.
 
 `src/validation/validate_stage1..4.py` were nine executable scripts in
-print-and-assert style, run by hand from `src/`. The audit's verdict was that
-"the physics is good; the harness is not" -- Phase 1 has around nine exit
-criteria that are machine-checkable claims, and those cannot live in a script
+print-and-assert style, run by hand from `src/`. The physics was good but the
+harness wasn't: around nine acceptance criteria are machine-checkable claims, and those cannot live in a script
 whose known-good state is a non-zero exit.
 
 This file is the physics, unchanged. Every assertion below is the assertion
 the corresponding script made, with the same tolerances and the same reference
 values; what has gone is the printing, the manual invocation and the `main()`
 that had to be remembered. Where a check's *reasoning* has moved on since it
-was written -- Task 5 replaced the bracket scan, Task 6 the branch selection --
+was written -- the bracket scan and the branch selection have both been replaced --
 the docstring says so rather than leaving a stale explanation attached to a
 still-correct number.
 
@@ -24,7 +23,7 @@ Stage map:
        that the loop reproduces a direct single-station solve exactly
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import math
@@ -46,15 +45,15 @@ from polars.polar import CachedPolar, interpolant_for
 
 #: The synthetic geometry stages 1-3 are defined on. R = 1000 puts r/R ~ 0.005,
 #: far enough from the tip that F is 1.0 to double precision -- which is what
-#: makes the Stage 1 numbers a valid uncorrected reference even after Stage 2
-#: made R a required parameter.
+#: makes the uncorrected numbers a valid reference even after the tip-loss
+#: correction made R a required parameter.
 CHORD = 0.3
 TWIST = math.radians(5.0)
 TSR = 5.0
 R_TIP = 5.5
 
-#: Stage 1's uncorrected result, carried forward as a regression anchor by
-#: stages 2 and 3 as well. These are this solver's own values, not an external
+#: The uncorrected result, carried forward as a regression anchor for the
+#: corrected solver as well. These are this solver's own values, not an external
 #: reference -- their role is to catch drift, not to validate physics.
 STAGE_1_REFERENCE = {
     "phi": math.radians(10.013235),
@@ -71,7 +70,7 @@ def _station(r, chord=CHORD, twist=TWIST, tsr=TSR, n_blades=3, R=R_TIP, r_hub=No
 
 
 # ===========================================================================
-# Stage 1 -- single-station solve
+# Single-station solve
 # ===========================================================================
 
 def _hansen_fixed_point(station, tol=1e-10, max_iter=200):
@@ -139,7 +138,7 @@ def test_stage1_residual_is_smooth_over_the_physical_bracket():
     No discontinuity in R(phi) in a +/-5 deg window around the root.
 
     The original comment here pointed at the Ct = 0 pole and noted the window
-    was chosen to stay clear of it. Since Task 5 that is structural rather
+    was chosen to stay clear of it. With Ning's residual that is structural rather
     than a matter of choosing the window: Ning's residual has no a' pole at
     all, and the 'a' pole requires Cn < 0, which the momentum-region bracket
     excludes. The window is kept as written so the measurement is comparable.
@@ -157,7 +156,7 @@ def test_stage1_residual_is_smooth_over_the_physical_bracket():
 
 
 # ===========================================================================
-# Stage 2 -- Prandtl tip/hub loss
+# Prandtl tip/hub loss
 # ===========================================================================
 
 def test_stage2_many_blades_recovers_no_tip_loss():
@@ -170,7 +169,7 @@ def test_stage2_many_blades_recovers_no_tip_loss():
 def test_stage2_midspan_limit_reproduces_stage1():
     """
     At r/R ~ 0.005, F is 1 to double precision and the corrected solver must
-    return Stage 1's uncorrected numbers.
+    return the uncorrected numbers.
     """
 
     result = solve_station(_station(r=5.0, R=1000.0))
@@ -222,7 +221,7 @@ def test_stage2_tip_loss_shifts_induction_at_the_tip_not_midspan():
 
 
 # ===========================================================================
-# Stage 3 -- Glauert/Buhl high-thrust correction
+# Glauert/Buhl high-thrust correction
 # ===========================================================================
 
 def test_stage3_ct_curve_is_monotonic_across_the_blend():
@@ -240,11 +239,11 @@ def test_stage3_ct_curve_is_monotonic_across_the_blend():
 
 def test_stage3_low_induction_is_bit_identical_to_the_plain_relation():
     """
-    Below the blend the corrected solve must be the Stage 2 closed form
+    Below the blend the corrected solve must be the tip-loss closed form
     exactly -- not almost.
 
     Bit-identity is the point: it is what makes the Buhl correction a pure
-    addition rather than a change to low-induction behaviour, and Task 6 kept
+    addition rather than a change to low-induction behaviour, and the gamma form keeps
     `Y / (4F + Y)` written exactly that way (rather than the algebraically
     equal kappa/(1+kappa)) to preserve it through the gamma reparameterisation.
     """
@@ -302,7 +301,7 @@ def test_stage3_residual_stays_smooth_around_a_turbulent_wake_root():
 
 
 # ===========================================================================
-# Stage 4 -- the spanwise loop
+# The spanwise loop
 # ===========================================================================
 
 def _demo_solve():
@@ -319,8 +318,8 @@ def test_stage4_spanwise_quantities_vary_smoothly():
     A discontinuity/spike check, not a tight tolerance: chord, twist and
     Reynolds all vary smoothly by construction, so a real solver bug shows up
     as an obvious jump. The Cd threshold is 0.25 rather than the original 0.1
-    because Task 4 deleted the alpha clamp that used to flatten this blade's
-    stalled root stations onto Cd(18 deg). This blade's three innermost
+    because the alpha clamp that used to flatten this blade's stalled root
+    stations onto Cd(18 deg) has been removed. This blade's three innermost
     stations sit at alpha = 31.6, 25.6 and 20.3 deg at tsr = 5 and always did;
     the clamp flattened all three onto Cd(18 deg) = 0.079, so a 0.1 limit was
     unreachable by construction and the check was, in effect, testing the

@@ -1,5 +1,5 @@
 """
-Phase 5 (2026-09-20) -- the energy-floor sweep and the ablation of the mass
+The energy-floor sweep and the ablation of the mass
 problem.
 
 **Sweep.** For `delta in {0, 0.0025, 0.005, 0.01, 0.02}` the problem of
@@ -34,7 +34,7 @@ committed `pareto.json` and `ablation.json`; no solve is run and no JSON is
 written.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import argparse

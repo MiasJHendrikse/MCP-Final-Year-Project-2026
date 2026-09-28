@@ -27,7 +27,7 @@ Run directly: `python -m validation.validate_polars [airfoil]` (from src/),
 default airfoil s809.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import argparse
@@ -56,7 +56,7 @@ def load_cache(cache_dir):
     """
     Load every <LABEL>_Re<value>.csv in cache_dir, sorted by Reynolds number.
 
-    XFOIL-converged rows only. Since work order Task 2 the caches also carry a
+    XFOIL-converged rows only. The caches also carry a
     Viterna extrapolation out to +/-180 deg, and all five checks below are
     checks on *XFOIL's* output -- a lift-curve slope or a Cl_max measured
     across the extrapolated branch would be measuring the extrapolation, not

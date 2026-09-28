@@ -9,7 +9,7 @@ Fields that may still be `TODO` are annotated `float | Unresolved` (or
 `str | Unresolved`); see `unresolved.py` for what happens if one is used.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import math
@@ -22,7 +22,7 @@ from config.unresolved import Unresolved  # noqa: F401
 
 @dataclass(frozen=True)
 class StandardAtmosphere:
-    """ISA constants used by the barometric relation (plan section 1.2)."""
+    """ISA constants used by the barometric relation."""
 
     sea_level_pressure_pa: float
     sea_level_temperature_k: float
@@ -91,31 +91,31 @@ class ParameterisationConfig:
 @dataclass(frozen=True)
 class DesignRotorConfig:
     """
-    The optimisation subject (plan sections 1.4, 2.2). Deliberately carries no
+    The optimisation subject. Deliberately carries no
     air properties -- those are the site's, from `SiteConfig`.
 
     `rated_power_w` is the generator rating the objective holds power at
     above rated. It is a property of the machine, not of the blade: the
     objective must never recompute it from the design being evaluated. Its
     current value is provisional (the baseline's own aerodynamic power at the
-    rated wind speed, pending the nameplate -- outstanding input B2) and the
+    rated wind speed, pending a generator nameplate) and the
     YAML says so.
 
-    `max_rotor_speed_rpm` is the rotor-speed ceiling (outstanding input B1,
-    resolved provisionally 2026-09-19 at 300 rpm) that sets the per-bin
+    `max_rotor_speed_rpm` is the rotor-speed ceiling (300 rpm, an assumption
+    with a stated basis) that sets the per-bin
     tip-speed ratio `lambda(V) = min(design_tsr, Omega_max R / V)`; `None`
     is no ceiling, the pre-2026-09-19 objective. `max_local_solidity` is the
-    station solidity cap (plan 7.4), resolved the same day.
+    station solidity cap, resolved the same day.
 
-    The mass problem (2026-09-20, `docs/PLAN-mass-objective-2026-09-20.md`):
+    The mass problem (`docs/DESIGN-BASIS.md` §6):
     `mass_model` selects the material proxy (`"shell"`, the objective, or
     `"solid"`, reported only); `monotone_chord` / `monotone_twist` switch the
     manufacturability rows and `min_chord_m` is the buildable-tip floor on
     the chord control points (a row of the mass problem, not the box bound,
-    so the Phase 1-4 scaling is untouched).
+    so the scaling of the design variables is untouched).
 
     The structural inputs (`structure:` in the YAML, provenance in
-    `docs/MATERIALS-STRUCTURAL-INPUTS.md`): `laminate_density_kg_m3`,
+    `docs/OUTSTANDING-INPUTS.md` section 11): `laminate_density_kg_m3`,
     `shell_thickness_m`, `youngs_modulus_pa`, `allowable_stress_pa` and
     `safety_factor` are resolved (2026-09-20, evening) -- one laminate, one
     stated construction -- and give a mass in kg, an absolute root stress
@@ -177,7 +177,7 @@ class DesignRotorConfig:
 @dataclass(frozen=True)
 class ValidationRotorConfig:
     """
-    The NREL Phase VI solver-validation case (plan section 2.1), including its
+    The NREL Phase VI solver-validation case, including its
     own sea-level air condition -- a choice for this rotor, not a default.
     """
 
@@ -199,7 +199,7 @@ class ValidationRotorConfig:
 @dataclass(frozen=True)
 class PolarCacheConfig:
     """
-    One polar cache as built (plan section 3.3). Descriptive metadata, not a
+    One polar cache as built. Descriptive metadata, not a
     rebuild instruction, and per-cache by design: the two caches have
     different build settings and there is no global default.
     """

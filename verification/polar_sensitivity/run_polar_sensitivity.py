@@ -1,8 +1,7 @@
 """
 Does the minimum-material blade's energy parity survive the polar uncertainty?
 
-Review roadmap item 1 (2026-09-26, the Devil's Advocate CRITICAL point). The
-mass optimum `x_m` holds AEP(x0) to ~1e-12 on the production SG6043 polar
+The mass optimum `x_m` holds AEP(x0) to ~1e-12 on the production SG6043 polar
 cache (XFOIL, n_crit = 9), whose lift differs from the UIUC measurements by
 0.11-0.15 RMS at the design Reynolds numbers and which has no measurement at
 all below Re = 100 000. The report argues that a polar error cancels in the
@@ -16,8 +15,8 @@ and AEP(x_c) / AEP(x0) under each:
 
   * (**XFOIL at n_crit = 7 and 11 -- attempted and abandoned.** Both
     caches were built on 2026-09-26, but XFOIL's gap-closure retries failed
-    to converge at Re = 100 000 and the run was stopped and reverted by
-    MJ's instruction; no partial cache is committed. The perturbation cases
+    to converge at Re = 100 000, so the run was stopped and reverted; no
+    partial cache is committed. The perturbation cases
     below bound the lift error directly instead.)
   * **uniform lift offsets, +/- s(Re)** -- `s(Re)` is the measured lift RMS
     difference against UIUC at each validated Reynolds number
@@ -50,7 +49,7 @@ Outputs, next to this script: `polar_sensitivity.json`.
     python verification/polar_sensitivity/run_polar_sensitivity.py    # ~3 min
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import datetime

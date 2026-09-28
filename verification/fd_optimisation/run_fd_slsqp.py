@@ -1,5 +1,5 @@
 """
-Phase 2, Stage A4: FD-driven SLSQP, end to end.
+FD-driven SLSQP, end to end (step A4 of the finite-difference work).
 
     minimise   fun(u) = J(u) / |J(u0)|,   J = -AEP [MWh/yr]
     over       u in [0, 1]^10
@@ -16,7 +16,7 @@ just the endpoints. `result.json` carries the optimum, the counters, the
 active set and the post-checks; `optimised_blade.png` overlays chord and
 twist of `x0` and the optimum.
 
-Sanity gates (the implementation plan §5 A4): the expected AEP improvement is
+Sanity gates: the expected AEP improvement was
 2-6 %. Above 15 %, or negative, the run is flagged `suspected_defect` in
 `result.json` and must be written up as such, not reported as a result.
 
@@ -35,7 +35,7 @@ Run from the repo root:
     python verification/fd_optimisation/run_fd_slsqp.py [--step H] [--maxiter N]
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import argparse

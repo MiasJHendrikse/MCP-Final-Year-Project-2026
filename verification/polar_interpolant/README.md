@@ -1,6 +1,6 @@
 # The polar interpolant: the value, the derivative, and the staircase it removed
 
-The figures behind Task 3's claim: the C¹ interpolant
+These figures back up the claim that the C¹ interpolant
 (`polars.interpolant.PolarInterpolant`) replaces the bilinear lookup's
 piecewise-constant alpha-derivative — the staircase a gradient-based
 optimiser sees as noise — with one smooth, analytically differentiable

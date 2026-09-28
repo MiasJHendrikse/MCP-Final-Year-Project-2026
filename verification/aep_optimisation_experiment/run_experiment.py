@@ -40,7 +40,7 @@ artefact in this repository. Run from the repo root:
     python verification/aep_optimisation_experiment/run_experiment.py [--cases none,60,55,50]
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import argparse

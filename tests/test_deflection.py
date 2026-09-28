@@ -1,5 +1,5 @@
 """
-The mass problem, Step 2 -- `DeflectionSystem`, the tip-deflection KS
+`DeflectionSystem`: the tip-deflection KS
 functional and its adjoint over the load set `L`.
 
 What is compared to what
@@ -12,12 +12,12 @@ What is compared to what
     TOL_J, as `dKS_dx` / `dKS_dd`);
   * the forward-mode tangent against the adjoint direction (Tier 2);
   * the wrapped constraint's Jacobian (`ScaledProblem.deflection_constraint`,
-    Step 3) against central FD at `u0` (Tier 3), on the Phase 4 pattern.
+    against central FD at `u0` (Tier 3), in the same way as the moment constraint.
 
 Tolerances are the existing mixed ones; never loosen them.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import json
@@ -277,7 +277,7 @@ def test_moment_functional_still_available_on_the_same_instance(system, state):
 
 
 # ---------------------------------------------------------------------------
-# Tier 3: the wrapped constraint against central FD (Step 3)
+# Tier 3: the wrapped constraint against central FD
 # ---------------------------------------------------------------------------
 
 @pytest.fixture(scope="module")

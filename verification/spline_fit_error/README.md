@@ -1,103 +1,104 @@
-# Spline-fit error of the Schmitz baseline (PROJECT_DIRECTION_v2 §7.3 point 4)
+# Spline-fit error of the Schmitz reference blade
 
-**Bounds:** the AEP comparison quoted below uses A4's optimum, which is now
-found under the configured bounds in `config/rotor_design.yaml`
-(`chord_max_m = 0.30 m`, resolved 2026-09-19; `chord_min_m`, `twist_min_deg`,
-`twist_max_deg` grounded 2026-09-13). This study's *fit error* itself uses no
-bound.
+The reference blade x₀ isn't the analytic Schmitz blade itself. It is the
+analytic blade fitted to the 5 + 5 control-point spline, because that's the
+only kind of shape the optimiser can represent. This study measures how much
+the fit changes the blade, and checks whether the optimiser's gain could just
+be it undoing the fitting error.
 
-**History of the AEP comparison.** 2026-09-13 (floating cap): the analytic
-blade was credited with its *own* slightly higher `P_aero(11 m/s)` as its
-rating, so baseline and optimum were measured against different ratings and
-the representation difference came out at −0.031 %. 2026-09-19 (fixed
-rating): one rating for all three blades, −0.018 % and +0.121 %.
-**Re-run again later on 2026-09-19 under the 300 rpm operating law and the
-configured bounds:** the representation difference is −0.0154 % and A4's gain
-is **+0.1467 %**, ratio **9.5 ×** — same conclusion, and the gap widened
-because the optimiser has more room to work under the tighter box.
+**Answer: it can't.** Fitting costs 0.015 % of AEP, while the optimiser gains
+0.147 %, nearly ten times more, and it gains that relative to the analytic
+blade too.
 
-The fit error is a property of `x0` alone and is unchanged by any of this;
-`x0_rebuild_max_abs_diff = 0` in `fit_error.json`.
+The fit error depends on x₀ alone and uses no bounds. The AEP comparison uses
+the finite-difference optimum found under the design bounds and the 300 rpm
+operating law.
 
-## What was run
+## Method
 
     python verification/spline_fit_error/run_fit_error.py          # ~5 s
 
-`x0` (`verification/baseline/x0.json`) is rebuilt with
-`design.build_schmitz_baseline()` — bit-identical (max |diff| = 0) — and the
-analytic Schmitz chord and twist it was fitted from (design point
-Re = 200 k, α = 5.36°, Cl = 1.282, L/D = 98.5) are compared with the spline
-through `x0` (cubic, 5 + 5 clamped control points, 25 BEM strips).
+x₀ (`verification/baseline/x0.json`) is rebuilt with
+`design.build_schmitz_baseline()`, reproducing it exactly
+(`x0_rebuild_max_abs_diff = 0`). The analytic Schmitz chord and twist it was
+fitted from (design point Re = 200 k, α = 5.36°, Cl = 1.282, L/D = 98.5) are
+then compared with the spline through x₀ (cubic, 5 + 5 clamped control points,
+25 BEM strips).
 
 ## Fit error
 
-At the 25 BEM stations (the only points the solver ever evaluates):
+At the 25 BEM stations, which are the only points the solver evaluates:
 
 | | max abs | RMS | max relative |
 |---|---|---|---|
 | chord | **1.52 mm** (innermost station, r = 0.334 m) | **0.52 mm** | 0.58 % |
-| twist | **0.265°** (innermost station) | **0.106°** | — |
+| twist | **0.265°** (innermost station) | **0.106°** | – |
 
-On a 401-point grid over the full span, hub to tip:
+On a 401-point grid over the whole span, hub to tip:
 
 | | max abs | RMS |
 |---|---|---|
 | chord | 4.9 mm (at the hub, r = 0.30 m) | 0.65 mm |
 | twist | 0.59° (at the hub) | 0.115° |
 
-The fine-grid extremes are at `r = r_hub = 0.30 m`, *inboard of the first
-station* (0.334 m): the spline is fitted at the stations only and is
-extrapolating over the last 3 cm to the hub, where the Schmitz chord is
-rising steeply. No BEM strip sits there. Between the stations the error is
-the oscillation of a 5-point cubic against `sin²(φ/2)·r`: ±1 mm in chord and
-±0.2° in twist, both changing sign every ~0.4 m of span (`fit_error.png`,
-bottom row). These agree with the RMS figures recorded in `x0.json` at
-construction (0.51 mm, 0.106°).
+The largest errors on the fine grid are at the hub (r = 0.30 m), *inboard of
+the first station* (0.334 m). The spline is fitted at the stations only, so it
+extrapolates over the last 3 cm to the hub, where the Schmitz chord rises
+steeply, but no BEM strip sits there. Between stations, the error is the
+wiggle of a 5-point cubic against the Schmitz shape: about ±1 mm in chord and
+±0.2° in twist, changing sign roughly every 0.4 m of span (bottom row of
+`fit_error.png`). These match the RMS values recorded in `x0.json` when it was
+built (0.51 mm, 0.106°).
 
-## Does the fit error explain A4's gain?
+## Does the fit error explain the optimiser's gain?
 
-Three blades, one solver, one resource, one set of corrections:
+Three blades, evaluated with the same solver, resource and corrections:
 
 | blade | AEP [MWh/yr] |
 |---|---|
 | analytic Schmitz (station values straight from the formulas) | 10.249287 |
-| `x0` = its spline projection | 10.247707 |
-| A4 FD-SLSQP optimum | 10.262736 |
+| x₀, its spline fit | 10.247707 |
+| finite-difference optimum | 10.262736 |
 
 | difference | MWh/yr | % |
 |---|---|---|
-| representation: `x0` − analytic | **−0.001580** | **−0.0154 %** |
-| optimisation: optimum − `x0` | **+0.015029** | **+0.1467 %** |
+| fitting: x₀ − analytic | **−0.001580** | **−0.0154 %** |
+| optimisation: optimum − x₀ | **+0.015029** | **+0.1467 %** |
 | ratio | | **9.5×** |
 
-**No — the fit error does not explain the gain.** The projection onto the
-spline costs the Schmitz blade 0.015 % of AEP; the optimiser gained 0.147 %
-over the projected blade, nearly ten times more. Even if the optimiser had
-done nothing but undo the projection error it could only have recovered
-0.015 %; the remaining 0.131 % is above the *analytic* Schmitz blade
-evaluated by the same solver. That is also visible in the shapes: the
-optimiser moved the chord by up to 21.3 mm (RMS 12.3 mm) and the twist by up
-to 2.02° (RMS 0.97°), against fit errors of 1.5 mm and 0.27° — the optimum is
-not the analytic blade found again, it is a different blade (a thicker root
-pinned to the 0.30 m bound with a thinner outboard chord and the tip twisted
-down to −1.85°; see `verification/fd_optimisation/README.md`).
+**No, it doesn't.** Fitting costs the Schmitz blade 0.015 % of AEP, while the
+optimiser gains 0.147 % over the fitted blade. Even if all the optimiser did
+was undo the fitting error, it could only recover 0.015 %. The other 0.131 %
+is an improvement over the *analytic* Schmitz blade, evaluated with the same
+solver.
 
-What the numbers *do* say about the gain being small (0.147 % against the
-2–6 % expected in §7.4): the baseline is a fair one. §7.3's requirement was
-that the only difference between baseline and optimum be the optimisation
-itself; the representation difference is 0.015 %, a tenth of the effect
-being measured, and it works *against* the baseline (the spline is slightly
-worse than the analytic curve), so it cannot have inflated the gain. The
-small gain is a property of the objective and starting point, not of the
-baseline's construction. `verification/fd_optimisation_multistart/` tests
-whether it is also a property of the starting point.
+The shapes say the same thing. The optimiser moved the chord by up to 21.3 mm
+(RMS 12.3 mm) and the twist by up to 2.02° (RMS 0.97°), against fitting errors
+of 1.5 mm and 0.27°. So the optimum isn't the analytic blade recovered; it's a
+different blade, with a thicker root on the 0.30 m bound, a thinner outboard
+chord and the tip twisted down to −1.85° (see
+`verification/fd_optimisation/README.md`).
+
+This also shows the baseline is fair. The only difference between the
+baseline and the optimum should be the optimisation itself. The fitting
+difference is 0.015 %, a tenth of the effect being measured, and it works
+*against* the baseline (the spline is slightly worse than the analytic curve),
+so it can't have inflated the gain. The gain is small because of the
+objective, not because of how the baseline was built (`docs/DESIGN-BASIS.md`
+§2). `verification/fd_optimisation_multistart/` checks that it doesn't depend
+on the starting point either.
+
+Under earlier versions of the model the numbers differed slightly (a fitting
+difference of −0.031 % when the rated power still rose with the design, and
+−0.018 % against a +0.121 % gain once the rating was fixed), with the same
+conclusion each time.
 
 ## Files
 
-- `run_fit_error.py` — the script.
-- `fit_error.json` — every number above, the per-station and fine-grid
-  signed errors, the three chord/twist distributions, the design point.
-- `fit_error.png` — chord and twist (analytic, spline, optimum) and the
-  signed fit errors vs span.
-
-The figure(s) in this directory predate `src/plotting/figstyle.py` and have not been redrawn through it; they are kept as the record of the run that produced them, and the scripts that write them carry no super-title.
+- `run_fit_error.py`: the script.
+- `fit_error.json`: every number above, the signed errors at the stations and
+  on the fine grid, the three chord and twist distributions, and the design
+  point.
+- `fit_error.png`: chord and twist (analytic, spline and optimum) and the
+  signed fitting errors along the span. This figure predates the shared figure
+  style and is kept as the run produced it.

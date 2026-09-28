@@ -1,8 +1,9 @@
 # Discrete adjoint of the Ning-form BEM objective — derivation, implementation and verification
 
-**Status: implemented and verified, B0–B6 complete (2026-09-13).** Written as a
-plan at the end of the Stage A (finite-difference) run, per `the implementation plan`
-§6, and completed in the Stage B run. Every partial below is derived by hand from
+This document derives the discrete adjoint of the BEM energy functional, and
+later of the root-moment and tip-deflection functionals, and records how it was
+implemented and verified. The finite-difference steps are labelled A1–A4 and
+the adjoint steps B0–B6; §9 refers to them. Every partial below is derived by hand from
 the code as it stands (`src/bem/station.py`, `src/bem/corrections.py`,
 `src/bem/rotor.py`, `src/polars/polar.py`, `src/objective/*`), transcribed into
 `src/adjoint/kernels.py`, and **verified** against a complex step of the code's own
@@ -15,27 +16,28 @@ The bounds used in the measured runs of §9 are the ones recorded in each
 artefact's README; the configured box is in `config/rotor_design.yaml`. Nothing
 here reads a bound from `config/`.
 
-**Revision 2026-09-19 — fixed generator rating.** The objective's cap above rated
-was `P_aero(V_rated; d)`, floating with the design; `docs/AEP_GAIN_AUDIT.md` §3.2
-found that indefensible (a nameplate does not grow because the blade improved) and
-it is now the configured constant `operating.rated_power_w` (the reference
+**Fixed generator rating.** The objective's cap above rated was originally
+`P_aero(V_rated; d)`, which rose with the design. That isn't realistic (a
+generator's rating doesn't grow because the blade improved; see
+`docs/DESIGN-BASIS.md` §2), so it is now the configured constant `operating.rated_power_w` (the reference
 blade's own `P_aero(11 m/s; x0)` at λ = 6.5; a nameplate replaces it). For the adjoint this
 removes the rated solve as an operating point — the system is **17 × 25 = 425**
 states, not 450 — and turns the capped bins into a constant term in `J` with no
-weight on any state (§7). §1 and §7 below are restated in the current form; the
-measured numbers in §9 are the 2026-09-13 record of the 450-state system and are
-left as written, with the re-run Tier 3/4 numbers in
+weight on any state (§7). §1 and §7 below describe the current form; the
+measured numbers in §9 were recorded on the earlier 450-state system and are
+kept as they were, with the re-run Tier 3/4 numbers in
 `verification/gradient_verification/README.md`. Tier 1 and Tier 2 pass unchanged
 on the 425-state system (`pytest tests/test_adjoint_*.py`).
 
-**Revision 2026-09-19 (Phase 4).** §10 appended: the second right-hand side —
+**Load and deflection functionals.** §10 adds the second right-hand side:
 the per-blade flapwise root-moment integrand `m` and its partials in §6's
 notation, the nine-point KS aggregate `KS_rho(M/M_ref)`, the same diagonal
 adjoint on the 9 × 25 system, and the four tiers with the measured numbers from
 `tests/test_loads.py` and `verification/load_constraint/`. The functional is
 `src/objective/loads.py` (forward path) and `src/adjoint/loads.py`
 (`RootMomentSystem`); the ScaledProblem constraint is
-`src/gradients/problem.py::moment_constraint`.
+`src/gradients/problem.py::moment_constraint`. §11 adds the third, the static
+tip deflection.
 
 ---
 
@@ -43,8 +45,8 @@ adjoint on the 9 × 25 system, and the four tiers with the measured numbers from
 
 **State:** `x = φ_{b,i}`, one inflow angle per (operating point `b`, station `i`).
 17 operating points (the bin midpoints `V_b = 3.5 … 19.5 m/s`) × 25 stations =
-**425 scalars**. (Until 2026-09-19 the rated solve at `V = 11 m/s` was an
-eighteenth point, 450 scalars; see the revision note above.)
+**425 scalars**. (With the earlier floating rating, the rated solve at
+`V = 11 m/s` was an eighteenth point, giving 450 scalars.)
 
 **Design:** `d ∈ ℝ¹⁰ = [c₀…c₄ (m), θ₀…θ₄ (rad)]`, the chord and twist control
 points. Per-station chord and twist are the *constant* linear maps
@@ -141,7 +143,7 @@ complex-safe in both `α` and `Re`, which B0 relies on.)
     ∂Cl/∂φ = Cl_α        ∂Cl/∂θ = −Cl_α        ∂Cl/∂c = Cl_Re · W/ν
     ∂Cd/∂φ = Cd_α        ∂Cd/∂θ = −Cd_α        ∂Cd/∂c = Cd_Re · W/ν
 
-The `∂/∂c` column is the **`Re(c)` path** (§4.3 of the brief) — the one most easily
+The `∂/∂c` column is the **`Re(c)` path**, the one most easily
 forgotten because `c` also enters through `σ` and the explicit factor in `q`. In the
 kernel `W/ν` is taken as `reynolds / chord`, which is exact because both are linear
 in `c`. Tier 1's complex step on a chord control point sends a complex `c` into a
@@ -284,7 +286,7 @@ and the constant the capped bins contribute,
 
     J_L = −(T_h/10⁶) P_rated M_L                  (`BEMSystem.J_capped`; no state in it)
 
-so `J = Σ_b ω_b P_b + J_L`. (Until 2026-09-19, with `P_rated = P_aero(V_rated; d)`,
+so `J = Σ_b ω_b P_b + J_L`. (With the earlier floating rating, `P_rated = P_aero(V_rated; d)`,
 the capped mass was instead a weight `ω_rated = −(T_h/10⁶) M_L` on an eighteenth
 operating point, the rated solve. That weight, and that point, are gone.) Then,
 for every operating point `b` and station `i`:
@@ -347,18 +349,19 @@ the two optima coincide to 8e-9 in `u`.
 
 ---
 
-## 9. Implementation as executed (B0–B6), with the measured numbers
+## 9. Implementation and verification (B0–B6), with the measured numbers
 
-Cost basis from Stage A: `J` = 0.207 s per evaluation; central FD gradient at `x0`
+Cost basis from the finite-difference work (A1–A4): `J` = 0.207 s per evaluation; central FD gradient at `x0`
 = 20 evaluations ≈ 4.2 s; the 300-evaluation step-size sweep = 62 s; the FD-driven
 SLSQP run (A4) = 34 iterations, 1,419 objective evaluations, 361 s, to the
 floating-rating optimum of that system (the committed fixed-rating result is
-+0.1467 %, `verification/adjoint_optimisation/`, `verification/load_constraint/`). Stage B, this run: `pytest -q` went from 391 to 450 passed (5 xfailed
-throughout), 12 s to 29 s; the new tests, scripts and this document are ≈ 2,900
-lines. Nothing needed a cache extension (§4.5 of the brief): every point visited
++0.1467 %, `verification/adjoint_optimisation/`, `verification/load_constraint/`). The adjoint
+work took the test suite from 391 to 450 passing tests (5 xfailed throughout),
+12 s to 29 s; the new tests, scripts and this document are about 2,900 lines.
+The polar table didn't need extending: every point visited
 stayed inside Re 62.6 k … 496 k and α −0.44° … 6.13°.
 
-### 9.1 B0 — complex-step safety, real path bit-identical (`46559f9`)
+### 9.1 B0 — complex-step safety, real path bit-identical (`e1949dc`)
 
 Three edits, the only ones under `src/` outside `adjoint/` and the one method added
 to `gradients/problem.py` in B3:
@@ -381,20 +384,19 @@ derivative matches §4.1 to 1e-13. The real path is bit-identical: the full suit
 including `test_golden_regression`, `test_determinism` and `test_cost` passed
 unchanged (407 passed after B0).
 
-### 9.2 B1 — kernels, system, Tier 1 (`917658a`)
+### 9.2 B1 — kernels, system, Tier 1 (`2476601`)
 
 `src/adjoint/kernels.py::station_partials(phi, chord, twist, reynolds, r, lam_r, R,
 B, r_hub, polar, v_inf, air_density, derivatives=True)` → `StationPartials` with
 `residual, dR_dphi, dR_dc, dR_dtheta, q, dq_dphi, dq_dc, dq_dtheta` plus
 `a, da_dphi, da_dc, da_dtheta, F, dF_dphi, alpha, cl, cd, cn, ct, buhl`. Two
-departures from the plan's signature, both forced: `v_inf` and `air_density` are
-needed for `q` (the plan's signature had no way to form it), and `derivatives=False`
+additions to the originally planned signature, both necessary: `v_inf` and
+`air_density` are needed to form `q`, and `derivatives=False`
 is a values-only mode (the four polar-slope lookups skipped, every partial `None`)
 so a complex step of `J` costs a value rather than a gradient — it is what made the
 450-step per-station test of `∂J/∂φ` affordable (6 s per design).
 
-`src/adjoint/system.py::BEMSystem(parameterisation, bounds, resource, polar_cache)`
-as planned: `solve(d)` → `ForwardState(phi (18,25), power_w (18,), limited (17,), a,
+`src/adjoint/system.py::BEMSystem(parameterisation, bounds, resource, polar_cache)`: `solve(d)` → `ForwardState(phi (18,25), power_w (18,), limited (17,), a,
 reynolds)`; `residual(phi, d)` through `bem.station.residual`; `partials`, `dR_dx`,
 `dR_dd` (via `N_c`, `N_θ`); `J`, `dJ_dx`, `dJ_dd` with §7's weights;
 `apply_dR_dd` / `apply_dR_dd_T`; `tangent`; `gradient` → `GradientResult`;
@@ -422,13 +424,12 @@ worst mixed errors:
 Two decades inside the tolerance everywhere, no plateau near 1e-6: no real dtype
 on the path, and no partial wrong.
 
-### 9.3 B2 — Tier 2 transpose identity (`a964d83`)
+### 9.3 B2 — Tier 2 transpose identity (`54c6294`)
 
 `tests/test_adjoint_transpose.py` (12 tests), eight random `(u, v)` draws at each
 of the two designs, `⟨v, A u⟩ = ⟨Aᵀ v, u⟩` to `1e-14` for `A = ∂R/∂x` (diagonal),
 `A = ∂R/∂d` (`apply_dR_dd` vs `apply_dR_dd_T`, separate code paths) and the full
-operator `d ↦ dJ/dd` (`tangent` vs `gradient`). One definition was needed that the
-plan left open: "relative" is relative to the Cauchy–Schwarz bound `‖v‖ ‖A u‖`,
+operator `d ↦ dJ/dd` (`tangent` vs `gradient`). One definition had to be chosen: "relative" is relative to the Cauchy–Schwarz bound `‖v‖ ‖A u‖`,
 the scale the operator's round-off lives on — an inner product of two random
 vectors cancels, and relative-to-the-value would have tested the luck of the draw
 (the first draft did, and failed at 1.06e-14 on a full-chain value of 0.074 whose
@@ -444,7 +445,7 @@ Also: the matrix-free apply against the explicit (18, 25, 10) tensor with a
 cancellation-aware scale; the support of a chord control point's column; and
 `dJ/dd == explicit + ∂R/∂dᵀ ψ` with `ψ` solving the diagonal system exactly.
 
-### 9.4 B3 — assembly and Tier 3 (`09f5ae3`)
+### 9.4 B3 — assembly and Tier 3 (`6fa1ad5`)
 
 `ScaledProblem.jac_adjoint(u) = gradient(d) ⊙ span / |J₀|` over a lazily built
 `BEMSystem` (`adjoint_system()`); `PolarDomainError` logged and re-raised as in
@@ -474,7 +475,7 @@ variable. `tests/test_adjoint_gradient.py` (4 tests) pins `jac_adjoint` to the
 committed A3 reference within `3 ε_j` and asserts the Taylor ratios, so the suite
 catches a drift on either side.
 
-### 9.5 B4 — Tier 4, degradation at the polar interpolation (`7cb3ef6`)
+### 9.5 B4 — Tier 4, degradation at the polar interpolation (`9e46e35`)
 
 `verification/gradient_verification/run_tier4.py` → `tier4.json`,
 `tier4_attribution.png`, README section. From the adjoint system's own
@@ -489,8 +490,7 @@ steps, and the excess over it.
 **At `h*_j` no stencil crosses anything, at any point, for any variable** —
 the nearest break is 2.4 stencil half-widths away in `α`, 53 in `Re`, 171 in `a`
 — and the three headline disagreements are 0.92 ×, 1.37 × and 0.61 × the measured
-round-off floor (`δJ` = 1.3e-15, 2.0e-15, 2.5e-15 MWh/yr). The attribution
-sentence the brief asked for: **degradation at the polar interpolation at `h*_j`
+round-off floor (`δJ` = 1.3e-15, 2.0e-15, 2.5e-15 MWh/yr). In short: **degradation at the polar interpolation at `h*_j`
 is zero, attributable to zero knot crossings; Buhl crossings contribute zero
 (first crossed at `h ≥ 3e-4` at `u*`, `h ≥ 3e-3` elsewhere, never inside an `h*_j`
 stencil); elsewhere agreement is the round-off floor.** Across the whole grid the
@@ -499,12 +499,12 @@ row or blend, all at `h ≥ 1e-4` — three to four decades above every `h*_j` �
 the truncation-side slopes are 1.69–1.96 (2 = smooth). At `u*` one Buhl crossing
 plus four knots at `h = 1e-3` pull the FD error *below* the `h²` line (excess
 −1.5e-4 MWh/yr per `u`) and the 3e-4 step above it (+4.7e-6): the non-monotone dip
-the brief predicted for FD at a C² break, which the adjoint does not have. The
-"shrink `h`" step of the plan was not needed; instead the largest crossing-free
+expected for FD at a C² break, which the adjoint does not have. Shrinking `h`
+wasn't needed; instead the largest crossing-free
 step was found (1e-4, 3e-5, 1e-4) and the FD there shown to sit on the smooth law.
 Nothing is left unexplained.
 
-### 9.6 B5 — adjoint-driven SLSQP (`e6ac536`)
+### 9.6 B5 — adjoint-driven SLSQP (`1cfa2db`)
 
 `verification/adjoint_optimisation/run_adjoint_slsqp.py` → `result.json`,
 `iterates.json`, `optimised_blade.png`, `README.md`: A4's script with
@@ -526,17 +526,17 @@ bound, no active envelope row, no `PolarDomainError`, α and Re inside the cache
 The optimum is the same as A4's, inside the defect gates and confirmed global by
 the multi-start study; the committed fixed-rating figure is +0.1467 %.
 
-### 9.7 B6 — this document (`Phase 3: derivation`)
+### 9.7 B6 — summary
 
-Completed above: the state choice (§1), the residual as coded (§2), every partial
+This document covers the state choice (§1), the residual as coded (§2), every partial
 with its chain including the `Re(c)` path and both `a` branches (§3–§6), the
 rated-limit weighting and the scaling chain (§7), the solve and assembly with the
 honest cost note (§8), the four tiers with the measured numbers (§9.2–§9.5), the
 optimisation comparison (§9.6).
 
-### Failure modes the plan guarded against, and what happened
+### Failure modes checked, and what happened
 
-- **Silent wrong gradient** (R2): Tier 1/2 at machine precision as hard asserts
+- **Silent wrong gradient**: Tier 1/2 at machine precision as hard asserts
   (passed two decades inside tolerance); Tier 3 against `ε_j`, never looser (all
   30 pairs pass, worst 2.78 `ε`); Taylor remainder (98–101 × per decade); FD and
   adjoint optima coincide (8e-9 in `u`). No tolerance was adjusted to pass. The
@@ -560,7 +560,7 @@ optimisation comparison (§9.6).
 
 ## 10. A second right-hand side: the root moment and its KS aggregate
 
-**Added 2026-09-19 (Phase 4, Steps 2a–2d).** The load constraint is a
+The load constraint is a
 *relative* flapwise root-moment cap on the BEM spanwise loading. It reuses the
 whole Phase 3 machinery — the same residual `R`, the same diagonal `∂R/∂φ`,
 the same `dR/dd` through `N_c`, `N_θ` — with a different scalar functional and
@@ -670,7 +670,7 @@ Tier 3 is the constraint Jacobian against central FD at the global
 `h* = 3.162277660168379e-06` and `h*/√10`, `h*√10`, with `ε_j` the three-step
 local jitter and the round-off floor `δg/h*` measured from nine samples of `g`
 along `u + t e_j`, `t = −4e-12 … 4e-12`. All numbers are at `src` commit
-`a220e1b`, in `verification/load_constraint/checks.json`; Tier 1/2 also live in
+`45c4619`, in `verification/load_constraint/checks.json`; Tier 1/2 also live in
 `tests/test_loads.py`.
 
 | point | Tier 1 worst mixed `m` | Tier 1 worst mixed KS | Tier 2 tangent | Tier 2 assembly | Tier 3 worst `|diff|/ε_j` | Taylor min ratio |
@@ -686,8 +686,8 @@ fragility §9.5 records for the objective at `x0`, where the flatness estimate
 lands on a degenerate neighbour pair. The adjoint is not the suspect; the
 acceptance scale is. No tolerance and no estimator was changed; `checks.json`
 records `passes: false`, `floor_limited: true` and lists the point and variable
-under `tier3_failures` (a failed check stays failed in the JSON; the reading of
-it is MJ's, on the BLOCKING list). The production runs start at `x0`, where the
+under `tier3_failures` (a failed check stays failed in the JSON, and it is
+listed as an open item). The production runs start at `x0`, where the
 Jacobian passes with worst ratio 0.396.
 
 The aggregate at `x0` is dominated by the rated point: softmax weight **0.957**
@@ -727,8 +727,7 @@ equals `KS0` to `5e-8`. Second, for the same reason the Pareto steps are
 
 ## 11. A third right-hand side: static tip deflection and its KS aggregate
 
-**Added 2026-09-20 (the mass problem, Step 2;
-`docs/PLAN-mass-objective-2026-09-20.md`).** Under a material objective the
+Under a material objective the
 optimiser thins the blade; a root-moment cap does not stop that (a thinner
 blade carries *less* moment) and a root-stress proxy holds only the root
 section. The constraint that fights a thin outer blade is stiffness: for a
@@ -843,5 +842,4 @@ tower-clearance allowable (the absolute form needs `E`, `k_I`, `t_shell` and
 a clearance, none of which the relative row requires). It is a *proxy* whose purpose is to stop a material
 minimiser trading stiffness it does not see; the report states it as such
 beside the root-stress proxy `KS_ρ(M̂)/c_0²`. Buckling and fatigue are not
-modelled, for the reasons `docs/PROPOSAL-mass-objective-2026-09-19.md` §4.6
-gives.
+modelled (see the limitations in `docs/DESIGN-BASIS.md` §8).

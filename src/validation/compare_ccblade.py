@@ -1,5 +1,5 @@
 """
-Stage 6: cross-check our BEM solver (Stages 1-4) against CCBlade
+Cross-check our BEM solver against CCBlade
 (https://github.com/WISDEM/CCBlade, part of NREL's WISDEM stack, Apache-2.0
 licensed) on the real NREL Phase VI rotor geometry (bem.rotor.phase_vi_geometry).
 
@@ -10,7 +10,7 @@ agreement with CCBlade than with pyBEMT would therefore be a meaningful
 result, not just "two more digits of agreement" -- see
 docs/validation/bem-cross-validation.md for whether that's what was found.
 
-This is the second of three scripts in the Stage 6 cross-check pipeline
+This is the second of three scripts in the cross-check pipeline
 (see compare_pybemt.py's module docstring for the split rationale): this
 one, run with CCBlade's own virtualenv, writes
 docs/validation/ccblade_case/results.json; plot_bem_comparison.py (plain
@@ -71,10 +71,10 @@ moving it would change the physics, not just the integration domain), this
 script uses CCBlade's `distributedAeroLoads()` for per-station Np/Tp and
 integrates them itself with the exact same trapezoidal rule as
 bem.rotor._trapz, over exactly the same station range as our solver and
-the pyBEMT config's `dr` -- see the Stage 6 journal entry.
+the pyBEMT config's `dr`.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import json

@@ -1,5 +1,5 @@
 """
-Phase 3, B4 -- Tier 4: attribute what Tier 3 left, to the polar interpolation
+Tier 4: attribute what Tier 3 left, to the polar interpolation
 or to round-off, and to nothing else.
 
 Tier 3 measured `|adjoint_j - FD_j|` at `h*_j` against the FD noise floor
@@ -47,7 +47,7 @@ Run from the repo root (about 1 min):
     python verification/gradient_verification/run_tier4.py --replot   # figures only
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import argparse

@@ -1,30 +1,30 @@
 """
-Task 5's hard gate: one operating point under 0.1 s.
+The cost gate: one operating point under 0.1 s.
 
-This is the criterion the work order calls hard, and it is hard for a reason
-that is about feasibility rather than speed: the Step 8 objective-smoothness
+It is a hard gate for a reason that is about feasibility rather than speed:
+the objective-smoothness
 sweep is roughly 3000 evaluations x 18 wind-speed bins. At the audit's
 measured 9.0 s per operating point that is ~5.5 days of compute per pass, and
-the brief names Step 8 the single most valuable step in Phase 1. At that cost
+the smoothness check is the most valuable check before any gradient work. At that cost
 it gets skipped or truncated, which is how a gradient-based project ends up
 unable to say whether its objective is smooth.
 
     9.0 s    audit baseline (2000-point bracket scan x 120 us polar lookup)
-    0.56 s   after Task 4   (CachedPolar over the C1 interpolant, ~6 us)
-    ~0.015 s after Task 5   (Ning bracket: ~48 residual evaluations/station)
+    0.56 s   new polar layer (CachedPolar over the C1 interpolant, ~6 us)
+    ~0.015 s Ning bracket    (~48 residual evaluations/station)
 
-So the gate is met with roughly 6.7x of headroom. The work order is explicit
-that this is not to be optimised past -- "the gate exists to make Step 8
-feasible, not to be fast for its own sake" -- so this test asserts the gate,
+So the gate is met with roughly 6.7x of headroom. It isn't meant to be
+optimised past -- the gate exists to make the smoothness check feasible, not
+to be fast for its own sake -- so this test asserts the gate,
 not the current number.
 
-Phase 4, Step 3 adds the structural half of the cost-scaling study
+This file also holds the structural half of the cost-scaling study
 (`verification/cost_scaling/`): the forward-solve count behind each gradient
 method, which is machine-independent where the wall time is not. The adjoint
 makes one forward solve at every control-point count; central FD makes `2n`.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import math
@@ -81,7 +81,7 @@ def test_operating_point_is_under_the_cost_target():
     assert result["converged"], result["failed_stations"]
     assert best < COST_TARGET_S, (
         f"operating point took {best * 1000:.1f} ms, over the {COST_TARGET_S * 1000:.0f} ms "
-        f"gate. The Step 8 smoothness sweep is ~3000 evaluations x 18 bins, so "
+        f"gate. The smoothness sweep is ~3000 evaluations x 18 bins, so "
         f"this multiplies straight into whether that step is feasible."
     )
 
@@ -90,7 +90,7 @@ def test_residual_evaluations_per_station_are_bounded():
     """
     The structural reason the gate is met, asserted directly.
 
-    Wall-clock is machine-dependent; the evaluation count is not. The Phase 0
+    Wall-clock is machine-dependent; the evaluation count is not. The original
     scan cost 2000 residual evaluations per station before brentq even
     started. The bracket now costs a bounded Cn bisection plus ~10 brentq
     iterations, and this pins that so a future change that reintroduces a scan
@@ -103,7 +103,7 @@ def test_residual_evaluations_per_station_are_bounded():
 
 
 # ---------------------------------------------------------------------------
-# Phase 4, Step 3: forward solves per gradient, against n
+# Forward solves per gradient, against n
 # ---------------------------------------------------------------------------
 
 def _projected_problem(k):

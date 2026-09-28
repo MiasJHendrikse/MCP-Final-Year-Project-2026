@@ -1,5 +1,5 @@
 """
-Step 2d -- SLSQP on the AEP objective with the root-moment KS
+SLSQP on the AEP objective with the root-moment KS
 constraint at reduction fraction `eps`.
 
     minimise   fun(u) = J(u) / |J(u0)|,   J = -AEP [MWh/yr]
@@ -17,7 +17,7 @@ The recorder is B5's, with `KS_k` added. The summary reports the optimum, the
 AEP and moment at `x0`, at the unconstrained optimum and at this constrained
 one, the full active set (including the moment row's slack), a KKT check on the
 slope, the post-checks, the SLSQP counters, and the moment-solve count. The
-`--eps 0` run is the Phase 5 production optimum for now.
+`--eps 0` run gives x_c, the moment-capped energy optimum.
 
 Outputs, next to this script: `result_eps{E}.json`, `iterates_eps{E}.json`,
 `constrained_blade_eps{E}.png` (`E = 0, 0.02, 0.05, 0.1`).
@@ -28,7 +28,7 @@ Run from the repo root (about one minute with adjoint gradients):
     python verification/load_constraint/run_constrained_slsqp.py --eps 0.05
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import argparse
@@ -65,8 +65,8 @@ LAW_LABEL = ("lambda(V) = min(6.5, Omega_max R / V), Omega_max = 300 rpm "
 
 ACTIVE_TOL = 1e-6
 
-#: The stated sanity band for the eps = 0 AEP gain, from HANDOFF-2026-09-19
-#: section 3.1: it cannot exceed the unconstrained +0.14666 % and losing more
+#: The stated sanity band for the eps = 0 AEP gain, fixed before the run:
+#: it cannot exceed the unconstrained +0.14666 % and losing more
 #: than a third of it to a 0.31 % moment cap is a suspected defect.
 EXPECTED_GAIN_PCT = (0.10, 0.14666)
 #: The eps = 0.10 AEP-cost band; above 5 % is a suspected defect.

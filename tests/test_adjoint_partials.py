@@ -1,5 +1,5 @@
 """
-Phase 3, B1 -- Tier 1: every hand-derived partial against a complex step of
+Tier 1: every hand-derived partial against a complex step of
 the code's own residual and objective, at machine precision.
 
 What is compared to what
@@ -33,7 +33,7 @@ Bounds enter only through `BEMSystem`'s constructor (the scaling chain),
 from `DesignBounds.from_config()`.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import json

@@ -1,7 +1,6 @@
 # SG6043 wind-tunnel data — UIUC Low-Speed Airfoil Tests, Volume 3
 
-The measured reference the SG6043 polar cache has to be validated against
-(PROJECT_PLAN.md §1.2, §3.1). This is the experimental half of the pair: the
+The measured data the SG6043 polar table is validated against. This is the experimental half of the pair: the
 coordinates it goes with are `data/airfoils/sg6043.dat`, and the cache built
 from them is specified in `config/polars_sg6043.yaml`.
 
@@ -11,7 +10,7 @@ XFOIL produced.
 
 ## Source and provenance
 
-Downloaded 2026-08-29 from the UIUC Applied Aerodynamics Group's LSATs data
+Downloaded from the UIUC Applied Aerodynamics Group's LSATs data
 distribution:
 
 - `https://m-selig.ae.illinois.edu/pd/pub/lsat/volume03/DRAG03.TXT`
@@ -70,9 +69,9 @@ for the Step 2 study, not the baseline it validates against.
 
 **Re = 100k, 150k, 200k, 300k, 400k and 500k.** Not 60k.
 
-`PROJECT_PLAN.md` §3.1 previously said the section was tested "at Re = 60k,
-100k, 200k and 300k", and §1.4's justification for R = 2.0 m rested on
-bracketing those points. Both halves were wrong in the same direction: **there
+My project plan originally said the section was tested "at Re = 60k,
+100k, 200k and 300k", and the choice of R = 2.0 m partly rested on
+bracketing those points. Both were wrong in the same direction: **there
 is no 60k run**, and there are two more test points at the top (400k, 500k)
 than the plan credited. Volumes 1, 2 and 4 were checked — SG6043 appears only
 in Volume 3, so the six runs above are the complete set. The plan's
@@ -112,11 +111,10 @@ before comparing against anything, or a two-point run will look like a curve.
 
 ## How this gets used
 
-1. **The `n_crit` sensitivity study** (plan §1.2, and the outstanding
-   `build.ncrit` TODO in `config/polars_sg6043.yaml`). Sweep candidate `n_crit`
-   values in XFOIL at these six Reynolds numbers, compare against the clean
-   data, and *select* one — the way S809's `Ncrit = 5` was selected against
+1. **The `n_crit` sensitivity study** (`results/ncrit_sensitivity/`). Candidate
+   `n_crit` values are swept in XFOIL at these six Reynolds numbers, compared
+   with the clean data, and one is *selected* (it was 9) — the way S809's `Ncrit = 5` was selected against
    published behaviour rather than assumed.
-2. **Naming the low-Re uncertainty** (plan §3.3, risk R4). The disagreement
+2. **Quantifying the low-Re uncertainty.** The disagreement
    that remains at the chosen `n_crit` is the measurement of how much to trust
    the cache, and it belongs in the limitations chapter with a number attached.

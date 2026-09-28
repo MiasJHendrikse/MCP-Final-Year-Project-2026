@@ -1,6 +1,6 @@
 """
 `BEMSystem`: the residual system `R(x; d) = 0` behind the objective, its
-partials, and the discrete-adjoint gradient (Phase 3, B1-B3).
+partials, and the discrete-adjoint gradient.
 
     state    x = phi_{b,i}     one inflow angle per (operating point, station)
                                17 x 25 = 425 scalars
@@ -56,7 +56,7 @@ P_rated` to `J` and nothing to any derivative: its weight `omega_b` is zero
 and its 25 states never enter the adjoint. Until 2026-09-19 the cap floated
 with the design (`P_rated = P_aero(V_rated; d)`), the rated speed was an
 eighteenth operating point and the capped mass was carried by its weight;
-`docs/AEP_GAIN_AUDIT.md` §3.2 is why that changed.
+`docs/DESIGN-BASIS.md` §2 explains why that changed.
 
 Complex safety
 ---------------
@@ -69,7 +69,7 @@ are built as lists and `np.array` infers the dtype.
 to `gradients.ScaledProblem.jac_adjoint`, and is read from nowhere else.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import math
@@ -449,7 +449,7 @@ class BEMSystem:
         return (float(np.sum(self.dJ_dx(phi, d, limited, parts) * dphi))
                 + float(self.dJ_dd(phi, d, limited, parts) @ np.asarray(v)))
 
-    # -- the adjoint gradient (B3) -----------------------------------------------
+    # -- the adjoint gradient ----------------------------------------------------
 
     def gradient(self, d, state=None):
         """

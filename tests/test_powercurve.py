@@ -1,5 +1,5 @@
 """
-`validate_powercurve.py`'s six checks, ported to pytest (work order Task 7).
+`validate_powercurve.py`'s six checks, ported to pytest.
 
 `bem/powercurve.py` adds no aerodynamics of its own -- it sweeps
 `rotor.solve_rotor` and converts to dimensional units -- so everything here is
@@ -8,7 +8,7 @@ invert exactly, that the two machine conventions stay distinguishable, and
 that nothing drifts between calling the sweep and calling the solver directly.
 
 Two of the swept ranges are narrower than the original script used, because
-Task 4 removed the Reynolds clamp and a sweep now stops where the S809 cache's
+the Reynolds clamp was removed and a sweep now stops where the S809 cache's
 coverage actually stops instead of running on a clamped Reynolds number. The
 `PHASE_VI_MAX_CACHED_WIND_SPEED_MS` constant below and the comments on the
 check 3 and check 4 tests carry the arithmetic.
@@ -19,7 +19,7 @@ suite, not inputs to the solver, and `validate_powercurve.py` -- their previous
 home -- was retired by this task.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import math
@@ -48,8 +48,7 @@ from config import load_phase_vi_rotor
 #: project's own solver's values, not experimental data -- a regression
 #: anchor, not a validation against ground truth.
 #:
-#: Re-anchored 2026-09-10 by work order Task 4, which deleted the alpha clamp
-#: in the polar adapter. The values below 10 m/s barely moved (the whole span
+#: Re-anchored when the alpha clamp was removed from the polar adapter. The values below 10 m/s barely moved (the whole span
 #: is attached, so only the bilinear -> C1 interpolant change shows); above
 #: it they moved a lot, because that is where stations run past the S809
 #: cache's +18 deg converged band and the old adapter returned Cl(18 deg) for
@@ -89,7 +88,7 @@ PHASE_VI_SEQUENCE_S_REFERENCE = {
 #: cache's 1,300,000 ceiling -- over by 1 %. At 20 m/s the whole span sits at
 #: 1,014,447-1,125,817 and is comfortably inside.
 #:
-#: Before work order Task 4 that station silently clamped to the 1.3M curve
+#: Before the clamp was removed, that station silently clamped to the 1.3M curve
 #: and the sweep ran to 25 m/s on a Reynolds number that was not the
 #: station's. It now raises, so the sweep stops where the cache's coverage
 #: stops. Extending the cache above 1.3M would be a fresh XFOIL build for a
@@ -140,8 +139,8 @@ def test_rpm_and_omega_round_trip():
 
 def test_fixed_speed_reproduces_the_phase_vi_anchor():
     """
-    The pinned Phase VI values, re-anchored by Task 4 when the alpha clamp was
-    deleted. These are this solver's own numbers -- a drift detector, not a
+    The pinned Phase VI values, re-anchored when the alpha clamp was
+    removed. These are this solver's own numbers -- a drift detector, not a
     validation against experiment.
     """
 
@@ -287,7 +286,7 @@ def test_guard_rails_raise_rather_than_guessing(label, call):
 
 def test_air_properties_are_still_required():
     """
-    Task 1's rule, checked at this layer too: omitting density is a TypeError,
+    The no-default rule, checked at this layer too: omitting density is a TypeError,
     not a number 25 % high that still lands in the plausibility band.
     """
 

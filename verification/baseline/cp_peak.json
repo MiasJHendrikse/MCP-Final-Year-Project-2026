@@ -2,7 +2,7 @@
  "description": "Where does the Schmitz reference's power coefficient peak, and how exact is it?",
  "command": "python verification/baseline/run_cp_peak.py",
  "generated": "2026-09-26T12:41:15",
- "src_commit": "5389232959ed12b261353abf9c10a0e38ec9513b",
+ "src_commit": "543a421355376ff59dba7c47a9aedd29ea2c2b2b",
  "design_tsr": 6.5,
  "note": "x0 along fixed-lambda lines in the site atmosphere; bounded scalar search, xatol 1e-4",
  "rows": [

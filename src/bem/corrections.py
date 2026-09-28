@@ -1,8 +1,8 @@
 """
-Stage 2/3: Prandtl tip/hub-loss and Glauert/Buhl high-thrust corrections.
+Prandtl tip/hub-loss and Glauert/Buhl high-thrust corrections.
 
-Convention used, and why it matters (tip/hub loss, Stage 2)
--------------------------------------------------------------
+Convention used, and why it matters (tip/hub loss)
+--------------------------------------------------
 BEM codes are inconsistent about *where* the loss factor F enters the
 induction equations, and the two conventions give different numbers:
 
@@ -26,8 +26,8 @@ correction when combined with the Glauert/Buhl high-thrust correction below,
 since that correction is also formulated in terms of momentum theory's
 a(phi) relation.
 
-High-thrust (turbulent wake state) correction, Stage 3
---------------------------------------------------------
+High-thrust (turbulent wake state) correction
+---------------------------------------------
 Momentum theory's local thrust relation, Ct(a) = 4 a F (1-a), peaks at a=0.5
 and *decreases* for a > 0.5 -- physically wrong; measured rotors keep
 loading up past that point (turbulent wake state). Buhl (2005) replaced the
@@ -41,8 +41,8 @@ what `station.py` needs to keep the residual a single closed-form expression
 per trial phi -- no inner iteration, and no discontinuity for the root-finder
 or a future adjoint to trip on.
 
-The gamma1/gamma2/gamma3 form, and the decision to adopt it (Task 6)
----------------------------------------------------------------------
+The gamma1/gamma2/gamma3 form, and why it is used
+-------------------------------------------------
 Those gammas are *Ning's* (2014) reparameterisation of Buhl's correction, not
 Buhl's own notation. They are the same equation: substituting Buhl's Ct(a)
 into Y(1-a)^2 = Ct(a) gives a quadratic whose coefficients are exactly
@@ -58,8 +58,8 @@ Adopted, for three reasons, in order of weight:
      nearest-value heuristic, which is not differentiable and can switch
      branch discontinuously. The adjoint is this project's main contribution
      and it differentiates this function.
-  2. Task 5's region classification is expressed in these same quantities, so
-     deciding now means the hardened solver and the Phase 3 derivation are
+  2. The solver's momentum-region classification is expressed in these same
+     quantities, so the solver and the adjoint derivation are
      written in the notation of the cited method rather than translated into
      it afterwards.
   3. CCBlade -- the 0.51 %-agreement cross-validation reference -- uses this
@@ -76,8 +76,8 @@ equations with guaranteed convergence." Wind Energy, 17(9), 1327-1345.
 Buhl, M.L. (2005). "A New Empirical Relationship between Thrust Coefficient
 and Induction Factor for the Turbulent Windmill State." NREL/TP-500-36834.
 
-    PROVENANCE NOT YET CLOSED. The plan (1.3) and the Phase 1 brief both
-    require these constants to be checked against Buhl's paper directly --
+    PROVENANCE NOT YET CLOSED. These constants should be checked against
+    Buhl's paper directly --
     not against secondary sources and not against prior notes in this repo.
     That check has NOT been done: as of 2026-09-10 the report could not be
     retrieved (nrel.gov and docs.nrel.gov do not resolve, web.archive.org is
@@ -87,11 +87,11 @@ and Induction Factor for the Turbulent Windmill State." NREL/TP-500-36834.
     three coefficients are uniquely pinned by C0 and C1 continuity with
     momentum theory at a = 0.4 plus the F-independent anchor Ct(1) = 2, all
     three asserted in tests/test_corrections.py. That proves they are
-    *self-consistent*, not that they are *Buhl's*. Do not tick the plan
-    checkbox on the strength of the tests alone.
+    *self-consistent*, not that they are *Buhl's*. The tests alone don't close
+    this (docs/OUTSTANDING-INPUTS.md section 3).
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import cmath
@@ -130,7 +130,7 @@ def tip_loss_factor(r, R, B, phi):
         return 0.0
 
     if isinstance(phi, complex):
-        # Complex-step path (Phase 3, B0). Every branch decision is taken on
+        # Complex-step path. Every branch decision is taken on
         # the real part so an infinitesimal imaginary perturbation cannot
         # flip it; `abs` would drop the imaginary part, so the sign is
         # applied by hand. The real path below is untouched.
@@ -182,7 +182,7 @@ def hub_loss_factor(r, r_hub, B, phi):
         Local radius, m.
     r_hub : float or None
         Hub radius, m. If None or <= 0, hub-loss is disabled and this
-        returns 1.0 unconditionally (most Stage 1/2 test cases have no hub
+        returns 1.0 unconditionally (most single-station test cases have no hub
         geometry defined -- this keeps hub-loss strictly opt-in).
     B : int
         Number of blades.
@@ -201,7 +201,7 @@ def hub_loss_factor(r, r_hub, B, phi):
         return 0.0
 
     if isinstance(phi, complex):
-        # Complex-step path (Phase 3, B0); see `_prandtl_factor_complex`.
+        # Complex-step path; see `_prandtl_factor_complex`.
         return _prandtl_factor_complex((B / 2.0) * (r - r_hub) / r_hub, phi)
 
     sin_phi = abs(math.sin(phi))
@@ -219,21 +219,21 @@ def combined_loss_factor(r, R, B, phi, r_hub=None):
 
 
 # ----------------------------------------------------------------------------
-# Stage 3: Glauert/Buhl high-thrust (turbulent wake state) correction.
+# Glauert/Buhl high-thrust (turbulent wake state) correction.
 # ----------------------------------------------------------------------------
 
 #: Buhl's empirical blend point, the axial induction at which the momentum
 #: relation is handed over to the empirical quadratic.
 #:
-#: This is a *constant*, not a parameter, and that is a correction made by work
-#: order Task 6. Both functions below used to accept `ac=BUHL_AC` as an
+#: This is a *constant*, not a parameter, and deliberately so. Both functions
+#: below used to accept `ac=BUHL_AC` as an
 #: argument, which was not honourable: the quadratic's coefficients (8/9, 40/9,
 #: 50/9) are *derived from* ac = 0.4 and do not move with it. Passing ac = 0.5
 #: would have switched branches at 0.5 while the quadratic still matched
 #: momentum theory at 0.4, opening both a value and a slope discontinuity --
 #: silently, since nothing checked. No caller ever passed a non-default value,
 #: so it never bit. A knob that produces a wrong answer if turned is worse than
-#: no knob; same reasoning Task 1 applied to the air-density default.
+#: no knob; the same reasoning removed the old air-density default.
 BUHL_AC = 0.4
 
 
@@ -318,13 +318,13 @@ def corrected_axial_induction(Y, F):
     this phi (see station.py -- this is the algebraic inverse the residual
     needs, not just the forward Ct(a) curve above).
 
-    Below BUHL_AC this is the Stage 2 closed form a = Y / (4F + Y), written
+    Below BUHL_AC this is the tip-loss-corrected closed form a = Y / (4F + Y), written
     exactly that way (rather than as kappa/(1+kappa), which is algebraically
     identical but not bit-identical) so results in the momentum region are
     unchanged to the last bit by this reparameterisation.
 
-    Form, and why it changed (work order Task 6)
-    ---------------------------------------------
+    Form, and why it changed
+    ------------------------
     Above the blend this used to solve the quadratic obtained by substituting
     Buhl's Ct(a) into Y(1-a)^2 = Ct(a),
 
@@ -333,7 +333,7 @@ def corrected_axial_induction(Y, F):
     with `math.sqrt`, and then *chose between the two roots by heuristic* --
     "the one closest to a_naive", with a fallback of "whichever is closest to
     ac". Those choices were dead code for physical inputs, but a nearest-value
-    heuristic has no place in a function that Phase 3 differentiates: it can
+    heuristic has no place in a function that the adjoint differentiates: it can
     switch branch discontinuously, and nothing about it is differentiable.
 
     It is now written in Ning (2014)'s gamma1/gamma2/gamma3 reparameterisation
@@ -346,8 +346,8 @@ def corrected_axial_induction(Y, F):
     B = -4*gamma1, and B^2 - 4AC = 16*gamma2 exactly. Verified against the
     previous implementation to 1.0e-13 worst case over F in [0.05, 1.0] across
     the whole corrected region, and against a 60-digit Decimal reference in
-    `tests/test_corrections.py`. Adopting it also means the Phase 3 derivation
-    and Task 5's region classification are expressed in the same quantities as
+    `tests/test_corrections.py`. Adopting it also means the adjoint derivation
+    and the solver's region classification are expressed in the same quantities as
     the cited method, and it matches CCBlade -- the 0.51 %-agreement reference.
 
     Conditioning: two forms, one function
@@ -420,7 +420,7 @@ def corrected_axial_induction(Y, F):
         # -B/2A, the twice-repeated root of the clamped quadratic), so the
         # scan sees an unchanged residual landscape.
         #
-        # Task 5 deletes the scan in favour of Ning's region classification,
+        # The solver now uses Ning's region classification instead of a scan,
         # at which point nothing evaluates this function past the pole and
         # this branch can go with it.
         return gamma1 / gamma3

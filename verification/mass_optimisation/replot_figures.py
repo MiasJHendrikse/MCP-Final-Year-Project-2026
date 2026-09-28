@@ -23,7 +23,7 @@ Writes, next to this script:
     blades_rendered_edge.png    reference_blades.json
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import os

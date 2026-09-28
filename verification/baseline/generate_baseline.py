@@ -1,8 +1,8 @@
 """
-Build the Schmitz baseline, evaluate it, and commit `x0` (plan step 1.7).
+Build the Schmitz baseline, evaluate it, and commit `x0`.
 
-The plan calls the evaluated performance of this blade "the reference numbers
-for the entire results chapter", so this script's output is a fixed artefact:
+The evaluated performance of this blade gives the reference numbers for the
+entire results chapter, so this script's output is a fixed artefact:
 `x0.json` is what Phases 2-5 start from, and `baseline_reference.json` is what
 every later result is compared against.
 
@@ -24,7 +24,7 @@ Writes `x0.json`, `baseline_reference.json`, `baseline_geometry.png` and
 `baseline.png` is superseded by the two figure files and is no longer written.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import argparse
@@ -50,7 +50,7 @@ def build():
     x0 = {
         "description": (
             "Fitted-Schmitz control-point vector. The starting point for all "
-            "gradient and optimisation work (plan step 1.7). Chord block first "
+            "gradient and optimisation work. Chord block first "
             "(metres), then twist block (radians)."
         ),
         "n_chord": baseline.parameterisation.n_chord,
@@ -239,7 +239,7 @@ def main(argv=None):
 
     band = performance["aep_sanity_band_mwh_per_year"]
     verdict = ("in band" if performance["aep_in_sanity_band"]
-               else "OUTSIDE BAND -- see the 2026-09-13 journal entry")
+               else "OUTSIDE BAND -- see config/rotor_design.yaml `sanity:`")
     print(f"  AEP               {performance['aep_mwh_per_year']:.3f} MWh/yr "
           f"(band {band[0]:.1f}-{band[1]:.1f}, {verdict})")
     for key, value in performance["outstanding"].items():

@@ -4,7 +4,7 @@
  "law_label": "lambda(V) = min(6.5, Omega_max R / V), Omega_max = 300 rpm (V_c = 9.67 m/s), fixed rating 3822.189755449124 W",
  "command": "python verification/load_constraint/run_constrained_slsqp.py --eps 0.02",
  "generated": "2026-09-19T19:12:58",
- "src_commit": "7f209edfff5c276ad21dbbed26644ff12b378e0c",
+ "src_commit": "141baaccb5083536fc9b9e47e9fa72140b29a91c",
  "bounds": {
   "chord_min_m": 0.045,
   "chord_max_m": 0.3,

@@ -4,32 +4,32 @@
 *.tif
 *.tiff
 
-# Python cache
+# Python
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
 
-# OS files
+# OS / editor files
 .DS_Store
 Thumbs.db
 desktop.ini
-
-# Obsidian local config/state (causes merge conflicts)
-docs/journal/.obsidian/
+.vscode/
+.idea/
 
 # Raw XFOIL scratch output. build_polar_cache.py and xfoil_runner.py write
-# their unparsed run output and per-run coordinate copies here; both are
-# regenerable byproducts, and the distilled cache lives in data/polars/.
+# their unparsed run output here; the distilled cache lives in data/polars/.
 # The directory itself is kept (via .gitkeep) because those scripts write
 # into it without creating it.
 results/_archive/*
 !results/_archive/.gitkeep
 
-# Local one-time testing scratch space (not synced)
+# Local scratch space
 /testing/
-
-# Personal notes and briefings written for MJ, not part of the project record.
-# The journal under docs/journal/ is the versioned account; misc/ is scratch
-# for things like session summaries rendered to PDF for reading on a phone.
 /misc/
+/dashboard/
+/dashboard-v2/

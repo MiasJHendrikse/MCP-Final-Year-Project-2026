@@ -1,8 +1,7 @@
 """
-Single blade-element station BEM solver: Prandtl tip/hub loss (Stage 2) and
-the Glauert/Buhl high-thrust (turbulent wake state) correction (Stage 3).
-Stage 4 (rotor.py) loops this over stations spanwise with real polar data;
-this module itself is unchanged in Stage 4 beyond the r_hub guard below.
+Single blade-element station BEM solver, with Prandtl tip/hub loss and the
+Glauert/Buhl high-thrust (turbulent wake state) correction. `rotor.py` loops
+this over the stations along the span with real polar data.
 
 Implements Ning (2014)'s reduction of the coupled axial/tangential induction
 equations to a single residual equation in the inflow angle phi, solved with
@@ -12,8 +11,8 @@ near high induction and keeps the solve a single scalar equation, which
 matters later when this needs a discrete adjoint (one clean residual, no
 iterative state, no branching on convergence history).
 
-Stage 2 added the Prandtl tip-loss factor F (and optional hub-loss) on the
-momentum-theory side of the induction equations. Stage 3 adds the Buhl
+The Prandtl tip-loss factor F (and optional hub loss) sits on the
+momentum-theory side of the induction equations. On top of that is the Buhl
 (2005) empirical correction that replaces the plain momentum Ct(a) relation
 once a exceeds ~0.4 (turbulent wake state), where plain momentum theory
 predicts an unphysical decrease in thrust -- see corrections.py for the
@@ -29,12 +28,12 @@ zero for *every* phi -- a completely degenerate, non-unique root. Station
 inputs must therefore keep r strictly < R; `StationParams.__post_init__`
 raises if r >= R rather than letting the solver silently fail on a
 degenerate residual. The same thing happens at r = r_hub (F_hub -> 0) --
-found while building Stage 4's rotor geometry, where the innermost station
+found while building the rotor geometry, where the innermost station
 was initially placed exactly at r_hub; `__post_init__` raises for that too.
 
-What Task 5 changed
---------------------
-Phase 0 had the right shape -- one scalar residual in phi, a(phi) and a'(phi)
+How this solver was hardened
+----------------------------
+The original version had the right shape -- one scalar residual in phi, a(phi) and a'(phi)
 in closed form, a bracketed root-find -- but three things stood between it and
 a solver that can be differentiated and swept:
 
@@ -52,8 +51,8 @@ a solver that can be differentiated and swept:
     anything. Now every station carries a checked |R|/R0 -- see
     `solve_station` and RESIDUAL_RTOL.
 
-Cost fell from 9.0 s per operating point (audit baseline) to about 15 ms, of
-which Task 4 contributed the polar layer and this task the bracket: roughly
+Cost fell from 9.0 s per operating point to about 15 ms, partly from a faster
+polar layer and partly from the new bracket: roughly
 48 residual evaluations per station instead of 2000+.
 
     PROVENANCE: the region classification in `momentum_region_bracket` was
@@ -73,12 +72,12 @@ Reference
 Ning, S.A. (2014). "A simple solution method for the blade element momentum
 equations with guaranteed convergence." Wind Energy, 17(9), 1327-1345.
 Hansen, M.O.L. (2008). "Aerodynamics of Wind Turbines" (2nd ed.) -- used here
-as the classical, uncorrected BEM formulation to cross-check Stage 1 against,
+as the classical, uncorrected BEM formulation to cross-check against,
 since with no corrections applied the two formulations must agree
-analytically (Stage 2's F=1 limit reduces to the same case).
+analytically (the F=1 limit reduces to the same case).
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import cmath
@@ -107,7 +106,7 @@ class StationParams:
         alpha = phi - twist.
     airfoil : object
         Callable/duck-typed polar with .cl(alpha) and .cd(alpha) in radians
-        (e.g. bem.airfoil.LinearPolar). Stage 1/2 use a synthetic polar only.
+        (e.g. bem.airfoil.LinearPolar).
     tsr : float
         Local speed ratio at this station, Omega * r / Vinf.
     R : float
@@ -141,7 +140,7 @@ class StationParams:
             # Mirrors the r >= R guard above: F_hub -> 0 exactly at/inside the
             # hub degenerates the residual the same way F_tip -> 0 does at
             # the tip (see corrections.hub_loss_factor) -- found while
-            # building Stage 4's rotor geometry, where the innermost station
+            # building the rotor geometry, where the innermost station
             # was placed exactly at r_hub.
             raise ValueError(
                 f"r={self.r} must be strictly greater than r_hub={self.r_hub}; "
@@ -165,7 +164,7 @@ PHI_MAX = math.pi / 2
 #: Convergence criterion: |R(phi*)| <= RESIDUAL_RTOL * R0, where R0 is the
 #: residual norm at the bracket endpoints.
 #:
-#: Relative to R0, never absolute, per the brief's item 5: "an absolute
+#: Relative to R0, never absolute: "an absolute
 #: tolerance below machine round-off for the residual's natural magnitude will
 #: silently fail to converge while appearing to iterate". R0 varies by three
 #: orders of magnitude across the span here, so any single absolute number
@@ -212,7 +211,7 @@ def _blade_element(phi, station: StationParams):
     cl = station.airfoil.cl(alpha)
     cd = station.airfoil.cd(alpha)
 
-    # Complex-safe (Phase 3, B0): a complex-step perturbation to phi must
+    # Complex-safe: a complex-step perturbation to phi must
     # pass through here with its imaginary part intact. `math.sin` rejects
     # complex input; the helpers dispatch on type and leave the real path
     # bit-identical (`_sin(float)` is `math.sin(float)`).
@@ -232,7 +231,7 @@ def _blade_element_and_induction(phi, station: StationParams):
 
     Kept with this name and return shape because it is the decomposition the
     adjoint wants and because `tests/test_bem_stages.py` exercises the
-    Stage 3 turbulent-wake path through it. `a'` is reported here but is deliberately *not* what `residual`
+    turbulent-wake path through it. `a'` is reported here but is deliberately *not* what `residual`
     divides by -- see that function on why.
     """
 
@@ -257,12 +256,12 @@ def residual(phi, station: StationParams):
     The kinematic relation is tan(phi) = (1-a) / ((1+a') lambda_r). It can be
     cleared of denominators two ways, and they are not equally well behaved:
 
-      multiplied   sin(phi) (1+a') lambda_r - cos(phi) (1-a)     [used up to Task 5]
+      multiplied   sin(phi) (1+a') lambda_r - cos(phi) (1-a)     [used originally]
       divided      sin(phi)/(1-a) - cos(phi)/(lambda_r (1+a'))   [Ning's, used here]
 
     They share zeros -- one is the other times (1-a)(1+a') lambda_r -- but they
     are different functions, and Ning's convergence guarantees are properties
-    of his. The multiplied form was chosen in Phase 0 to avoid a division; the
+    of his. The multiplied form was chosen originally to avoid a division; the
     cost of that trade is measurable. Scanning phi in (0, pi/2) at 4000 points
     for every Phase VI station:
 
@@ -336,7 +335,7 @@ def momentum_region_bracket(station: StationParams, eps=PHI_EPS):
     """
     The analytically guaranteed bracket for the momentum region, or None.
 
-    Replaces the Phase 0 `_select_bracket`, which sampled the residual at 2000
+    Replaces the original `_select_bracket`, which sampled the residual at 2000
     trial phi and took "the sign change nearest atan(1/lambda_r)". That was a
     heuristic standing in for Ning's region analysis, and it had two failure
     modes its own docstring admitted: it could select a pole instead of the
@@ -430,7 +429,7 @@ def solve_station(station: StationParams, *, record_history=False):
     Never raises on a solver failure. A station that cannot be solved comes
     back with ``converged`` False and a ``failure`` string; an optimiser line
     search or a several-hundred-point smoothness sweep gets a reportable point
-    instead of an aborted run, which is what the Phase 0 `ValueError` cost.
+    instead of an aborted run, which is what the original `ValueError` cost.
 
     Parameters
     ----------

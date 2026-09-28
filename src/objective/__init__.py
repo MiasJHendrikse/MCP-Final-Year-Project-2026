@@ -17,7 +17,7 @@ and this package owns the last three links.
                (2026-09-20).
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 from objective.objective import (

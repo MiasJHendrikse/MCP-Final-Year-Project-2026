@@ -1,5 +1,5 @@
 """
-Task 0 golden-file regression: the net under the whole remediation work order.
+Golden-file regression: the safety net under every change to the solver.
 
 This test recomputes the snapshot defined in `golden_reference.build_golden()`
 and asserts it still matches the committed files in `tests/golden/`. It runs
@@ -35,8 +35,8 @@ floating-point reassociation upstream -- reordering a sum, threading a
 constant through a config object instead of a module global, moving an
 identical value across a function boundary -- can still move the recorded
 numbers by order 1e-12 without any behaviour having changed. A tolerance at
-or below 1e-12 would therefore produce false failures on Task 1, which is a
-pure rewiring task that should be numerically inert.
+or below 1e-12 would therefore produce false failures on pure rewiring
+changes that should be numerically inert.
 
 *The ceiling is set by what has to be caught.* The smallest change that
 matters physically is far larger. A 0.01 % shift in Cp is 1e-4 relative --
@@ -78,7 +78,7 @@ unnoticed; they are not asserted to be validation results. See
 tests/golden/README.md.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import csv
@@ -103,7 +103,7 @@ def _flatten(value, prefix=""):
     Flatten a nested dict/list of numbers into {dotted.path: number}.
 
     Only leaves reachable from the *golden* structure are produced, so a task
-    that adds a new field to a station dict (Task 5 adds `converged`,
+    that adds a new field to a station dict (such as `converged`,
     `residual`, `iterations`) does not fail this test for that reason alone.
     Strings and booleans are skipped -- nothing in the snapshot uses them as a
     numeric quantity.
@@ -188,9 +188,8 @@ def snapshot():
     """
     Recompute the whole snapshot once for the module.
 
-    Costs roughly three minutes on unmodified code -- 17 Phase VI operating
-    points at the ~9 s each the audit measured. Task 5's cost target (under
-    0.1 s per operating point) brings this down to seconds.
+    Fast now that one operating point costs about 15 ms (it used to take
+    about three minutes at ~9 s per point).
     """
 
     return gr.build_golden()
@@ -240,8 +239,8 @@ def test_snapshot_is_bitwise_reproducible():
     """
     The rotor-level answer is bitwise identical when recomputed in-process.
 
-    The audit measured this on the pre-remediation code and it must stay true:
-    Phase 1.5's determinism requirement (`AEP(d)` bitwise reproducible) rests
+    This held before the solver was restructured and it must stay true: the
+    AEP determinism requirement (`AEP(d)` bitwise reproducible) rests
     on the solver underneath it being bitwise reproducible first. Kept cheap
     -- two operating points, not the whole snapshot.
     """

@@ -1,6 +1,6 @@
 # Runtime dependencies for the in-repo code (src/bem, src/xfoil,
 # src/validation, src/demos). Lower bounds are the versions this project has
-# actually been developed and validated against -- see docs/journal/.
+# actually been developed and validated against.
 #
 #   python -m pip install -r requirements.txt
 #

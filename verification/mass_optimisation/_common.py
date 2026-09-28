@@ -1,9 +1,9 @@
 """
-Phase 5 (2026-09-20) -- shared pieces of the mass-optimisation artefact.
+Shared pieces of the mass-optimisation scripts.
 
 The four runners in this directory (`run_mass_slsqp.py`, `run_multistart.py`,
 `run_sweep.py`, `run_mass_checks.py`, `run_cross_evaluation.py`) solve or
-evaluate ONE problem, stated in `docs/PLAN-mass-objective-2026-09-20.md`:
+evaluate ONE problem, stated in `docs/DESIGN-BASIS.md` section 6:
 
     minimise    f(u) = m_shell(d(u)) / m_shell(x0)          geometric, no BEM
     subject to  g_AEP = AEP(u)/AEP(x0) - (1 - delta)  >= 0   the energy floor
@@ -21,7 +21,7 @@ lifted from `verification/load_constraint/run_constrained_slsqp.py` rather
 than copied a fourth time, and extended to the mass problem's rows.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import datetime
@@ -72,7 +72,7 @@ DELTAS = (0.0, 0.0025, 0.005, 0.01, 0.02)
 SLSQP_FTOL = 1e-10
 SLSQP_MAXITER = 400
 
-#: The sanity band stated in the plan BEFORE the run (plan, Verification 3):
+#: The sanity band stated BEFORE the run:
 #: at delta = 0 with the full row set, the shell saving lies between 2 % and
 #: 10 %, the solid proxy between 5 % and 20 %; a saving beyond the scratch's
 #: deflection-free 7.5 % (shell) is a suspected defect.
@@ -486,7 +486,7 @@ def kkt_report(problem, u, delta, include, names, tol=ACTIVE_TOL):
 # ---------------------------------------------------------------------------
 
 def sanity(delta, include, record, kkt, result, failures_at_optimum):
-    """The plan's stated band, applied to a `delta = 0` full-set optimum."""
+    """The pre-stated band, applied to a `delta = 0` full-set optimum."""
 
     notes = []
     full = tuple(include) == tuple(MASS_PROBLEM_ROWS)
@@ -507,7 +507,7 @@ def sanity(delta, include, record, kkt, result, failures_at_optimum):
         if not record["slacks"]["aep_floor"]["active"]:
             notes.append("AEP floor not active at the optimum")
         if record["slacks"]["moment"]["active"]:
-            notes.append("moment cap active at the optimum (the plan expected it inactive)")
+            notes.append("moment cap active at the optimum (expected inactive)")
     if kkt["aep_floor_multiplier"] is not None and kkt["aep_floor_multiplier"] < -1e-12:
         notes.append("AEP-floor multiplier negative")
     if not kkt["all_multipliers_nonnegative"]:
@@ -677,7 +677,7 @@ def plot_blade(problem, blades, out_dir, stem="blade_delta0"):
 
 
 # ---------------------------------------------------------------------------
-# rendered blades (2026-09-20, MJ): the surface the BEM sees, plus a
+# rendered blades: the surface the BEM sees, plus a
 # cylindrical root and a rounded tip that are DRAWN ONLY
 # ---------------------------------------------------------------------------
 

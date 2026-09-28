@@ -28,7 +28,7 @@ design-variable bounds -- come back as `Unresolved` objects that raise on any
 use rather than as placeholder numbers. See `unresolved.py`.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 from config.loader import (

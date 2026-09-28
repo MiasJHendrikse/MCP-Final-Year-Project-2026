@@ -1,15 +1,15 @@
 """
-Task 3 acceptance: the C1 polar interpolant's analytic derivatives agree with
+The C1 polar interpolant's analytic derivatives agree with
 complex-step differentiation, and the audit's staircase measurement is gone.
 
 Complex-step reference: for a holomorphic f, f(x + ih).imag / h equals f'(x)
 to machine precision as h -> 0, with none of finite differencing's
 subtraction cancellation error. It is not usable as gradient code in the
-solver (out of scope, ground rule 4) -- here it is purely a verification
+solver -- here it is purely a verification
 oracle for the analytic partials `PolarInterpolant` exposes.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import math
@@ -46,7 +46,7 @@ _TEST_POINTS = [
 @pytest.fixture(scope="module")
 def interpolant():
     grid = PolarGrid(S809_DIR)
-    assert not grid.has_gaps, "S809 cache has gaps; Task 2 precondition violated"
+    assert not grid.has_gaps, "S809 cache has gaps; the gap-free precondition is violated"
     return PolarInterpolant(grid)
 
 
@@ -139,7 +139,7 @@ def test_grid_rejects_nan():
 # Continuity ACROSS the alpha knots, at Reynolds numbers between cache rows
 # ---------------------------------------------------------------------------
 #
-# Added 2026-09-10, after plan step 1.7 found a real discontinuity that every
+# Added after building the Schmitz baseline found a real discontinuity that every
 # test above passed straight through.
 #
 # The defect: the surface used to be built by fitting a cubic spline in alpha

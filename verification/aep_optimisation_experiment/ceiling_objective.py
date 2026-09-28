@@ -5,7 +5,7 @@ rotor-speed ceiling, and its discrete adjoint.
 The project's objective (`src/objective`) is already `J = -AEP`, but with
 `lambda = 6.5` at every wind-speed bin, which makes AEP a fixed convex
 combination of `Cp(6.5, Re_b; d)` and the optimum a Cp-at-one-TSR optimum
-(`docs/AEP_GAIN_AUDIT.md` section 1.1). This module puts the one thing
+(`docs/DESIGN-BASIS.md` section 2). This module puts the one thing
 that gives AEP a TSR dimension -- a maximum rotor speed -- into the
 operating law,
 
@@ -27,8 +27,8 @@ Jacobian stays diagonal, `dR/dd` keeps its form, and
 
     dJ/dd = sum_b omega_b dP_b/dd,    omega_b = -(T/1e6) m_b  (0 if capped)
 
-is the weighted sum of per-bin adjoint sensitivities the experiment brief
-asks for -- the parent's `gradient()` already assembles it that way. The
+is the weighted sum of per-bin adjoint sensitivities the experiment
+needs -- the parent's `gradient()` already assembles it that way. The
 forward solve is the one method that has to be re-stated, because the
 parent passes the scalar `self.tsr` to `aerodynamic_power`.
 
@@ -43,7 +43,7 @@ above the residual. The two agreeing at every optimum (to ~1e-12) is the
 check that the adjoint's own picture of J is the thing being optimised.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import math

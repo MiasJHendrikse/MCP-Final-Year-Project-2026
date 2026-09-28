@@ -1,5 +1,5 @@
 """
-The discrete adjoint of the Ning-form BEM objective (Phase 3).
+The discrete adjoint of the Ning-form BEM objective.
 
     state  phi_{b,i}  (18 operating points x 25 stations)
     design d in R^10  (chord and twist control points)
@@ -22,7 +22,7 @@ Bounds are provisional (`chord_max_m = 0.45 m` is a placeholder); nothing
 here reads a bound from `config/`.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 from adjoint.deflection import DeflectionGradientResult, DeflectionSystem

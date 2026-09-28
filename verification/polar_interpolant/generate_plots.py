@@ -1,9 +1,9 @@
 """
-Task 3 report figures: the C1 interpolant's value and derivative curves, and
+Report figures: the C1 interpolant's value and derivative curves, and
 the staircase figure that compares its analytic derivative with the bilinear
 lookup it replaced.
 
-Per the work order: "the value plot looks fine with almost any scheme -- the
+The point of these figures: "the value plot looks fine with almost any scheme -- the
 derivative plot is where a bad interpolant reveals itself."
 
 Everything here reads the committed cache CSVs under `data/polars/` -- no
@@ -27,7 +27,7 @@ Writes into this directory (through `plotting.figstyle.save`):
                                 different cache or Reynolds number)
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import argparse

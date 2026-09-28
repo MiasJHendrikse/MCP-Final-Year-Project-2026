@@ -1,5 +1,5 @@
 """
-Phase 4, Step 2a -- the root-moment integrand `m` and the forward load path.
+The root-moment integrand `m` and the forward load path.
 
 What is compared to what
 -------------------------
@@ -23,7 +23,7 @@ that to ~6e-13 mixed -- the same w^2 structure that already places the
 objective `q`/`J` partials at TOL_J. Failure here is a bug: fix it, never
 loosen a tolerance.
 
-The RootMomentSystem and the KS functional arrived in Step 2b. Step 2c adds
+The RootMomentSystem and the KS functional are tested here too, along with
 `ScaledProblem.moment_constraint` (the KS derivative with the adjoint
 Jacobian) and the Tier 3 / sanity tests for it, at the bottom of this file.
 The constraint is regrouped as `(KS0 - KS) - eps KS0`, algebraically the same
@@ -31,7 +31,7 @@ as `(1 - eps) KS0 - KS`, so the `eps = 0` slack at `u0` and the `eps`-linear
 slack are exact to the bit.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import json
@@ -68,7 +68,7 @@ TOL_J = 1e-12
 #: The committed global step of the A3 study (verification/fd_step_size).
 H_STAR_GLOBAL = 3.162277660168379e-06
 
-# The committed load operating set L (HANDOFF-2026-09-19 §3.1).
+# The committed load operating set L.
 EXPECTED_LOAD_POINTS = [
     (3.5, 6.5),
     (4.5, 6.5),
@@ -119,7 +119,7 @@ def x0():
 @pytest.fixture(scope="module")
 def x_pert(x0):
     """A fixed, recorded perturbation: +-2 % chord, +-0.5 deg twist on alternate
-    control points, inside the box (HANDOFF-2026-09-19 §3.4)."""
+    control points, inside the box."""
 
     d = x0.copy()
     n_chord = 5
@@ -418,8 +418,7 @@ def test_moment_transpose_is_the_parent_operator(load_system):
 
 
 # ---------------------------------------------------------------------------
-# KS aggregate (the functional is Step 2b; the scalar is here because the
-# forward path defines it)
+# KS aggregate (the scalar is here because the forward path defines it)
 # ---------------------------------------------------------------------------
 
 def test_ks_bounds_and_weights():
@@ -455,7 +454,7 @@ def test_ks_decreases_toward_max_as_rho_increases():
 
 
 # ---------------------------------------------------------------------------
-# Step 2c: the ScaledProblem moment constraint -- sanity
+# The ScaledProblem moment constraint -- sanity
 # ---------------------------------------------------------------------------
 
 def test_moment_constraint_is_zero_slack_at_the_scaled_reference(problem, u0):
@@ -521,7 +520,7 @@ def test_moment_report_quotes_the_rated_weight_and_conservatism(problem, u0):
 
 
 def test_cut_out_post_check_reports_alpha_above_the_xfoil_band(problem, u0):
-    """The cut-out point is reported, labelled B3-dependent, never constrained."""
+    """The cut-out point is reported and labelled, never constrained."""
 
     cut = problem.moment_report(u0)["cut_out"]
     assert cut["B3_dependent"] is True
@@ -532,7 +531,7 @@ def test_cut_out_post_check_reports_alpha_above_the_xfoil_band(problem, u0):
 
 
 # ---------------------------------------------------------------------------
-# Step 2c: Tier 3 -- the constraint Jacobian against the FD noise floor
+# Tier 3 -- the constraint Jacobian against the FD noise floor
 # ---------------------------------------------------------------------------
 
 def test_moment_constraint_jacobian_matches_fd_at_x0(problem, u0):

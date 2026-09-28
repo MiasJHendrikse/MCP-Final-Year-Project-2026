@@ -3,7 +3,7 @@ The only reader of the repo-root `config/` directory.
 
 Everything else in `src/` -- solver, validation scripts, demos -- goes through
 the four `load_*` functions here and never opens a YAML file itself. That is
-what makes plan item 1.1's "nothing downstream hard-codes a site value"
+what makes "nothing downstream hard-codes a site value"
 checkable rather than aspirational: there is exactly one place a site value can
 enter the code, and `grep` over `src/` for the old literals is the test.
 
@@ -19,7 +19,7 @@ Two things this module refuses to do:
     every AEP figure.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import math
@@ -45,8 +45,7 @@ REPO_ROOT = os.path.abspath(os.path.join(_HERE, "..", ".."))
 
 #: Versioned input configuration. Overridable by `BLADE_CONFIG_DIR` so a
 #: sensitivity study can point at an alternative set without editing code --
-#: the mechanism plan section 1.3's "central case plus a sensitivity band"
-#: will need.
+#: the mechanism a "central case plus a sensitivity band" study needs.
 CONFIG_DIR = os.environ.get("BLADE_CONFIG_DIR",
                             os.path.join(REPO_ROOT, "config"))
 
@@ -154,7 +153,7 @@ def _check_wind_resource(site_yaml, filename):
         V_bar = c * Gamma(1 + 1/k)
 
     The three wind-resource fields are not independent, and the mean is the
-    derived one. It is recorded anyway, per the plan's working convention that
+    derived one. It is recorded anyway, following the convention that
     a number feeding a later step is written down -- but recording a derived
     number creates the opportunity for it to drift from its definition, so the
     definition is enforced here.
@@ -203,7 +202,7 @@ def _check_wind_resource(site_yaml, filename):
 
 @lru_cache(maxsize=None)
 def load_site(filename="site.yaml"):
-    """The site basis (plan sections 1.1-1.3). Cached; the file is read once."""
+    """The site basis. Cached; the file is read once."""
 
     data = _read_yaml(filename)
     _check_atmosphere(data, filename)
@@ -241,7 +240,7 @@ def load_site(filename="site.yaml"):
 
 @lru_cache(maxsize=None)
 def load_design_rotor(filename="rotor_design.yaml"):
-    """The Khomas Hochland design rotor (plan sections 1.4, 2.2, 4)."""
+    """The Khomas Hochland design rotor."""
 
     data = _read_yaml(filename)
 
@@ -316,7 +315,7 @@ def _check_mass_model(value, filename):
 
 @lru_cache(maxsize=None)
 def load_phase_vi_rotor(filename="rotor_phase_vi.yaml"):
-    """The NREL Phase VI validation rotor's operating condition (plan 2.1)."""
+    """The NREL Phase VI validation rotor's operating condition."""
 
     data = _read_yaml(filename)
 
@@ -337,7 +336,7 @@ def load_phase_vi_rotor(filename="rotor_phase_vi.yaml"):
 @lru_cache(maxsize=None)
 def load_polar_cache(name="s809"):
     """
-    One polar cache's as-built metadata (plan section 3.3).
+    One polar cache's as-built metadata.
 
     Per-cache by design: S809 is at Ncrit=5 for a documented physical reason
     and SG6043 will be at whatever its own sensitivity study selects, so there

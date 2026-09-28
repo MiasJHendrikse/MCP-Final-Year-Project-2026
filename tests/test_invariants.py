@@ -1,13 +1,12 @@
 """
 Structural invariants of the source tree.
 
-Work order Task 7 lists these; the first one is pulled forward to Task 4
-because Task 4 is what makes it true. `bem/` stopped importing anything under
+Structural rules about the code, checked from its source. `bem/` stopped importing anything under
 `xfoil/` when `S809Polar` was deleted, and an invariant that is merely true
 today is worth two lines to make permanent.
 
 Author: MJ Hendrikse
-Project: DSP810S -- Inverse Design of Small Wind Turbine Blades
+Project: MCP820S -- Gradient-Based Aerodynamic Optimisation of a Small Wind Turbine Blade
 """
 
 import ast
@@ -19,8 +18,8 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.abspath(os.path.join(_HERE, "..", "src"))
 
 #: Packages that must never reach the XFOIL side. `objective/` and `design/`
-#: do not exist yet (Phase 1.5/1.6); they are named now so the invariant
-#: applies from their first commit rather than being remembered later.
+#: are named explicitly so the invariant applies to them without having to be
+#: remembered.
 SOLVE_PATH_PACKAGES = ["bem", "polars", "objective", "design", "gradients", "adjoint"]
 
 
@@ -82,7 +81,7 @@ def test_solve_path_never_imports_xfoil(package):
 
 def test_the_retired_polar_lookup_globals_are_gone():
     """
-    Task 4 retired `ACTIVE_AIRFOIL` / `set_active_airfoil()` / `get_polar()`
+    `ACTIVE_AIRFOIL` / `set_active_airfoil()` / `get_polar()`
     and the `_lookup_cache` dict.
 
     A single global "current airfoil" made the answer depend on call order
